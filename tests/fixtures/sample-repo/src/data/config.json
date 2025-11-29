@@ -1,0 +1,19 @@
+{
+  "app": {
+    "name": "Sample App",
+    "version": "1.0.0"
+  },
+  "translations": {
+    "defaultLanguage": "en",
+    "availableLanguages": ["en", "de", "fr"],
+    "fallbackKey": "generic.errors.notFound"
+  },
+  "features": {
+    "notifications": true,
+    "settings": true
+  },
+  "api": {
+    "baseUrl": "https://api.example.com",
+    "timeout": 5000
+  }
+}
