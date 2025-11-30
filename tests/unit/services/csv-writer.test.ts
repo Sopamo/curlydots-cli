@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { escapeCsvField, formatCsvRow, writeCsv } from '../../../src/services/csv-writer';
+import { toCsvRow, writeCsv } from '../../../src/services/csv-writer';
 import type { MissingTranslation } from '../../../src/types';
 
 const TEST_OUTPUT_PATH = join(import.meta.dir, '../../fixtures/test-output.csv');
@@ -14,33 +14,8 @@ describe('csv-writer', () => {
     }
   });
 
-  describe('escapeCsvField', () => {
-    it('should return simple string unchanged', () => {
-      expect(escapeCsvField('hello')).toBe('hello');
-    });
-
-    it('should wrap string with comma in quotes', () => {
-      expect(escapeCsvField('hello, world')).toBe('"hello, world"');
-    });
-
-    it('should wrap string with quotes and escape inner quotes', () => {
-      expect(escapeCsvField('say "hello"')).toBe('"say ""hello"""');
-    });
-
-    it('should wrap string with newline in quotes', () => {
-      expect(escapeCsvField('line1\nline2')).toBe('"line1\nline2"');
-    });
-
-    it('should handle complex content', () => {
-      const input = 'function test() {\n  return "value";\n}';
-      const result = escapeCsvField(input);
-      expect(result.startsWith('"')).toBe(true);
-      expect(result.endsWith('"')).toBe(true);
-    });
-  });
-
-  describe('formatCsvRow', () => {
-    it('should format a missing translation to CSV row', () => {
+  describe('toCsvRow', () => {
+    it('should convert a missing translation to CSV row object', () => {
       const missing: MissingTranslation = {
         key: 'test.key',
         sourceLanguage: 'en',
@@ -50,15 +25,17 @@ describe('csv-writer', () => {
         translationContexts: [],
       };
 
-      const row = formatCsvRow(missing);
+      const row = toCsvRow(missing);
 
-      expect(row).toContain('test.key');
-      expect(row).toContain('Test Value');
-      expect(row).toContain('en');
-      expect(row).toContain('de');
+      expect(row.translation_key).toBe('test.key');
+      expect(row.source_value).toBe('Test Value');
+      expect(row.source_language).toBe('en');
+      expect(row.target_language).toBe('de');
+      expect(row.code_context).toBe('[]');
+      expect(row.translation_context).toBe('[]');
     });
 
-    it('should include contexts as JSON', () => {
+    it('should include contexts as JSON strings', () => {
       const missing: MissingTranslation = {
         key: 'test.key',
         sourceLanguage: 'en',
@@ -83,12 +60,12 @@ describe('csv-writer', () => {
         ],
       };
 
-      const row = formatCsvRow(missing);
+      const row = toCsvRow(missing);
 
-      expect(row).toContain('filePath');
-      expect(row).toContain('lineNumber');
-      expect(row).toContain('noun');
-      expect(row).toContain('Anderer Wert');
+      expect(row.code_context).toContain('filePath');
+      expect(row.code_context).toContain('lineNumber');
+      expect(row.translation_context).toContain('noun');
+      expect(row.translation_context).toContain('Anderer Wert');
     });
   });
 

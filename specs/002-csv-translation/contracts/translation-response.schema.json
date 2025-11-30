@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "translation-response",
+  "title": "TranslationResponse",
+  "description": "Response schema for OpenAI translation request - minimal single-field schema",
+  "type": "object",
+  "properties": {
+    "translated_value": {
+      "type": "string",
+      "description": "The translated text in the target language"
+    }
+  },
+  "required": ["translated_value"],
+  "additionalProperties": false
+}

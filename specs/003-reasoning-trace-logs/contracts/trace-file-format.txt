@@ -1,0 +1,24 @@
+=== Translation Reasoning Trace ===
+Key: {{translationKey}}
+Source: "{{sourceValue}}"
+Source Language: {{sourceLanguage}}
+Target Language: {{targetLanguage}}
+Timestamp: {{timestamp}}
+Translated: "{{translatedValue}}"
+=====================================
+
+=== Cost ===
+Input Tokens: {{inputTokens}}
+Output Tokens: {{outputTokens}}
+Reasoning Tokens: {{reasoningTokens}}
+Total Tokens: {{totalTokens}}
+Estimated Cost: ${{estimatedCostUsd}}
+
+=== Code Context ===
+{{codeContext}}
+
+=== Translation Context ===
+{{translationContext}}
+
+=== Reasoning ===
+{{reasoningContent}}

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Translation Request XML Template
+  
+  This template defines the structure for translation prompts sent to OpenAI.
+  Variables are marked with {{variable_name}} syntax.
+-->
+<translation_request>
+  <source_language>{{source_language}}</source_language>
+  <target_language>{{target_language}}</target_language>
+  
+  <text_to_translate>{{source_value}}</text_to_translate>
+  
+  <code_context>
+    <!--
+      Contains 0-10 code usage examples showing where this translation key is used.
+      Each usage provides context about how the text appears in the application.
+    -->
+    {{#each code_usages}}
+    <usage file="{{file_path}}" line="{{line_number}}">
+      <snippet><![CDATA[{{snippet}}]]></snippet>
+    </usage>
+    {{/each}}
+    {{#if no_code_usages}}
+    <none>No code usages found for this translation key</none>
+    {{/if}}
+  </code_context>
+  
+  <translation_context>
+    <!--
+      Contains 0-10 examples of how similar terms (nouns) have been translated
+      in existing translations. Use these for terminology consistency.
+    -->
+    {{#each translation_examples}}
+    <example noun="{{noun}}">
+      <source_key>{{source_key}}</source_key>
+      <source_value>{{source_value}}</source_value>
+      <target_value>{{target_value}}</target_value>
+    </example>
+    {{/each}}
+    {{#if no_translation_examples}}
+    <none>No prior translation examples found for terms in this text</none>
+    {{/if}}
+  </translation_context>
+  
+  <instructions>
+    You are a professional translator. Translate the text from {{source_language}} to {{target_language}}.
+    
+    Guidelines:
+    1. Use the code_context to understand HOW the text is used (button label, heading, error message, etc.)
+    2. Use the translation_context to maintain TERMINOLOGY CONSISTENCY with existing translations
+    3. Preserve any placeholders like {name}, {{count}}, %s, etc. exactly as they appear
+    4. Match the formality and style of the existing translations if examples are provided
+    5. For UI elements (buttons, labels), prefer concise translations
+    
+    Return ONLY the translated text in the translated_value field.
+    Set confidence to:
+    - "high" if you have clear context and are certain of the translation
+    - "medium" if there is some ambiguity but translation is reasonable
+    - "low" if context is limited and translation may need review
+  </instructions>
+</translation_request>

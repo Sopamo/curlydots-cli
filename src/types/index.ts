@@ -196,6 +196,245 @@ export interface CsvRow {
 }
 
 // ============================================================================
+// Translate Command Types (Feature 002)
+// ============================================================================
+
+/**
+ * Row status for translation processing
+ */
+export type TranslationRowStatus = 'pending' | 'processing' | 'complete' | 'error' | 'skipped';
+
+/**
+ * Represents a single row from the input/output CSV file for translation
+ */
+export interface TranslationRow {
+  /** Original row index (0-based, for ordering) */
+  index: number;
+
+  /** Translation key path (e.g., "users.show_all") */
+  translationKey: string;
+
+  /** Original text in source language */
+  sourceValue: string;
+
+  /** Source language code (e.g., "en") */
+  sourceLanguage: string;
+
+  /** Target language code (e.g., "de") */
+  targetLanguage: string;
+
+  /** JSON string of UsageContext[] - code snippets where key is used */
+  codeContext: string;
+
+  /** JSON string of TranslationContextExample[] - prior translation examples */
+  translationContext: string;
+
+  /** AI-generated translation (empty until translated) */
+  translatedValue: string;
+
+  /** Processing status */
+  status: TranslationRowStatus;
+
+  /** Error message if status is 'error' */
+  errorMessage?: string;
+}
+
+/**
+ * Parsed code usage for XML prompt formatting
+ */
+export interface CodeUsage {
+  filePath: string;
+  lineNumber: number;
+  snippet: string;
+}
+
+/**
+ * Parsed translation example for XML prompt formatting
+ */
+export interface TranslationExample {
+  noun: string;
+  sourceKey: string;
+  sourceValue: string;
+  targetValue: string;
+}
+
+/**
+ * The structured request sent to OpenAI (maps to XML prompt)
+ */
+export interface TranslationRequest {
+  /** Text to translate */
+  sourceValue: string;
+
+  /** Source language code */
+  sourceLanguage: string;
+
+  /** Target language code */
+  targetLanguage: string;
+
+  /** Parsed code context for XML formatting */
+  codeUsages: CodeUsage[];
+
+  /** Parsed translation examples for XML formatting */
+  translationExamples: TranslationExample[];
+}
+
+/**
+ * The structured response from OpenAI (JSON schema enforced)
+ */
+export interface TranslationResponse {
+  /** The translated text */
+  translated_value: string;
+}
+
+/**
+ * Translate command status
+ */
+export type TranslateStatus =
+  | 'idle'
+  | 'confirming'
+  | 'translating'
+  | 'complete'
+  | 'error'
+  | 'aborted';
+
+/**
+ * Zustand store state for the translate command
+ */
+export interface TranslateState {
+  /** All rows being processed */
+  rows: TranslationRow[];
+
+  /** Current processing status */
+  status: TranslateStatus;
+
+  /** Total rows to translate (excludes skipped) */
+  totalToTranslate: number;
+
+  /** Rows completed (success or error) */
+  completedCount: number;
+
+  /** Rows that failed */
+  errorCount: number;
+
+  /** Rows skipped (already translated) */
+  skippedCount: number;
+
+  /** Consecutive error counter (for abort threshold) */
+  consecutiveErrors: number;
+
+  /** Input file path */
+  inputPath: string;
+
+  /** Output file path */
+  outputPath: string;
+
+  /** Concurrency limit */
+  concurrency: number;
+
+  /** Force re-translate flag */
+  force: boolean;
+}
+
+/**
+ * CLI configuration for translate command
+ */
+export interface TranslateConfig {
+  /** Input CSV file path */
+  inputPath: string;
+
+  /** Output CSV file path (default: input with -translated suffix) */
+  outputPath: string;
+
+  /** Parallel request limit (default: 5) */
+  concurrency: number;
+
+  /** Re-translate all rows regardless of existing value */
+  force: boolean;
+
+  /** Skip confirmation prompt */
+  yes: boolean;
+
+  /** Enable reasoning trace logging */
+  traces: boolean;
+}
+
+// ============================================================================
+// Trace Logging Types (Feature 003)
+// ============================================================================
+
+/**
+ * Configuration for trace logging
+ */
+export interface TraceConfig {
+  /** Whether trace logging is enabled */
+  enabled: boolean;
+
+  /** Base directory for trace output (same as CSV output dir) */
+  outputDir: string;
+
+  /** Timestamp for this run (used for subdirectory) */
+  runTimestamp: string;
+
+  /** Full path to trace directory: outputDir/reasoning-traces/runTimestamp/ */
+  traceDir: string;
+}
+
+/**
+ * Token usage and cost information from the OpenAI API response
+ */
+export interface TokenUsage {
+  /** Number of input tokens (prompt) */
+  inputTokens: number;
+
+  /** Number of output tokens (completion) */
+  outputTokens: number;
+
+  /** Number of reasoning tokens (subset of output tokens) */
+  reasoningTokens: number;
+
+  /** Total tokens (input + output) */
+  totalTokens: number;
+
+  /** Estimated cost in USD */
+  estimatedCostUsd: number;
+}
+
+/**
+ * The content to be written to a trace file
+ */
+export interface ReasoningTrace {
+  /** Translation key (e.g., "users.show_all") */
+  translationKey: string;
+
+  /** Original text being translated */
+  sourceValue: string;
+
+  /** Source language code */
+  sourceLanguage: string;
+
+  /** Target language code */
+  targetLanguage: string;
+
+  /** ISO 8601 timestamp when translation completed */
+  timestamp: string;
+
+  /** The LLM's reasoning content (may be empty) */
+  reasoningContent: string;
+
+  /** The final translated value */
+  translatedValue: string;
+
+  /** Code context - where the key is used in source code */
+  codeContext: string;
+
+  /** Translation context - how similar keys were translated */
+  translationContext: string;
+
+  /** Token usage and cost information */
+  tokenUsage: TokenUsage;
+}
+
+// ============================================================================
 // Parser Types
 // ============================================================================
 
