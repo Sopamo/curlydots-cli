@@ -34,3 +34,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 missing-translations.csv
+
+# Test temp directories
+tests/fixtures/temp-import
+tests/fixtures/temp-import-service
+tests/fixtures/temp-import-integration
+tests/fixtures/temp-import-fixtures-output

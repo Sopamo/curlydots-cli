@@ -79,14 +79,14 @@ export async function findMissingTranslations(): Promise<AnalysisResult> {
   analysis.startTask('find_source_keys');
   analysis.setStatus('parsing_source');
   const sourcePath = join(config.repoPath, config.translationsDir, config.sourceLanguage);
-  const sourceKeys = await parser.parse(sourcePath);
+  const sourceKeys = await parser.export(sourcePath);
   analysis.completeTask('find_source_keys');
 
   // Task 2: Parse target language
   analysis.startTask('find_target_keys');
   analysis.setStatus('parsing_target');
   const targetPath = join(config.repoPath, config.translationsDir, config.targetLanguage);
-  const targetKeys = await parser.parse(targetPath);
+  const targetKeys = await parser.export(targetPath);
   analysis.completeTask('find_target_keys');
 
   // Task 3: Compare and find missing

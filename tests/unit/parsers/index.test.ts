@@ -6,12 +6,14 @@ describe('parser registry', () => {
   // Mock parser for testing
   const mockParser: Parser = {
     name: 'mock-parser',
-    parse: async () => new Map([['test.key', 'Test Value']]),
+    export: async () => new Map([['test.key', 'Test Value']]),
+    import: async () => ({ filesCreated: 0, filesModified: 0, keysWritten: 0 }),
   };
 
   const anotherParser: Parser = {
     name: 'another-parser',
-    parse: async () => new Map(),
+    export: async () => new Map(),
+    import: async () => ({ filesCreated: 0, filesModified: 0, keysWritten: 0 }),
   };
 
   beforeEach(() => {
@@ -35,7 +37,8 @@ describe('parser registry', () => {
     it('should overwrite parser with same name', () => {
       const updatedParser: Parser = {
         name: 'mock-parser',
-        parse: async () => new Map([['updated', 'value']]),
+        export: async () => new Map([['updated', 'value']]),
+        import: async () => ({ filesCreated: 0, filesModified: 0, keysWritten: 0 }),
       };
 
       registerParser(mockParser);

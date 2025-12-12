@@ -29,6 +29,15 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", "coverage", ".specify", ".windsurf", "*.md"]
+    "ignore": [
+      "node_modules",
+      "dist",
+      "coverage",
+      ".specify",
+      ".windsurf",
+      "*.md",
+      "tests/fixtures/import-fixtures/expected",
+      "tests/fixtures/temp-*"
+    ]
   }
 }

@@ -1,0 +1,11 @@
+translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
+auth.login,Login,en,es,[],[],"Iniciar sesión"
+auth.logout,Logout,en,es,[],[],"Cerrar sesión"
+auth.register,Register,en,es,[],[],"Registrarse"
+errors.notFound,Page not found,en,es,[],[],"Página no encontrada"
+errors.serverError,Server error,en,es,[],[],"Error del servidor"
+errors.unauthorized,Unauthorized,en,es,[],[],""
+common.save,Save,en,es,[],[],"Guardar"
+common.cancel,Cancel,en,es,[],[],"Cancelar"
+common.delete,Delete,en,es,[],[],""
+common.edit,Edit,en,es,[],[],"Editar"

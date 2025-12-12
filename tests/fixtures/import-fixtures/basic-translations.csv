@@ -1,0 +1,4 @@
+translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
+generic.welcome,Welcome to our app,en,de,[],[],"Willkommen in unserer App"
+generic.goodbye,Goodbye,en,de,[],[],"Auf Wiedersehen"
+generic.hello,Hello,en,de,[],[],"Hallo"

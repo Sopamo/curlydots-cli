@@ -7,9 +7,11 @@
  * Commands:
  *   extract   - Find missing translations with code context (original functionality)
  *   translate - Translate CSV file using AI
+ *   import    - Import translated CSV back into translation files
  */
 
 import { runExtract } from './commands/extract';
+import { importCommand } from './commands/import';
 import { translateCommand } from './commands/translate';
 
 /**
@@ -25,6 +27,7 @@ USAGE:
 COMMANDS:
   extract    Find missing translations with code context and export to CSV
   translate  Translate a CSV file using AI (OpenAI GPT-5.1)
+  import     Import translated CSV back into translation files
 
 OPTIONS:
   -h, --help     Show this help message
@@ -33,6 +36,7 @@ OPTIONS:
 EXAMPLES:
   aitranslate extract ./my-app -s en -t de -d src/translations
   aitranslate translate missing-translations.csv --output translated.csv
+  aitranslate import translated.csv -d src/translations
 
 Run 'aitranslate <command> --help' for more information on a specific command.
 `);
@@ -77,6 +81,10 @@ async function main(): Promise<void> {
 
     case 'translate':
       await translateCommand(args.slice(1));
+      break;
+
+    case 'import':
+      await importCommand(args.slice(1));
       break;
 
     default:

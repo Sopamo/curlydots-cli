@@ -435,20 +435,135 @@ export interface ReasoningTrace {
 }
 
 // ============================================================================
+// Import Command Types (Feature 004)
+// ============================================================================
+
+/**
+ * Error encountered during import (non-fatal)
+ */
+export interface ImportError {
+  /** Translation key that failed */
+  translationKey: string;
+
+  /** Human-readable error message */
+  reason: string;
+}
+
+/**
+ * Result summary from import operation
+ */
+export interface ImportResult {
+  /** Target language code extracted from CSV */
+  targetLanguage: string;
+
+  /** Number of new files created */
+  filesCreated: number;
+
+  /** Number of existing files modified */
+  filesModified: number;
+
+  /** Number of keys successfully imported */
+  keysImported: number;
+
+  /** Number of rows skipped (empty translated_value) */
+  rowsSkipped: number;
+
+  /** Non-fatal errors encountered */
+  errors: ImportError[];
+}
+
+/**
+ * Configuration for import command
+ */
+export interface ImportConfig {
+  /** Path to translated CSV file */
+  csvPath: string;
+
+  /** Path to translations directory */
+  translationsDir: string;
+
+  /** Parser to use (default: node-module) */
+  parser: string;
+}
+
+/**
+ * Result from import command execution
+ */
+export interface ImportCommandResult {
+  /** Whether import succeeded */
+  success: boolean;
+
+  /** Import summary (if successful) */
+  summary?: ImportResult;
+
+  /** Error message (if failed) */
+  error?: string;
+}
+
+// ============================================================================
 // Parser Types
 // ============================================================================
 
 /**
+ * Result of parser import operation
+ */
+export interface ParserImportResult {
+  /** Number of new files created */
+  filesCreated: number;
+
+  /** Number of existing files modified */
+  filesModified: number;
+
+  /** Total keys written */
+  keysWritten: number;
+}
+
+/**
  * Parser interface - all parsers must implement this
+ *
+ * Parsers are responsible for:
+ * - Reading translation files and returning key-value pairs (export)
+ * - Writing key-value pairs to translation files (import)
+ *
+ * Parsers are NOT responsible for:
+ * - CSV parsing (handled by csv-reader service)
+ * - Comparing translations (handled by analyzer service)
  */
 export interface Parser {
   /** Unique parser identifier (e.g., "node-module") */
   name: string;
 
   /**
-   * Parse translation files for a specific language
-   * @param langDir - Path to language directory (e.g., "src/translations/en")
-   * @returns Map of key paths to translation values
+   * Export translations from files (read operation)
+   *
+   * Reads all translation files in the given language directory
+   * and returns a flattened map of key paths to values.
+   *
+   * @param langDir - Absolute path to language directory (e.g., "/project/translations/en")
+   * @returns Map of dot-notation key paths to translation values
+   *
+   * @example
+   * // Given file: translations/en/generic.js with { welcome: "Hello" }
+   * const map = await parser.export("/project/translations/en");
+   * map.get("generic.welcome") // => "Hello"
    */
-  parse(langDir: string): Promise<Map<string, string>>;
+  export(langDir: string): Promise<Map<string, string>>;
+
+  /**
+   * Import translations to files (write operation)
+   *
+   * Writes translations to the appropriate files in the language directory.
+   * Merges with existing content (new keys added, existing keys updated).
+   * Creates files and directories as needed.
+   *
+   * @param langDir - Absolute path to language directory (e.g., "/project/translations/de")
+   * @param translations - Map of dot-notation key paths to translation values
+   * @returns Summary of files created and modified
+   *
+   * @example
+   * // Write: translations/de/generic.js with { welcome: "Hallo" }
+   * const translations = new Map([["generic.welcome", "Hallo"]]);
+   * await parser.import("/project/translations/de", translations);
+   */
+  import(langDir: string, translations: Map<string, string>): Promise<ParserImportResult>;
 }
