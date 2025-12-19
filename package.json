@@ -1,12 +1,12 @@
 {
-  "name": "aitranslate",
+  "name": "curlydots-cli",
   "version": "0.1.0",
   "description": "CLI tool to analyze translation files and find missing translations with code context",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
   "bin": {
-    "aitranslate": "src/index.ts"
+    "curlydots": "src/index.ts"
   },
   "scripts": {
     "start": "bun run src/index.ts",
@@ -18,12 +18,16 @@
   "dependencies": {
     "fast-csv": "^5.0.5",
     "ink": "^5.0.1",
+    "chalk": "^5.3.0",
     "ink-spinner": "^5.0.0",
+    "keytar": "^7.9.0",
+    "open": "^11.0.0",
     "openai": "^6.9.1",
     "p-limit": "^7.2.0",
     "react": "^18.3.1",
     "wink-eng-lite-web-model": "^1.8.1",
     "wink-nlp": "^2.4.0",
+    "zod": "^4.2.1",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

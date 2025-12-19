@@ -13,6 +13,8 @@ Auto-generated from all feature plans. Last updated: 2025-11-29
 - Text files on local filesystem (003-reasoning-trace-logs)
 - TypeScript 5.x (Bun.js runtime) + fast-csv (existing), Bun file APIs (004-csv-import)
 - File system (CommonJS translation modules) (004-csv-import)
+- TypeScript 5.x (per constitution) + Bun.js runtime, OS keychain libraries, HTTP client (005-cli-auth)
+- Encrypted local files + OS keychain + environment variables (005-cli-auth)
 
 - TypeScript 5.x (strict mode) + Ink (TUI), Zustand (state management), glob (file matching) (001-translation-context-analyzer)
 
@@ -32,9 +34,9 @@ npm test && npm run lint
 TypeScript 5.x (strict mode): Follow standard conventions
 
 ## Recent Changes
+- 005-cli-auth: Added TypeScript 5.x (per constitution) + Bun.js runtime, OS keychain libraries, HTTP client
 - 004-csv-import: Added TypeScript 5.x (Bun.js runtime) + fast-csv (existing), Bun file APIs
 - 004-csv-import: Added TypeScript 5.x (Bun.js runtime) + fast-csv (existing), Bun file APIs
-- 003-reasoning-trace-logs: Added TypeScript 5.x (strict mode) + Bun.js built-in file APIs (no new dependencies needed)
 
 
 <!-- MANUAL ADDITIONS START -->

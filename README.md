@@ -1,4 +1,4 @@
-# AITranslate
+# Curlydots CLI
 
 AI-powered CLI tool for translation management. Extract missing translations, translate using AI, and import translations back into your codebase.
 
@@ -15,8 +15,8 @@ AI-powered CLI tool for translation management. Extract missing translations, tr
 
 ```bash
 # Clone the repository
-git clone <repo-url> aitranslate
-cd aitranslate
+git clone <repo-url> curlydots-cli
+cd curlydots-cli
 
 # Install dependencies (requires Bun.js)
 bun install
@@ -28,16 +28,21 @@ bun run src/index.ts --help
 ## Usage
 
 ```bash
-aitranslate <command> [options]
+curlydots <command> [options]
 ```
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
+| `auth login` | Browser-based authentication flow with long polling |
+| `auth status` | Display stored authentication token metadata |
+| `auth logout` | Revoke current token and clear secure storage |
+| `translations push` | Push translation JSON payload with context |
+| `translations status` | Check status of a push request |
 | `extract` | Find missing translations with code context and export to CSV |
 | `translate` | Translate a CSV file using AI (OpenAI) |
-| `import` | Import translated CSV back into translation files *(coming soon)* |
+| `import` | Import translated CSV back into translation files |
 
 ### Global Options
 
