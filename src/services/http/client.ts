@@ -15,6 +15,13 @@ export interface HttpErrorMeta {
   category: 'transient' | 'authentication' | 'permanent' | 'system';
 }
 
+export interface HttpRequestOptions {
+  token?: string;
+  headers?: Record<string, string>;
+  acceptStatuses?: number[];
+  onResponse?: (response: Response) => void;
+}
+
 export class HttpClientError extends Error {
   constructor(message: string, public readonly meta: HttpErrorMeta) {
     super(message);
@@ -60,22 +67,35 @@ export class HttpClient {
     });
   }
 
-  async get<T>(path: string, token?: string): Promise<T> {
-    return this.request<T>('GET', path, undefined, token);
+  async get<T>(path: string, options?: HttpRequestOptions): Promise<T> {
+    return this.request<T>('GET', path, undefined, options);
   }
 
   async post<T, B = unknown>(path: string, body?: B, token?: string): Promise<T> {
-    return this.request<T>('POST', path, body, token);
+    return this.request<T>('POST', path, body, { token });
   }
 
-  private async request<T>(method: HttpMethod, path: string, body?: unknown, token?: string): Promise<T> {
+  private async request<T>(
+    method: HttpMethod,
+    path: string,
+    body?: unknown,
+    options: HttpRequestOptions = {},
+  ): Promise<T> {
     const url = new URL(path, this.baseUrl).toString();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
+    if (options.token) {
+      headers.Authorization = `Bearer ${options.token}`;
+    }
+
+    if (options.headers) {
+      for (const [key, value] of Object.entries(options.headers)) {
+        if (typeof value === 'string') {
+          headers[key] = value;
+        }
+      }
     }
 
     const attemptRequest = async (): Promise<T> => {
@@ -85,12 +105,20 @@ export class HttpClient {
         body: body ? JSON.stringify(body) : undefined,
       });
 
+      options.onResponse?.(response);
+
+      const acceptedStatus = options.acceptStatuses?.includes(response.status) ?? false;
+
       if (this.debug) {
         console.log(`[HTTP] ${method} ${url} -> ${response.status}`);
       }
 
-      if (!response.ok) {
+      if (!response.ok && !acceptedStatus) {
         await this.handleError(response);
+      }
+
+      if (response.status === 204 || response.status === 205 || response.status === 304) {
+        return undefined as T;
       }
 
       return (await response.json()) as T;

@@ -147,6 +147,8 @@ async function pollForResult(
   const expiry = new Date(expiresAt).getTime();
   const pollInterval = 2000;
   let aborted = false;
+  let etag: string | undefined;
+  let lastModified: string | undefined;
 
   const abortHandler = () => {
     aborted = true;
@@ -161,11 +163,40 @@ async function pollForResult(
       throw new Error('Authentication cancelled by user.');
     }
 
-    let response: PollResponse;
+    let response: PollResponse | undefined;
+    let lastStatus: number | undefined;
     try {
-      response = await client.get<PollResponse>(pollingUrl);
+      response = await client.get<PollResponse>(pollingUrl, {
+        headers: {
+          ...(etag ? { 'If-None-Match': etag } : {}),
+          ...(lastModified ? { 'If-Modified-Since': lastModified } : {}),
+        },
+        acceptStatuses: [304],
+        onResponse: (res) => {
+          lastStatus = res.status;
+          const responseEtag = res.headers.get('etag');
+          const responseLastModified = res.headers.get('last-modified');
+          if (responseEtag) {
+            etag = responseEtag;
+          }
+          if (responseLastModified) {
+            lastModified = responseLastModified;
+          }
+        },
+      });
     } catch (error) {
       throw new Error(describeHttpError(error));
+    }
+
+    if (lastStatus === 304) {
+      await wait(pollInterval);
+      continue;
+    }
+
+    if (!response) {
+      logger.info('Still waiting for confirmation…');
+      await wait(pollInterval);
+      continue;
     }
 
     if (response.status === 'completed' && response.token) {
