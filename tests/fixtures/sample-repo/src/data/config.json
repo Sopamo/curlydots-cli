@@ -13,7 +13,7 @@
     "settings": true
   },
   "api": {
-    "baseUrl": "https://api.example.com",
+    "baseUrl": "https://curlydots.com/api",
     "timeout": 5000
   }
 }

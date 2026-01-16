@@ -27,7 +27,7 @@ aitranslate translations push \
   --parser <name> \
   --api-host https://curlydots.com \
   --api-token <token> \
-  --extensions .js,.ts,.vue
+  --extensions .js,.ts,.vue # optional; omit to scan all files
 ```
 
 ## Expected Output

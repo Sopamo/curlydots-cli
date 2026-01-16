@@ -4,8 +4,8 @@ import { translateCommand } from '../commands/translate';
 import { authLoginCommand } from './auth/login';
 import { authStatusCommand } from './auth/status';
 import { authLogoutCommand } from './auth/logout';
-import { translationsPushCommand } from './translations/push';
-import { translationsStatusCommand } from './translations/status';
+import { runTranslationsPush } from '../commands/translations/push';
+import { runTranslationsStatus } from '../commands/translations/status';
 import { globalLogger } from '../utils/logger';
 
 export type CommandHandler = (args: string[]) => Promise<void>;
@@ -17,8 +17,8 @@ const commandMap: Record<string, CommandHandler> = {
   'auth login': async (args) => authLoginCommand(args),
   'auth status': async (args) => authStatusCommand(args),
   'auth logout': async () => authLogoutCommand(),
-  'translations push': async (args) => translationsPushCommand(args),
-  'translations status': async (args) => translationsStatusCommand(args),
+  'translations push': async (args) => runTranslationsPush(args),
+  'translations status': async (args) => runTranslationsStatus(args),
 };
 
 function normalizeCommand(args: string[]): { key: string; rest: string[] } {
@@ -46,7 +46,7 @@ Commands:
   auth login             Authenticate via browser
   auth status            Display stored authentication info
   auth logout            Revoke stored tokens
-  translations push      Push translation payload to backend
+  translations push      Push translation keys to backend
   translations status    Check translation push status
   extract                Find missing translations
   translate              Translate CSV using AI

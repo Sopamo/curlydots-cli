@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'bun:test';
-import { runBrowserLogin, type AuthToken, type LoginResponse, type PollResponse } from '../../src/services/auth/browser-login';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { AuthToken, LoginResponse, PollResponse } from '../../src/services/auth/browser-login';
 import { HttpClient, type HttpRequestOptions } from '../../src/services/http/client';
 import type { CliConfig } from '../../src/config/cli-config';
 import { Logger } from '../../src/utils/logger';
@@ -19,7 +19,7 @@ class FakeClient extends HttpClient {
   public requestHeaders: Record<string, string>[] = [];
 
   constructor(loginResponse: LoginResponse, pollResponses: FakePollEntry[]) {
-    super({ baseUrl: 'https://example.com', timeout: 1000, retries: 0 });
+    super({ baseUrl: 'https://curlydots.com', timeout: 1000, retries: 0 });
     this.loginResponse = loginResponse;
     this.pollResponses = pollResponses;
   }
@@ -77,7 +77,12 @@ const baseConfig: CliConfig = {
 const noopLogger = new Logger({ silent: true });
 
 describe('contract/auth-login', () => {
+  beforeEach(() => {
+    mock.restore();
+  });
+
   it('completes browser login flow with polling', async () => {
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse: LoginResponse = {
       browserUrl: AUTH_BROWSER_URL + '/login',
       pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
@@ -118,6 +123,7 @@ describe('contract/auth-login', () => {
   });
 
   it('fails when polling returns failure', async () => {
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse: LoginResponse = {
       browserUrl: AUTH_BROWSER_URL + '/login',
       pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
@@ -140,6 +146,7 @@ describe('contract/auth-login', () => {
   });
 
   it('reuses conditional headers and skips JSON parsing on 304', async () => {
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse: LoginResponse = {
       browserUrl: AUTH_BROWSER_URL + '/login',
       pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',

@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implement `aitranslate translations push` to analyze translation keys, gather code context and source values, diff against backend keys, and upload only missing keys. The command takes explicit CLI arguments, validates auth before scanning, batches uploads (default 100), aborts on first failed batch, and uses the existing auth HTTP client pattern (or a minimal shared client if missing).
+Implement `aitranslate translations push` to analyze translation keys, gather code context and source values, diff against backend keys, and upload only missing keys. The command takes explicit CLI arguments, validates auth before scanning, batches uploads (default 100), aborts on first failed batch, and uses the shared HTTP client plus auth token manager added in the CLI auth feature.
 
 ## Technical Context
 
@@ -18,8 +18,8 @@ Implement `aitranslate translations push` to analyze translation keys, gather co
 -->
 
 **Language/Version**: TypeScript 5.x (strict)  
-**Primary Dependencies**: Bun runtime, Ink, fast-csv, p-limit, zustand  
-**Storage**: Local filesystem (translation files, auth token store)  
+**Primary Dependencies**: Bun runtime, Ink, fast-csv, p-limit, zustand, keytar (optional)  
+**Storage**: Local filesystem + OS keychain (secure token store), translation files  
 **Testing**: `bun test` (unit/integration/contract)  
 **Target Platform**: Cross-platform CLI (Bun)  
 **Project Type**: Single CLI repository  

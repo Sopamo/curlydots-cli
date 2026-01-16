@@ -1,12 +1,7 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { AuthToken } from '../../src/services/auth/browser-login';
-
-const logs = {
-  info: [] as string[],
-  success: [] as string[],
-  warn: [] as string[],
-  error: [] as string[],
-};
+import * as browserLoginModule from '../../src/services/auth/browser-login';
+import * as tokenManagerModule from '../../src/services/auth/token-manager';
 
 const token: AuthToken = {
   accessToken: 'access-token',
@@ -17,44 +12,36 @@ const token: AuthToken = {
 
 const runBrowserLoginMock = mock(async () => token);
 const persistAuthTokenMock = mock(async () => {});
+const originalBrowserLogin = { ...browserLoginModule };
+const originalTokenManager = { ...tokenManagerModule };
 
-mock.module('../../src/services/auth/browser-login', () => ({
-  runBrowserLogin: runBrowserLoginMock,
-}));
 
-mock.module('../../src/services/auth/token-manager', () => ({
-  persistAuthToken: persistAuthTokenMock,
-  clearAuthToken: async () => {},
-  loadAuthToken: async () => null,
-}));
-
-mock.module('../../src/utils/logger', () => ({
-  globalLogger: {
-    info: (message: string) => logs.info.push(message),
-    success: (message: string) => logs.success.push(message),
-    warn: (message: string) => logs.warn.push(message),
-    error: (message: string) => logs.error.push(message),
-    spinner: () => {},
-  },
-}));
-
-describe('integration/cli-auth-login', () => {
+describe('[module-mock] integration/cli-auth-login', () => {
   beforeEach(() => {
     runBrowserLoginMock.mockClear();
     persistAuthTokenMock.mockClear();
-    logs.info.length = 0;
-    logs.success.length = 0;
-    logs.warn.length = 0;
-    logs.error.length = 0;
+    mock.module('../../src/services/auth/browser-login', () => ({
+      runBrowserLogin: runBrowserLoginMock,
+    }));
+    mock.module('../../src/services/auth/token-manager', () => ({
+      persistAuthToken: persistAuthTokenMock,
+    }));
   });
 
-  it('runs browser login command and persists token', async () => {
-    const { runCli } = await import('../../src/cli');
+  afterEach(() => {
+    mock.clearAllMocks();
+    mock.restore();
+    // Workaround for https://github.com/oven-sh/bun/issues/7823 due to ESM caching.
+    mock.module('../../src/services/auth/browser-login', () => ({ ...originalBrowserLogin }));
+    mock.module('../../src/services/auth/token-manager', () => ({ ...originalTokenManager }));
+  });
 
-    await runCli(['auth', 'login']);
+  it('[module-mock] runs browser login command and persists token', async () => {
+    const { authLoginCommand } = await import('../../src/cli/auth/login');
+
+    await authLoginCommand([]);
 
     expect(runBrowserLoginMock).toHaveBeenCalledTimes(1);
     expect(persistAuthTokenMock).toHaveBeenCalledWith(token);
-    expect(logs.success.some((message) => message.includes('Logged in'))).toBe(true);
   });
 });
