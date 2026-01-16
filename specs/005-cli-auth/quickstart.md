@@ -45,52 +45,6 @@ curlydots auth login
 ```bash
 # Set environment variable
 export CURLYDOTS_TOKEN="your-api-token-here"
-
-# Or use API key flag
-curlydots translations push --api-key="your-api-token-here"
-```
-
-## Translation Management
-
-### Push Translation Data
-
-```bash
-# Push translations with context
-curlydots translations push --file translations.json
-
-# Push from stdin
-cat translations.json | curlydots translations push
-
-# Push with specific namespace
-curlydots translations push --file translations.json --namespace "web-app"
-```
-
-### Translation Data Format
-
-```json
-{
-  "translations": [
-    {
-      "key": "welcome.message",
-      "value": "Welcome to our application!",
-      "locale": "en",
-      "namespace": "common",
-      "context": {
-        "file": "src/components/Header.tsx",
-        "line": 42,
-        "function": "Header",
-        "usage": "Main welcome message displayed on homepage",
-        "tags": ["ui", "welcome", "homepage"]
-      }
-    }
-  ],
-  "metadata": {
-    "source": "cli-push",
-    "version": "1.0",
-    "timestamp": "2025-12-19T20:00:00Z",
-    "totalCount": 1
-  }
-}
 ```
 
 ## Token Management
@@ -154,8 +108,7 @@ curlydots auth login
 # 2. Verify authentication
 curlydots auth status
 
-# 3. Push translations
-curlydots translations push --file translations.json
+# 3. Continue with translation workflow in the translations repository
 ```
 
 ### CI/CD Pipeline
@@ -170,12 +123,7 @@ export CURLYDOTS_TOKEN="${CURLYDOTS_TOKEN}"
 # 2. Verify authentication
 curlydots auth status
 
-# 3. Push translations
-curlydots translations push --file translations.json --namespace "production"
-
-# 4. Check push status
-curl -H "Authorization: Bearer $CURLYDOTS_TOKEN" \
-  "https://api.curlydots.com/v1/translations/status?request_id=req_123"
+# 3. Continue with translation workflow in the translations repository
 ```
 
 ### Development Workflow
@@ -187,11 +135,7 @@ curlydots extract --src ./src --output translations.json
 # 2. Review and edit translations
 # Edit translations.json manually
 
-# 3. Push to backend
-curlydots translations push --file translations.json
-
-# 4. Monitor push status
-curlydots translations status --request-id req_123
+# 3. Continue with translation workflow in the translations repository
 ```
 
 ## Troubleshooting

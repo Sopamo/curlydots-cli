@@ -2,15 +2,35 @@ import { runBrowserLogin } from '../../services/auth/browser-login';
 import { persistAuthToken } from '../../services/auth/token-manager';
 import { globalLogger } from '../../utils/logger';
 
+let loginInProgress = false;
+
 export async function authLoginCommand(_args: string[]): Promise<void> {
+  if (loginInProgress) {
+    globalLogger.warn('Authentication already in progress.');
+    process.exitCode = 1;
+    return;
+  }
+
+  loginInProgress = true;
+  const controller = new AbortController();
+  const handleSigint = () => {
+    globalLogger.warn('Authentication cancelled by user.');
+    controller.abort();
+  };
+
+  process.once('SIGINT', handleSigint);
+
   try {
     globalLogger.info('Starting browser authentication flow.');
-    const token = await runBrowserLogin();
+    const token = await runBrowserLogin({ signal: controller.signal });
     await persistAuthToken(token);
     globalLogger.success('Logged in successfully. Token stored securely.');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     globalLogger.error(`Authentication failed: ${message}`, error instanceof Error ? error : undefined);
     process.exitCode = 1;
+  } finally {
+    loginInProgress = false;
+    process.off('SIGINT', handleSigint);
   }
 }

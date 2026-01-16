@@ -12,11 +12,20 @@ export async function persistAuthToken(token: AuthToken): Promise<void> {
 export async function loadAuthToken(): Promise<StoredAuthToken | null> {
   const raw = await getSecureToken();
   if (!raw) return null;
+
   try {
-    return JSON.parse(raw) as StoredAuthToken;
+    const parsed = JSON.parse(raw) as StoredAuthToken;
+    if (parsed?.accessToken && parsed.expiresAt) {
+      return parsed;
+    }
   } catch {
-    return null;
+    // fall through to treat raw token as access token
   }
+
+  return {
+    accessToken: raw,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  };
 }
 
 export async function clearAuthToken(): Promise<void> {

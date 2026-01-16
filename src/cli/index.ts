@@ -1,11 +1,9 @@
 import { runExtract } from '../commands/extract';
 import { importCommand } from '../commands/import';
 import { translateCommand } from '../commands/translate';
-import { authLoginCommand } from './auth/login';
-import { authStatusCommand } from './auth/status';
-import { authLogoutCommand } from './auth/logout';
-import { translationsPushCommand } from './translations/push';
-import { translationsStatusCommand } from './translations/status';
+import { authLoginCommand } from '../commands/auth/login';
+import { authStatusCommand } from '../commands/auth/status';
+import { authLogoutCommand } from '../commands/auth/logout';
 import { globalLogger } from '../utils/logger';
 
 export type CommandHandler = (args: string[]) => Promise<void>;
@@ -17,8 +15,6 @@ const commandMap: Record<string, CommandHandler> = {
   'auth login': async (args) => authLoginCommand(args),
   'auth status': async (args) => authStatusCommand(args),
   'auth logout': async () => authLogoutCommand(),
-  'translations push': async (args) => translationsPushCommand(args),
-  'translations status': async (args) => translationsStatusCommand(args),
 };
 
 function normalizeCommand(args: string[]): { key: string; rest: string[] } {
