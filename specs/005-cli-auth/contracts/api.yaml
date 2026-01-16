@@ -1,0 +1,482 @@
+openapi: 3.0.3
+info:
+  title: Curlydots CLI API
+  description: API for CLI authentication and translation management
+  version: 1.0.0
+  contact:
+    name: Curlydots Team
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.curlydots.com/v1
+    description: Production server
+  - url: https://staging-api.curlydots.com/v1
+    description: Staging server
+
+paths:
+  /auth/login:
+    post:
+      summary: Initiate browser-based authentication
+      description: Start authentication flow with pairing code
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pairingCode
+              properties:
+                pairingCode:
+                  type: string
+                  description: Unique pairing code for authentication
+                  example: "enjoy-enough-outwit-win"
+                deviceInfo:
+                  type: object
+                  properties:
+                    platform:
+                      type: string
+                      example: "darwin"
+                    arch:
+                      type: string
+                      example: "arm64"
+                    cliVersion:
+                      type: string
+                      example: "1.0.0"
+      responses:
+        '200':
+          description: Authentication initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  pollingUrl:
+                    type: string
+                    format: uri
+                    example: "/auth/poll/abc123"
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    example: "2025-12-19T20:05:00Z"
+        '400':
+          description: Invalid pairing code or request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many authentication attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/poll/{sessionId}:
+    get:
+      summary: Poll for authentication completion
+      description: Long polling endpoint to check authentication status
+      tags:
+        - Authentication
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session ID from login initiation
+      responses:
+        '200':
+          description: Authentication status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, completed, failed, expired]
+                  token:
+                    $ref: '#/components/schemas/AuthenticationToken'
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      summary: Refresh authentication token
+      description: Exchange refresh token for new access token
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: Refresh token for renewal
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  token:
+                    $ref: '#/components/schemas/AuthenticationToken'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      summary: Revoke authentication token
+      description: Logout and invalidate current session
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Token revoked successfully"
+        '401':
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /translations:
+    post:
+      summary: Push translation data
+      description: Upload translation values and context to backend
+      tags:
+        - Translations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslationPayload'
+      responses:
+        '200':
+          description: Translations processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushResponse'
+        '400':
+          description: Invalid translation data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /translations/status:
+    get:
+      summary: Check translation push status
+      description: Get status of previous translation push operations
+      tags:
+        - Translations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: query
+          schema:
+            type: string
+          description: Request ID from previous push operation
+      responses:
+        '200':
+          description: Push operation status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [processing, completed, failed]
+                  processed:
+                    type: integer
+                  failed:
+                    type: integer
+                  createdAt:
+                    type: string
+                    format: date-time
+                  completedAt:
+                    type: string
+                    format: date-time
+        '404':
+          description: Request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    AuthenticationToken:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - expiresAt
+        - userId
+      properties:
+        accessToken:
+          type: string
+          description: JWT or opaque access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          description: Token for automatic renewal
+          example: "def50200f3b8c4e2a1d9c0f7e6b5a4c3..."
+        expiresAt:
+          type: string
+          format: date-time
+          description: Token expiration timestamp
+          example: "2025-12-20T20:00:00Z"
+        scope:
+          type: array
+          items:
+            type: string
+          description: Token permissions/scopes
+          example: ["translations:push", "translations:read"]
+        userId:
+          type: string
+          description: Backend user identifier
+          example: "user_123456789"
+        createdAt:
+          type: string
+          format: date-time
+          description: When token was issued
+          example: "2025-12-19T20:00:00Z"
+
+    TranslationEntry:
+      type: object
+      required:
+        - key
+        - value
+        - locale
+      properties:
+        key:
+          type: string
+          description: Translation key/identifier
+          example: "welcome.message"
+          pattern: '^[a-zA-Z0-9._-]+$'
+          maxLength: 255
+        value:
+          type: string
+          description: Translated text content
+          example: "Welcome to our application!"
+          minLength: 1
+          maxLength: 10000
+        locale:
+          type: string
+          description: Target language/locale code
+          example: "en"
+          pattern: '^[a-z]{2}(-[A-Z]{2})?$'
+        namespace:
+          type: string
+          description: Translation grouping/namespace
+          example: "common"
+          maxLength: 100
+        context:
+          $ref: '#/components/schemas/TranslationContext'
+        metadata:
+          type: object
+          description: Additional translation metadata
+          additionalProperties: true
+
+    TranslationContext:
+      type: object
+      properties:
+        file:
+          type: string
+          description: Source file path
+          example: "src/components/Header.tsx"
+        line:
+          type: integer
+          description: Line number in source file
+          example: 42
+          minimum: 1
+        function:
+          type: string
+          description: Function/component name
+          example: "Header"
+        usage:
+          type: string
+          description: Usage description or notes
+          example: "Main welcome message displayed on homepage"
+          maxLength: 1000
+        tags:
+          type: array
+          items:
+            type: string
+          description: Contextual tags
+          maxItems: 20
+          example: ["ui", "welcome", "homepage"]
+        createdAt:
+          type: string
+          format: date-time
+          description: When context was captured
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last context update
+
+    TranslationPayload:
+      type: object
+      required:
+        - translations
+      properties:
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranslationEntry'
+          description: Array of translation entries
+          maxItems: 1000
+        metadata:
+          type: object
+          properties:
+            source:
+              type: string
+              description: Source of translation data
+              example: "cli-push"
+            version:
+              type: string
+              description: Data version or format
+              example: "1.0"
+            timestamp:
+              type: string
+              format: date-time
+              description: When data was captured
+            totalCount:
+              type: integer
+              description: Total number of translations
+              minimum: 1
+              maximum: 1000
+
+    PushResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+          example: true
+        processed:
+          type: integer
+          description: Number of successfully processed translations
+          example: 950
+        failed:
+          type: integer
+          description: Number of failed translations
+          example: 50
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                description: Translation key that failed
+              error:
+                type: string
+                description: Error message
+          description: Array of errors for failed translations
+        metadata:
+          type: object
+          properties:
+            requestId:
+              type: string
+              description: Unique request identifier
+              example: "req_123456789"
+            timestamp:
+              type: string
+              format: date-time
+              description: When the request was processed
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code for programmatic handling
+          example: "INVALID_TOKEN"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "The provided authentication token is invalid or expired"
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Authentication token for API access
+
+tags:
+  - name: Authentication
+    description: Authentication and token management endpoints
+  - name: Translations
+    description: Translation data management endpoints
