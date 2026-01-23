@@ -16,6 +16,7 @@ describe('services/storage/secure-store', () => {
       CURLYDOTS_HOME: homeDir,
       CURLYDOTS_DISABLE_KEYTAR: '1',
     };
+    delete process.env.CURLYDOTS_TOKEN;
   });
 
   afterEach(async () => {

@@ -81,7 +81,10 @@ export class HttpClient {
     body?: unknown,
     options: HttpRequestOptions = {},
   ): Promise<T> {
-    const url = new URL(path, this.baseUrl).toString();
+    const baseUrl = this.baseUrl.endsWith('/')
+      ? this.baseUrl
+      : `${this.baseUrl}/`;
+    const url = new URL(path, baseUrl).toString();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };

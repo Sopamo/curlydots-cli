@@ -12,13 +12,16 @@ interface FakePollEntry {
 }
 
 class FakeClient extends HttpClient {
-  public loginResponse: LoginResponse;
+  public loginResponse: { code: string; verification_url: string; expires_at: string; poll_token: string };
   public pollResponses: FakePollEntry[] = [];
   public postCalls = 0;
   public getCalls = 0;
   public requestHeaders: Record<string, string>[] = [];
 
-  constructor(loginResponse: LoginResponse, pollResponses: FakePollEntry[]) {
+  constructor(
+    loginResponse: { code: string; verification_url: string; expires_at: string; poll_token: string },
+    pollResponses: FakePollEntry[],
+  ) {
     super({ baseUrl: 'https://example.com', timeout: 1000, retries: 0 });
     this.loginResponse = loginResponse;
     this.pollResponses = pollResponses;
@@ -26,7 +29,7 @@ class FakeClient extends HttpClient {
 
   override async post<LoginResponse>(path: string): Promise<LoginResponse> {
     this.postCalls += 1;
-    expect(path).toBe('/auth/login');
+    expect(path).toBe('cli/pairings');
     return this.loginResponse as LoginResponse;
   }
 
@@ -78,11 +81,11 @@ const noopLogger = new Logger({ silent: true });
 
 describe('contract/auth-login', () => {
   it('completes browser login flow with polling', async () => {
-    const loginResponse: LoginResponse = {
-      browserUrl: AUTH_BROWSER_URL + '/login',
-      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
-      pairingCode: 'ABCD',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    const loginResponse = {
+      code: 'ABCDEFGH',
+      verification_url: AUTH_BROWSER_URL + '/login',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
     };
 
     const token: AuthToken = {
@@ -94,7 +97,7 @@ describe('contract/auth-login', () => {
 
     const pollResponses: FakePollEntry[] = [
       { body: { status: 'pending' } },
-      { body: { status: 'completed', token } },
+      { body: { status: 'approved', token_payload: token } },
     ];
 
     const fakeClient = new FakeClient(loginResponse, pollResponses);
@@ -112,20 +115,20 @@ describe('contract/auth-login', () => {
 
     expect(result.accessToken).toBe(token.accessToken);
     expect(result.refreshToken).toBe(token.refreshToken);
-    expect(opened).toEqual([loginResponse.browserUrl]);
+    expect(opened).toEqual([loginResponse.verification_url]);
     expect(fakeClient.postCalls).toBe(1);
     expect(fakeClient.getCalls).toBe(2);
   });
 
   it('fails when polling returns failure', async () => {
-    const loginResponse: LoginResponse = {
-      browserUrl: AUTH_BROWSER_URL + '/login',
-      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
-      pairingCode: 'ABCD',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    const loginResponse = {
+      code: 'ABCDEFGH',
+      verification_url: AUTH_BROWSER_URL + '/login',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
     };
 
-    const pollResponses: FakePollEntry[] = [{ body: { status: 'failed', error: 'Invalid session' } }];
+    const pollResponses: FakePollEntry[] = [{ body: { status: 'denied', denied_reason: 'Invalid session' } }];
     const fakeClient = new FakeClient(loginResponse, pollResponses);
 
     await expect(
@@ -140,11 +143,11 @@ describe('contract/auth-login', () => {
   });
 
   it('reuses conditional headers and skips JSON parsing on 304', async () => {
-    const loginResponse: LoginResponse = {
-      browserUrl: AUTH_BROWSER_URL + '/login',
-      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
-      pairingCode: 'ABCD',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    const loginResponse = {
+      code: 'ABCDEFGH',
+      verification_url: AUTH_BROWSER_URL + '/login',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
     };
 
     const token: AuthToken = {
@@ -167,7 +170,7 @@ describe('contract/auth-login', () => {
         headers: { ETag: etag, 'Last-Modified': lastModified },
       },
       {
-        body: { status: 'completed', token },
+        body: { status: 'approved', token_payload: token },
         headers: { ETag: '"etag-2"' },
       },
     ];

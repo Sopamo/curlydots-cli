@@ -3,7 +3,6 @@ import { importCommand } from '../commands/import';
 import { translateCommand } from '../commands/translate';
 import { authLoginCommand } from '../commands/auth/login';
 import { authStatusCommand } from '../commands/auth/status';
-import { authLogoutCommand } from '../commands/auth/logout';
 import { globalLogger } from '../utils/logger';
 
 export type CommandHandler = (args: string[]) => Promise<void>;
@@ -14,7 +13,6 @@ const commandMap: Record<string, CommandHandler> = {
   import: async (args) => importCommand(args),
   'auth login': async (args) => authLoginCommand(args),
   'auth status': async (args) => authStatusCommand(args),
-  'auth logout': async () => authLogoutCommand(),
 };
 
 function normalizeCommand(args: string[]): { key: string; rest: string[] } {
@@ -41,7 +39,6 @@ Usage:
 Commands:
   auth login             Authenticate via browser
   auth status            Display stored authentication info
-  auth logout            Revoke stored tokens
   translations push      Push translation payload to backend
   translations status    Check translation push status
   extract                Find missing translations

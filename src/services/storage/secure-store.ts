@@ -3,8 +3,8 @@ import { homedir, hostname, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
-const CONFIG_DIR = process.env.CURLYDOTS_HOME ?? join(homedir(), '.curlydots');
-const TOKEN_FILE = join(CONFIG_DIR, 'tokens.json');
+const getConfigDir = () => process.env.CURLYDOTS_HOME ?? join(homedir(), '.curlydots');
+const getTokenFile = () => join(getConfigDir(), 'tokens.json');
 const KEYTAR_SERVICE = 'Curlydots CLI';
 const KEYTAR_ACCOUNT = 'default';
 const ALGORITHM = 'aes-256-gcm';
@@ -17,11 +17,14 @@ interface EncryptedPayload {
 
 const envToken = () => process.env.CURLYDOTS_TOKEN ?? null;
 
-const KEYTAR_DISABLED = process.env.CURLYDOTS_DISABLE_KEYTAR === '1';
+// Keytar is used to store the token in the keychain.
+// If it is not available, the token is stored in a file.
+const isKeytarDisabled = () => process.env.CURLYDOTS_DISABLE_KEYTAR === '1';
 
 let keytarPromise: Promise<typeof import('keytar') | null> | null = null;
 async function loadKeytar() {
-  if (KEYTAR_DISABLED) {
+  if (isKeytarDisabled()) {
+    keytarPromise = null;
     return null;
   }
   if (keytarPromise === null) {
@@ -32,7 +35,7 @@ async function loadKeytar() {
 }
 
 function ensureConfigDir() {
-  mkdirSync(CONFIG_DIR, { recursive: true });
+  mkdirSync(getConfigDir(), { recursive: true });
 }
 
 function deriveKey(): Buffer {
@@ -102,12 +105,12 @@ async function deleteWithKeytar(): Promise<void> {
 function saveWithFile(value: string) {
   ensureConfigDir();
   const payload = encrypt(value);
-  writeFileSync(TOKEN_FILE, JSON.stringify(payload), 'utf8');
+  writeFileSync(getTokenFile(), JSON.stringify(payload), 'utf8');
 }
 
 function readWithFile(): string | null {
   try {
-    const payload = JSON.parse(readFileSync(TOKEN_FILE, 'utf8')) as EncryptedPayload;
+    const payload = JSON.parse(readFileSync(getTokenFile(), 'utf8')) as EncryptedPayload;
     return decrypt(payload);
   } catch {
     return null;
@@ -116,8 +119,9 @@ function readWithFile(): string | null {
 
 function deleteFileToken() {
   try {
-    if (existsSync(TOKEN_FILE)) {
-      unlinkSync(TOKEN_FILE);
+    const tokenFile = getTokenFile();
+    if (existsSync(tokenFile)) {
+      unlinkSync(tokenFile);
     }
   } catch {
     // ignore

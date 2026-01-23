@@ -18,7 +18,7 @@ const cliConfigSchema = z.object({
 });
 
 const defaultConfig: CliConfig = {
-  apiEndpoint: 'https://api.curlydots.com',
+  apiEndpoint: 'https://curlydots.com/api',
   authMethod: 'browser',
   tokenStorage: 'keychain',
   timeout: 30_000,
@@ -43,6 +43,28 @@ function parseJsonFile(filePath: string): Record<string, unknown> {
   }
 }
 
+function parseEnvFile(filePath: string): Record<string, string> {
+  try {
+    const content = readFileSync(filePath, 'utf8');
+    return content
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'))
+      .reduce<Record<string, string>>((acc, line) => {
+        const [rawKey, ...rawValue] = line.split('=');
+        const key = rawKey?.trim();
+        if (!key) return acc;
+        const value = rawValue.join('=').trim().replace(/^['"]|['"]$/g, '');
+        if (value !== '') {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+  } catch {
+    return {};
+  }
+}
+
 function parseBoolean(value: string | undefined): boolean | undefined {
   if (value === undefined) return undefined;
   return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
@@ -53,10 +75,15 @@ export function loadCliConfig(): CliConfig {
     ? parseJsonFile(CLI_CONFIG_PATH)
     : {};
 
+  const localEnvPath = join(process.cwd(), '.env');
+  const localEnv = existsSync(localEnvPath)
+    ? parseEnvFile(localEnvPath)
+    : {};
+
   const envConfig: Record<string, unknown> = {
-    apiEndpoint: process.env.CURLYDOTS_API_URL,
-    token: process.env.CURLYDOTS_TOKEN,
-    debug: parseBoolean(process.env.CURLYDOTS_DEBUG),
+    apiEndpoint: process.env.CURLYDOTS_API_URL ?? localEnv.CURLYDOTS_API_URL,
+    token: process.env.CURLYDOTS_TOKEN ?? localEnv.CURLYDOTS_TOKEN,
+    debug: parseBoolean(process.env.CURLYDOTS_DEBUG ?? localEnv.CURLYDOTS_DEBUG),
   };
 
   const merged = {

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import os from 'node:os';
 import open from 'open';
 import { loadCliConfig, type CliConfig } from '../../config/cli-config';
@@ -17,12 +18,13 @@ export interface LoginResponse {
   pollingUrl: string;
   pairingCode: string;
   expiresAt: string;
+  pollToken: string;
 }
 
 export interface PollResponse {
-  status: 'pending' | 'completed' | 'failed' | 'expired';
-  token?: AuthToken;
-  error?: string;
+  status: 'pending' | 'approved' | 'denied' | 'expired';
+  token_payload?: AuthToken;
+  denied_reason?: string;
 }
 
 export interface AuthToken {
@@ -68,19 +70,15 @@ function createDeviceInfo(): DeviceInfo {
   };
 }
 
-function generatePairingCode(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const segmentLength = 4;
-  const segments: string[] = [];
-  for (let s = 0; s < 3; s += 1) {
-    let segment = '';
-    for (let i = 0; i < segmentLength; i += 1) {
-      const index = Math.floor(Math.random() * alphabet.length);
-      segment += alphabet[index] ?? 'A';
-    }
-    segments.push(segment);
-  }
-  return segments.join('-');
+function createDeviceLabel(deviceInfo: DeviceInfo): string {
+  return `${deviceInfo.hostname} (${deviceInfo.platform})`;
+}
+
+function createFingerprintHash(deviceInfo: DeviceInfo): string {
+  return crypto
+    .createHash('sha256')
+    .update(`${deviceInfo.hostname}:${deviceInfo.platform}:${deviceInfo.arch}:${deviceInfo.release}`)
+    .digest('hex');
 }
 
 export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promise<AuthToken> {
@@ -95,19 +93,32 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
   const deviceInfo = createDeviceInfo();
   logger.info('Initiating browser-based authentication…');
 
-  const pairingCode = generatePairingCode();
-
   let loginResponse: LoginResponse;
   try {
-    loginResponse = await client.post<LoginResponse>('/auth/login', {
-      deviceInfo,
-      pairingCode,
-    });
+    const cliVersion = process.env.npm_package_version ?? '0.1.0';
+    const deviceLabel = createDeviceLabel(deviceInfo);
+    const fingerprintHash = createFingerprintHash(deviceInfo);
+    const response = await client.post<{ code: string; verification_url: string; expires_at: string; poll_token: string }>(
+      'cli/pairings',
+      {
+        device_label: deviceLabel,
+        fingerprint_hash: fingerprintHash,
+        cli_version: cliVersion,
+      },
+    );
+
+    loginResponse = {
+      browserUrl: response.verification_url,
+      pollingUrl: `cli/pairings/${response.code}`,
+      pairingCode: response.code,
+      expiresAt: response.expires_at,
+      pollToken: response.poll_token,
+    };
   } catch (error) {
     throw new Error(describeHttpError(error));
   }
 
-  const code = loginResponse.pairingCode ?? pairingCode;
+  const code = loginResponse.pairingCode;
   logger.info(`Pairing code: ${code}`);
 
   if (manual) {
@@ -128,8 +139,8 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
     loginResponse.pollingUrl,
     loginResponse.expiresAt,
     wait,
-    logger,
     signal,
+    loginResponse.pollToken,
   );
   logger.success('Authentication successful. Returning token to caller.');
 
@@ -141,14 +152,16 @@ async function pollForResult(
   pollingUrl: string,
   expiresAt: string,
   wait: (ms: number) => Promise<void>,
-  logger: typeof globalLogger,
   signal?: AbortSignal,
+  pollToken?: string,
 ): Promise<AuthToken> {
   const expiry = new Date(expiresAt).getTime();
   const pollInterval = 2000;
+  const logInterval = 30000;
   let aborted = false;
   let etag: string | undefined;
   let lastModified: string | undefined;
+  let lastLogAt = 0;
 
   const abortHandler = () => {
     aborted = true;
@@ -170,6 +183,7 @@ async function pollForResult(
         headers: {
           ...(etag ? { 'If-None-Match': etag } : {}),
           ...(lastModified ? { 'If-Modified-Since': lastModified } : {}),
+          ...(pollToken ? { 'X-Curlydots-Poll-Token': pollToken } : {}),
         },
         acceptStatuses: [304],
         onResponse: (res) => {
@@ -194,25 +208,29 @@ async function pollForResult(
     }
 
     if (!response) {
-      logger.info('Still waiting for confirmation…');
+      if (Date.now() - lastLogAt > logInterval) {
+        lastLogAt = Date.now();
+      }
       await wait(pollInterval);
       continue;
     }
 
-    if (response.status === 'completed' && response.token) {
+    if (response.status === 'approved' && response.token_payload) {
       signal?.removeEventListener('abort', abortHandler);
-      return response.token;
+      return response.token_payload;
     }
 
-    if (response.status === 'failed') {
-      throw new Error(response.error ?? 'Authentication failed');
+    if (response.status === 'denied') {
+      throw new Error(response.denied_reason ?? 'Authentication denied');
     }
 
     if (response.status === 'expired') {
       throw new Error('Authentication session expired. Please try again.');
     }
 
-    logger.info('Still waiting for confirmation…');
+    if (Date.now() - lastLogAt > logInterval) {
+      lastLogAt = Date.now();
+    }
     await wait(pollInterval);
   }
 
