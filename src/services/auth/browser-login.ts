@@ -199,7 +199,8 @@ async function pollForResult(
         },
       });
     } catch (error) {
-      throw new Error(describeHttpError(error));
+      globalLogger.error(`Failed to create pairing session: ${describeHttpError(error)}`);
+      throw error;
     }
 
     if (lastStatus === 304) {

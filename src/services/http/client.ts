@@ -150,6 +150,7 @@ export class HttpClient {
   private async retry<T>(fn: (attempt: number) => Promise<T>): Promise<T> {
     let attempt = 0;
     let delayMs = 1000;
+    const maxDelayMs = 5000;
 
     while (attempt <= this.retries) {
       try {
@@ -160,7 +161,7 @@ export class HttpClient {
           throw error;
         }
         await delay(delayMs);
-        delayMs *= 2;
+        delayMs = Math.min(delayMs * 2, maxDelayMs);
       }
     }
 

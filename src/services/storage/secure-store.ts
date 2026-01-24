@@ -43,11 +43,19 @@ function deriveKey(): Buffer {
     try {
       return userInfo().username;
     } catch {
-      return 'curlydots';
+      return 'curlydots-fallback';
     }
   })();
 
-  return createHash('sha256').update(`${user}-${hostname()}`).digest();
+  const host = hostname();
+  const homeDir = homedir();
+  
+  // Note: This is NOT cryptographically secure key derivation.
+  // It's only used as a fallback when keytar is unavailable.
+  // The primary security mechanism is the system keychain via keytar.
+  return createHash('sha256')
+    .update(`${user}:${host}:${homeDir}:curlydots-cli-v1`)
+    .digest();
 }
 
 function encrypt(value: string): EncryptedPayload {
