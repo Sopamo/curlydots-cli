@@ -22,7 +22,7 @@ class FakeClient extends HttpClient {
     loginResponse: { code: string; verification_url: string; expires_at: string; poll_token: string },
     pollResponses: FakePollEntry[],
   ) {
-    super({ baseUrl: 'https://example.com', timeout: 1000, retries: 0 });
+    super({ baseUrl: 'https://curlydots.com', timeout: 1000, retries: 0 });
     this.loginResponse = loginResponse;
     this.pollResponses = pollResponses;
   }

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 const ORIGINAL_ENV = { ...process.env };
 
 const mockLoadCliConfig = mock(() => ({
-  apiEndpoint: 'http://localhost:3000/api',
+  apiEndpoint: 'http://curlydots.com/api',
   authMethod: 'browser',
   tokenStorage: 'keychain',
   timeout: 1000,

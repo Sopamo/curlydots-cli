@@ -25,7 +25,7 @@ describe('services/http/client', () => {
   });
 
   it('always sends CLI version header', async () => {
-    const client = new HttpClient({ baseUrl: 'https://example.com', timeout: 1000, retries: 0 });
+    const client = new HttpClient({ baseUrl: 'https://curlydots.com', timeout: 1000, retries: 0 });
 
     await client.get('health', {
       headers: {
@@ -52,7 +52,7 @@ describe('services/http/client', () => {
       }) as unknown as Response;
     }) as typeof fetch;
 
-    const client = new HttpClient({ baseUrl: 'https://example.com', timeout: 5, retries: 0 });
+    const client = new HttpClient({ baseUrl: 'https://curlydots.com', timeout: 5, retries: 0 });
 
     await expect(client.get('health')).rejects.toEqual(
       expect.objectContaining({
