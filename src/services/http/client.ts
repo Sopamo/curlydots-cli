@@ -81,12 +81,14 @@ export class HttpClient {
     body?: unknown,
     options: HttpRequestOptions = {},
   ): Promise<T> {
+    const cliVersion = process.env.npm_package_version ?? '0.1.0';
     const baseUrl = this.baseUrl.endsWith('/')
       ? this.baseUrl
       : `${this.baseUrl}/`;
     const url = new URL(path, baseUrl).toString();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'X-Curlydots-Cli-Version': cliVersion,
     };
 
     if (options.token) {
