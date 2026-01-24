@@ -42,12 +42,54 @@ curlydots <command> [options]
 | `translate` | Translate a CSV file using AI (OpenAI) |
 | `import` | Import translated CSV back into translation files |
 
+### Authentication Commands
+
+Think of the `auth` commands as the “log in / log out” buttons for the CLI.
+
+1. `curlydots auth login` opens your browser, lets you approve the CLI, and then remembers that approval.
+2. `curlydots auth status` tells you whether you are currently signed in and when that access will expire.
+3. `curlydots auth logout` forgets the saved access so the computer is safe if you walk away.
+
+The CLI keeps your access token in your operating system’s secure storage. If that isn’t available, it saves an encrypted backup in a hidden `.curlydots` folder in your home directory. You can also provide a token yourself (see the next section) when you automate things like CI jobs.
+
+### Environment Configuration
+
+Most people can ignore this section. The CLI “just works” once you run `curlydots auth login`.
+
+If you run the CLI on a build server or in another automated environment, you can create a small `.env` file to tell it how to behave:
+
+| Setting | What it does |
+|---------|--------------|
+| `CURLYDOTS_API_URL` | Point the CLI to a different server (for example, staging). |
+| `CURLYDOTS_TOKEN` | Drop in a pre-made token so the CLI can run without opening a browser. |
+| `CURLYDOTS_DEBUG` | Set to `true` to print extra logs when you are troubleshooting. |
+
+```bash
+# .env example for automation
+CURLYDOTS_API_URL="http://localhost/api"
+CURLYDOTS_TOKEN="token-from-dashboard"
+CURLYDOTS_DEBUG=true
+```
+
+When these settings are missing, the CLI simply follows the normal login flow.
+
 ### Global Options
 
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--help` | `-h` | Show help message |
 | `--version` | `-v` | Show version number |
+
+### Projects Command
+
+`curlydots projects` is a simple picker for “which project are we working on right now?”
+
+1. The CLI shows all projects you can access, plus the team that owns each one.
+2. Your current project has a green dot so you can spot it quickly.
+3. Type the number next to a project to switch; the CLI remembers your choice in a small file so it sticks between runs.
+4. If Curlydots removes your access to a project, the CLI forgets it automatically and asks you to choose again.
+
+Using an API token (`CURLYDOTS_TOKEN`)? You only see the projects that token is allowed to touch. If there is just one, the CLI reminds you to sign in normally so you can switch between multiple projects.
 
 ---
 
