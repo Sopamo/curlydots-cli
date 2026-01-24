@@ -98,6 +98,7 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
     const cliVersion = process.env.npm_package_version ?? '0.1.0';
     const deviceLabel = createDeviceLabel(deviceInfo);
     const fingerprintHash = createFingerprintHash(deviceInfo);
+    
     const response = await client.post<{ code: string; verification_url: string; expires_at: string; poll_token: string }>(
       'cli/pairings',
       {

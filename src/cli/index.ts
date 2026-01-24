@@ -1,6 +1,7 @@
 import { runExtract } from '../commands/extract';
 import { importCommand } from '../commands/import';
 import { translateCommand } from '../commands/translate';
+import { projectsCommand } from '../commands/projects';
 import { authLoginCommand } from '../commands/auth/login';
 import { authLogoutCommand } from '../commands/auth/logout';
 import { authStatusCommand } from '../commands/auth/status';
@@ -13,6 +14,7 @@ const commandMap: Record<string, CommandHandler> = {
   extract: async (args) => runExtract(args),
   translate: async (args) => translateCommand(args),
   import: async (args) => importCommand(args),
+  projects: async (args) => projectsCommand(args),
   'auth login': async (args) => authLoginCommand(args),
   'auth logout': async (args) => authLogoutCommand(args),
   'auth status': async (args) => authStatusCommand(args),
@@ -43,6 +45,7 @@ Commands:
   auth login             Authenticate via browser
   auth logout            Remove stored credentials locally
   auth status            Display stored authentication info
+  projects               List available projects
   translations push      Push translation payload to backend
   translations status    Check translation push status
   extract                Find missing translations
