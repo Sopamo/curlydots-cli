@@ -97,20 +97,20 @@ description: "Task list for CLI Authentication and Translation Push"
 
 ## Phase 5: User Story 3 – Token Management (Priority: P2)
 
-**Goal**: Users can view current auth status and revoke tokens via CLI commands.
+**Goal**: Users can view current auth status and clear local tokens via CLI commands.
 
 **Independent Test**: Running `curlydots auth status/logout` displays accurate info and removes tokens without affecting other flows.
 
 ### Tests
 
 - [ ] T028 [P] [US3] Unit tests for status presenter + formatter in `tests/unit/cli/auth-status.test.ts`
-- [ ] T029 [P] [US3] Integration test covering logout/token revocation in `tests/integration/cli-auth-logout.test.ts`
+--- [ ] T029 [P] [US3] Integration test covering logout/local token cleanup in `tests/integration/cli-auth-logout.test.ts`
 
 ### Implementation
 
 - [ ] T030 [P] [US3] Implement token metadata formatter in `src/services/auth/status-presenter.ts`
 - [ ] T031 [US3] Wire `curlydots auth status` command (read-only) in `src/cli/auth/status.ts`
-- [ ] T032 [US3] Wire `curlydots auth logout` command (revoke + cleanup) in `src/cli/auth/logout.ts`
+--- [ ] T032 [US3] Wire `curlydots auth logout` command (local cleanup only) in `src/cli/auth/logout.ts`
 - [ ] T033 [US3] Add CI/CD token injection checks + helpful errors in `src/cli/auth/common.ts`
 
 **Checkpoint**: Token management independently complete.

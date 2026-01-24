@@ -37,7 +37,7 @@ curlydots <command> [options]
 |---------|-------------|
 | `auth login` | Browser-based authentication flow with long polling |
 | `auth status` | Display stored authentication token metadata |
-| `auth logout` | Revoke current token and clear secure storage |
+| `auth logout` | Log out locally and clear secure storage |
 | `extract` | Find missing translations with code context and export to CSV |
 | `translate` | Translate a CSV file using AI (OpenAI) |
 | `import` | Import translated CSV back into translation files |

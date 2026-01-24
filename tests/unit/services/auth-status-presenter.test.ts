@@ -74,7 +74,7 @@ describe('services/auth/status-presenter', () => {
 
   it('reports unauthenticated when env token is rejected', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token';
-    mockHttpClientGet.mockRejectedValueOnce(new MockHttpClientError('Token revoked', { category: 'authentication' }));
+    mockHttpClientGet.mockRejectedValueOnce(new MockHttpClientError('Token deactivated', { category: 'authentication' }));
 
     const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
     const status = await getAuthStatus();

@@ -28,7 +28,7 @@ Represents a user's authenticated session with the backend.
 
 **State Transitions**:
 - `active` → `expired` (when expiresAt reached)
-- `active` → `revoked` (user logout)
+- `active` → `deactivated` (user logout)
 - `expired` → `active` (via refresh token renewal)
 
 ### TranslationValue

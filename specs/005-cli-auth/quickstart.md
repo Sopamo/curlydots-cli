@@ -62,14 +62,14 @@ curlydots auth status
 # Storage: keychain
 ```
 
-### Logout and Revoke Access
+### Logout (Local Token Removal)
 
 ```bash
 # Logout and remove stored tokens
 curlydots auth logout
 
 # Output example:
-# Success: Token revoked successfully
+# Success: Logged out locally
 ```
 
 ## Configuration
@@ -195,7 +195,7 @@ curlydots translations push --file translations.json --timeout 60000
 - Never commit tokens to version control
 - Use environment variables in CI/CD
 - Rotate tokens regularly
-- Revoke unused tokens
+- Remove unused tokens locally when rotating credentials
 
 ```bash
 # Good: Environment variable
@@ -245,7 +245,7 @@ curlydots translations push --file translations.json --parallel 4
 |---------|-------------|---------|
 | `curlydots auth login` | Start authentication flow | `--manual`, `--timeout` |
 | `curlydots auth status` | Show authentication status | `--format json` |
-| `curlydots auth logout` | Revoke authentication | `--all` |
+| `curlydots auth logout` | Log out locally (clears stored token) | `--all` |
 
 ### Translation Commands
 

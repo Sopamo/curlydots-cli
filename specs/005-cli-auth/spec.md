@@ -68,12 +68,12 @@ As a CLI user, I want to view my authentication status and manage stored tokens 
 
 **Why this priority**: Token management provides users with visibility and control over their authentication state, improving security and user experience.
 
-**Independent Test**: Can be fully tested by running status commands and verifying token information is displayed correctly, and testing token revocation functionality.
+**Independent Test**: Can be fully tested by running status commands and verifying token information is displayed correctly, and testing local logout functionality.
 
 **Acceptance Scenarios**:
 
 1. **Given** I have stored authentication tokens, **When** I run the status command, **Then** the CLI displays my current authentication status and token information
-2. **Given** I want to revoke access, **When** I run the logout command, **Then** the CLI removes stored tokens and confirms successful logout
+2. **Given** I want to log out locally, **When** I run the logout command, **Then** the CLI removes stored tokens and confirms successful logout
 
 ---
 
@@ -101,7 +101,7 @@ As a CLI user, I want to view my authentication status and manage stored tokens 
 - **FR-005**: System MUST validate authentication tokens before allowing translation push operations
 - **FR-006**: System MUST allow users to push translation values and their context to the backend with valid authentication using `curlydots translations push` command
 - **FR-007**: System MUST handle token expiration gracefully and prompt for re-authentication
-- **FR-008**: System MUST provide commands to view authentication status (`curlydots auth status`) and logout/revoke tokens (`curlydots auth logout`)
+- **FR-008**: System MUST provide commands to view authentication status (`curlydots auth status`) and log out locally by clearing stored tokens (`curlydots auth logout`)
 - **FR-009**: System MUST display categorized error messages with retry logic for transient failures and clear guidance for permanent errors
 - **FR-010**: System MUST prevent multiple concurrent authentication attempts from the same CLI instance
 

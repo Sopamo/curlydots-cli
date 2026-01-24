@@ -2,8 +2,10 @@ import { runExtract } from '../commands/extract';
 import { importCommand } from '../commands/import';
 import { translateCommand } from '../commands/translate';
 import { authLoginCommand } from '../commands/auth/login';
+import { authLogoutCommand } from '../commands/auth/logout';
 import { authStatusCommand } from '../commands/auth/status';
 import { globalLogger } from '../utils/logger';
+import packageJson from '../../package.json' with { type: 'json' };
 
 export type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -12,6 +14,7 @@ const commandMap: Record<string, CommandHandler> = {
   translate: async (args) => translateCommand(args),
   import: async (args) => importCommand(args),
   'auth login': async (args) => authLoginCommand(args),
+  'auth logout': async (args) => authLogoutCommand(args),
   'auth status': async (args) => authStatusCommand(args),
 };
 
@@ -38,6 +41,7 @@ Usage:
 
 Commands:
   auth login             Authenticate via browser
+  auth logout            Remove stored credentials locally
   auth status            Display stored authentication info
   translations push      Push translation payload to backend
   translations status    Check translation push status
@@ -48,7 +52,7 @@ Commands:
 }
 
 function printVersion() {
-  console.log('curlydots CLI v0.1.0');
+  console.log(`curlydots CLI v${packageJson.version}`);
 }
 
 export async function runCli(argv: string[]): Promise<void> {
