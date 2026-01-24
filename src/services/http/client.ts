@@ -31,12 +31,12 @@ export class HttpClientError extends Error {
 
 const retryableStatus = new Set([408, 429, 500, 502, 503, 504]);
 
-async function requestWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+async function requestWithTimeout<T>(request: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ms);
 
   try {
-    const response = await promise;
+    const response = await request(controller.signal);
     clearTimeout(timeout);
     return response;
   } catch (error) {
@@ -103,11 +103,12 @@ export class HttpClient {
       }
     }
 
-    const attemptRequest = async (): Promise<T> => {
+    const attemptRequest = async (signal: AbortSignal): Promise<T> => {
       const response = await fetch(url, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,
+        signal,
       });
 
       options.onResponse?.(response);
@@ -131,7 +132,7 @@ export class HttpClient {
 
     return this.retry(async (attempt) => {
       try {
-        return await requestWithTimeout(attemptRequest(), this.timeout);
+        return await requestWithTimeout((signal) => attemptRequest(signal), this.timeout);
       } catch (error) {
         if (error instanceof HttpClientError) {
           if (error.meta.category === 'transient' && attempt < this.retries) {
