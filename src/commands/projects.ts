@@ -2,7 +2,7 @@ import { HttpClient } from '../services/http/client.js';
 import { loadAuthToken } from '../services/auth/token-manager.js';
 import { globalLogger } from '../utils/logger.js';
 import { loadCliConfig } from '../config/cli-config.js';
-import { getCurrentProject, setCurrentProject } from '../config/project-config.js';
+import { clearCurrentProject, getCurrentProject, setCurrentProject } from '../config/project-config.js';
 import * as readline from 'node:readline';
 import chalk from 'chalk';
 
@@ -64,8 +64,16 @@ export async function projectsCommand(_args: string[]): Promise<void> {
       return;
     }
 
-    const currentProject = getCurrentProject();
+    const storedProject = getCurrentProject();
     const hasApiKey = !!config.token;
+    const projectIds = new Set(response.data.map((project) => project.id));
+    let currentProject = storedProject;
+
+    if (storedProject && !projectIds.has(storedProject.projectId)) {
+      clearCurrentProject();
+      currentProject = null;
+      globalLogger.warn('Your current project selection is no longer available. Please select a new project.');
+    }
     
     console.log(chalk.bold('\nAvailable Projects:\n'));
     
