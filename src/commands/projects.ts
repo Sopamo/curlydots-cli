@@ -1,4 +1,4 @@
-import { HttpClient } from '../services/http/client.js';
+import { HttpClient, HttpClientError } from '../services/http/client.js';
 import { loadAuthToken } from '../services/auth/token-manager.js';
 import { globalLogger } from '../utils/logger.js';
 import { loadCliConfig } from '../config/cli-config.js';
@@ -18,6 +18,26 @@ interface Project {
 
 interface ProjectsResponse {
   data: Project[];
+}
+
+export function printProjectsHelp(): void {
+  console.log(`
+curlydots projects select - Manage your current project selection
+
+Usage:
+  curlydots projects select [options]
+
+Description:
+  Lists all projects available to your authenticated user and lets you pick
+  which one should be active for subsequent commands.
+
+Options:
+  -h, --help    Show this help message
+
+Notes:
+  • Requires authentication (run "curlydots auth login" first)
+  • Stores the selected project locally so future runs remember it
+`);
 }
 
 async function promptForSelection(projects: Project[]): Promise<Project | null> {
@@ -105,6 +125,10 @@ export async function projectsCommand(_args: string[]): Promise<void> {
       globalLogger.info('Selection cancelled.');
     }
   } catch (error) {
+    if (error instanceof HttpClientError && error.meta.status === 401) {
+      globalLogger.warn('You are not authenticated. Run "curlydots auth login" and try again.');
+    }
+
     const message = error instanceof Error ? error.message : 'Unknown error';
     globalLogger.error(`Failed to fetch projects: ${message}`);
     process.exitCode = 1;

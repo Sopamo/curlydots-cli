@@ -41,6 +41,7 @@ curlydots <command> [options]
 | `extract` | Find missing translations with code context and export to CSV |
 | `translate` | Translate a CSV file using AI (OpenAI) |
 | `import` | Import translated CSV back into translation files |
+| `projects select` | Pick which Curlydots project the CLI should target |
 
 ### Authentication Commands
 
@@ -82,7 +83,7 @@ When these settings are missing, the CLI simply follows the normal login flow.
 
 ### Projects Command
 
-`curlydots projects` is a simple picker for “which project are we working on right now?”
+`curlydots projects select` (or the shortcut `curlydots projects`) is a simple picker for “which project are we working on right now?”
 
 1. The CLI shows all projects you can access, plus the team that owns each one.
 2. Your current project has a green dot so you can spot it quickly.
@@ -90,6 +91,8 @@ When these settings are missing, the CLI simply follows the normal login flow.
 4. If Curlydots removes your access to a project, the CLI forgets it automatically and asks you to choose again.
 
 Using an API token (`CURLYDOTS_TOKEN`)? You only see the projects that token is allowed to touch. If there is just one, the CLI reminds you to sign in normally so you can switch between multiple projects.
+
+Need a refresher on the available sub-commands? Run `curlydots projects --help` to show the projects picker instructions or `curlydots auth --help` to view the auth namespace commands.
 
 ---
 
