@@ -37,7 +37,9 @@ curlydots <command> [options]
 |---------|-------------|
 | `auth login` | Browser-based authentication flow with long polling |
 | `auth status` | Display stored authentication token metadata |
-| `auth logout` | Log out locally and clear secure storage |
+| `auth logout` | Revoke current token and clear secure storage |
+| `translations push` | Push translation JSON payload with context to backend |
+| `translations status` | Check status of a push request |
 | `extract` | Find missing translations with code context and export to CSV |
 | `translate` | Translate a CSV file using AI (OpenAI) |
 | `import` | Import translated CSV back into translation files |
@@ -232,6 +234,30 @@ module.exports = {
 ```
 
 Nested keys are flattened: `settings.title`, `settings.notifications`
+
+---
+
+## Translations Push Command
+
+Upload new translation keys to the backend, including code context and default language values.
+
+```bash
+curlydots translations push --project <uuid> --repo <path> --translations-dir <path> --source <lang> --parser <name>
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--project <uuid>` | Project UUID (required) |
+| `--repo <path>` | Repository path (required) |
+| `--translations-dir <path>` | Translations directory (required) |
+| `--source <lang>` | Source language code (required) |
+| `--parser <name>` | Parser to use (default: node-module) |
+| `--api-host <url>` | API host (default: https://curlydots.com) |
+| `--api-token <token>` | API token override (optional if logged in) |
+| `--extensions <list>` | Comma-separated extensions to scan (default: all files) |
+| `--batch-size <n>` | Upload batch size (default: 100) |
 
 ## Workflow
 

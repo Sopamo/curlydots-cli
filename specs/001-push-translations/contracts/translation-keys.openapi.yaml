@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: Curlydots Translation Keys API
+  version: 1.0.0
+servers:
+  - url: https://curlydots.com
+paths:
+  /api/projects/{projectUuid}/translation-keys:
+    get:
+      summary: List existing translation keys for a project
+      parameters:
+        - name: projectUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Existing translation keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: string
+    post:
+      summary: Upload new translation keys for a project
+      parameters:
+        - name: projectUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keys:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TranslationKeyPayload'
+              required:
+                - keys
+      responses:
+        '201':
+          description: Keys accepted
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+components:
+  schemas:
+    UsageContext:
+      type: object
+      properties:
+        filePath:
+          type: string
+        lineNumber:
+          type: integer
+        snippet:
+          type: string
+        snippetStartLine:
+          type: integer
+        snippetEndLine:
+          type: integer
+      required:
+        - filePath
+        - lineNumber
+        - snippet
+        - snippetStartLine
+        - snippetEndLine
+    TranslationKeyPayload:
+      type: object
+      properties:
+        translationKey:
+          type: string
+        sourceValue:
+          type: string
+        sourceLanguage:
+          type: string
+        codeContext:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageContext'
+      required:
+        - translationKey
+        - sourceValue
+        - sourceLanguage
+        - codeContext

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'bun:test';
-import { runBrowserLogin, type AuthToken, type LoginResponse, type PollResponse } from '../../src/services/auth/browser-login';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { AuthToken, LoginResponse, PollResponse } from '../../src/services/auth/browser-login';
 import { HttpClient, type HttpRequestOptions } from '../../src/services/http/client';
 import type { CliConfig } from '../../src/config/cli-config';
 import { Logger } from '../../src/utils/logger';
@@ -84,12 +84,17 @@ const baseConfig: CliConfig = {
 const noopLogger = new Logger({ silent: true });
 
 describe('contract/auth-login', () => {
+  beforeEach(() => {
+    mock.restore();
+  });
+
   it('completes browser login flow with polling', async () => {
-    const loginResponse = {
-      code: 'ABCDEFGH',
-      verification_url: AUTH_BROWSER_URL + '/login',
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-      poll_token: 'poll-token',
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
+    const loginResponse: LoginResponse = {
+      browserUrl: AUTH_BROWSER_URL + '/login',
+      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
+      pairingCode: 'ABCD',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
     };
 
     const token: AuthToken = {
@@ -125,11 +130,12 @@ describe('contract/auth-login', () => {
   });
 
   it('fails when polling returns failure', async () => {
-    const loginResponse = {
-      code: 'ABCDEFGH',
-      verification_url: AUTH_BROWSER_URL + '/login',
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-      poll_token: 'poll-token',
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
+    const loginResponse: LoginResponse = {
+      browserUrl: AUTH_BROWSER_URL + '/login',
+      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
+      pairingCode: 'ABCD',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
     };
 
     const pollResponses: FakePollEntry[] = [{ body: { status: 'denied', denied_reason: 'Invalid session' } }];
@@ -147,11 +153,12 @@ describe('contract/auth-login', () => {
   });
 
   it('reuses conditional headers and skips JSON parsing on 304', async () => {
-    const loginResponse = {
-      code: 'ABCDEFGH',
-      verification_url: AUTH_BROWSER_URL + '/login',
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-      poll_token: 'poll-token',
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
+    const loginResponse: LoginResponse = {
+      browserUrl: AUTH_BROWSER_URL + '/login',
+      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
+      pairingCode: 'ABCD',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
     };
 
     const token: AuthToken = {

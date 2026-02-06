@@ -34,6 +34,7 @@ npm test && npm run lint
 TypeScript 5.x (strict mode): Follow standard conventions
 
 ## Recent Changes
+- 001-push-translations: Added TypeScript 5.x (strict) + Bun runtime, Ink, fast-csv, p-limit, zustand
 - 005-cli-auth: Added TypeScript 5.x (per constitution) + Bun.js runtime, OS keychain libraries, HTTP client
 - 004-csv-import: Added TypeScript 5.x (Bun.js runtime) + fast-csv (existing), Bun file APIs
 - 004-csv-import: Added TypeScript 5.x (Bun.js runtime) + fast-csv (existing), Bun file APIs

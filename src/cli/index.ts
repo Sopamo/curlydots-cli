@@ -5,6 +5,8 @@ import { projectsCommand, printProjectsHelp } from '../commands/projects';
 import { authLoginCommand } from '../commands/auth/login';
 import { authLogoutCommand } from '../commands/auth/logout';
 import { authStatusCommand } from '../commands/auth/status';
+import { runTranslationsPush } from '../commands/translations/push';
+import { runTranslationsStatus } from '../commands/translations/status';
 import { globalLogger } from '../utils/logger';
 import packageJson from '../../package.json' with { type: 'json' };
 
@@ -58,10 +60,12 @@ const commandMap: Record<string, CommandHandler> = {
   import: async (args) => importCommand(args),
   'projects select': async (args) => projectsCommand(args),
   projects: async (args) => handleProjectsNamespace(args),
+  auth: async (args) => handleAuthNamespace(args),
   'auth login': async (args) => authLoginCommand(args),
   'auth logout': async (args) => authLogoutCommand(args),
   'auth status': async (args) => authStatusCommand(args),
-  auth: async (args) => handleAuthNamespace(args),
+  'translations push': async (args) => runTranslationsPush(args),
+  'translations status': async (args) => runTranslationsStatus(args),
 };
 
 function normalizeCommand(args: string[]): { key: string; rest: string[] } {

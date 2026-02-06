@@ -89,7 +89,9 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
   const contexts: UsageContext[] = [];
 
   // Build glob pattern from extensions
-  const extensions = config.extensions.map((ext) => `**/*${ext}`);
+  const extensions = config.extensions.length > 0
+    ? config.extensions.map((ext) => `**/*${ext}`)
+    : ['**/*'];
 
   for (const pattern of extensions) {
     if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
