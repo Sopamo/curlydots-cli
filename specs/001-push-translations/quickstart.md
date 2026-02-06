@@ -25,11 +25,12 @@ aitranslate translations push \
   --translations-dir <path> \
   --source <lang> \
   --parser <name> \
-  --api-host https://curlydots.com \
+  --api-host https://curlydots.com/api \
   --api-token <token> \
   --extensions .js,.ts,.vue # optional; omit to scan all files
 ```
 
 ## Expected Output
 - Summary of keys scanned, skipped, and uploaded
+- Backend returns accepted/duplicate counts summary
 - Non-zero exit code on auth or API failures

@@ -10,17 +10,16 @@
 - Use raw `fetch` directly in the new command (rejected: duplicates request logic and error handling).
 - Add a new HTTP client module in the push command (rejected: would diverge from existing auth patterns).
 
-## Decision 2: API endpoints and payloads
+## Decision 2: API endpoint and payloads
 
-**Decision**: Define two backend endpoints:
-1) `GET /api/projects/{projectUuid}/translation-keys` to return all existing keys.
-2) `POST /api/projects/{projectUuid}/translation-keys` to upload new keys in batches.
+**Decision**: Use two CLI endpoints:
+1) `GET /api/cli/projects/{projectUuid}/translation-keys` to return all existing keys as `keys: string[]`.
+2) `POST /api/cli/projects/{projectUuid}/translation-keys` to upload only new keys in batches.
 
-**Rationale**: This matches the requirement to fetch all existing keys in a single response and upload only missing keys in batches.
+**Rationale**: CLI diffing keeps uploads minimal while still letting the backend store only new keys and return a counts summary.
 
 **Alternatives considered**:
-- One endpoint that accepts full payload and lets backend dedupe (rejected: wastes bandwidth and ignores explicit diff requirement).
-- Pagination for existing keys (rejected: spec explicitly requires a single response).
+- Uploading everything and letting the backend dedupe (rejected: wastes bandwidth and ignores diff requirement).
 
 ## Decision 3: Authentication source precedence
 
