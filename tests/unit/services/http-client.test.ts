@@ -1,31 +1,38 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { HttpClient } from '../../../src/services/http/client';
 
 describe('services/http/client', () => {
-  const originalFetch = globalThis.fetch;
-  const originalEnv = { ...process.env };
-
   let receivedHeaders: RequestInit['headers'] | undefined;
+  const moduleUrl = new URL('../../../src/services/http/client.ts', import.meta.url);
+
+  async function loadHttpClient() {
+    const { HttpClient } = await import(`${moduleUrl.href}?real=${Date.now()}`);
+    return HttpClient;
+  }
 
   beforeEach(() => {
     receivedHeaders = undefined;
-    process.env = { ...originalEnv, npm_package_version: '9.9.9' };
-    globalThis.fetch = (async (_url, init) => {
+  });
+
+  afterEach(() => {
+    receivedHeaders = undefined;
+  });
+
+  it('always sends CLI version header', async () => {
+    const HttpClient = await loadHttpClient();
+    const fetcher = (async (_url, init) => {
       receivedHeaders = init?.headers;
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
     }) as typeof fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    process.env = originalEnv;
-  });
-
-  it('always sends CLI version header', async () => {
-    const client = new HttpClient({ baseUrl: 'https://curlydots.com', timeout: 1000, retries: 0 });
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 0,
+      cliVersion: '9.9.9',
+      fetcher,
+    });
 
     await client.get('health', {
       headers: {
@@ -38,8 +45,9 @@ describe('services/http/client', () => {
   });
 
   it('aborts the request when the timeout elapses', async () => {
+    const HttpClient = await loadHttpClient();
     let receivedSignal: AbortSignal | undefined;
-    globalThis.fetch = (async (_url, init) => {
+    const fetcher = (async (_url, init) => {
       receivedSignal = init?.signal as AbortSignal | undefined;
       return new Promise((_resolve, reject) => {
         if (!receivedSignal) {
@@ -52,7 +60,12 @@ describe('services/http/client', () => {
       }) as unknown as Response;
     }) as typeof fetch;
 
-    const client = new HttpClient({ baseUrl: 'https://curlydots.com', timeout: 5, retries: 0 });
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 5,
+      retries: 0,
+      fetcher,
+    });
 
     await expect(client.get('health')).rejects.toEqual(
       expect.objectContaining({

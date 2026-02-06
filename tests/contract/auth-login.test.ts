@@ -17,6 +17,7 @@ class FakeClient extends HttpClient {
   public postCalls = 0;
   public getCalls = 0;
   public requestHeaders: Record<string, string>[] = [];
+  public cancelCalls: Array<{ path: string; body: unknown }> = [];
 
   constructor(
     loginResponse: { code: string; verification_url: string; expires_at: string; poll_token: string },
@@ -27,10 +28,13 @@ class FakeClient extends HttpClient {
     this.pollResponses = pollResponses;
   }
 
-  override async post<LoginResponse>(path: string): Promise<LoginResponse> {
+  override async post<LoginResponse>(path: string, body?: unknown): Promise<LoginResponse> {
     this.postCalls += 1;
-    expect(path).toBe('cli/pairings');
-    return this.loginResponse as LoginResponse;
+    if (path === 'cli/pairings') {
+      return this.loginResponse as LoginResponse;
+    }
+    this.cancelCalls.push({ path, body });
+    return undefined as LoginResponse;
   }
 
   override async get<PollResponse>(_path: string, options?: HttpRequestOptions): Promise<PollResponse> {
@@ -194,5 +198,41 @@ describe('contract/auth-login', () => {
     expect(second?.['If-Modified-Since']).toBe(lastModified);
     expect(third?.['If-None-Match']).toBe(etag);
     expect(third?.['If-Modified-Since']).toBe(lastModified);
+  });
+
+  it('notifies backend when authentication is cancelled', async () => {
+    const loginResponse = {
+      code: 'ABCDEFGH',
+      verification_url: AUTH_BROWSER_URL + '/login',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
+    };
+
+    const pollResponses: FakePollEntry[] = [{ body: { status: 'pending' } }];
+    const fakeClient = new FakeClient(loginResponse, pollResponses);
+    const controller = new AbortController();
+    let abortTriggered = false;
+
+    await expect(
+      runBrowserLogin({
+        client: fakeClient,
+        config: baseConfig,
+        openBrowser: async () => {},
+        wait: async () => {
+          if (!abortTriggered) {
+            abortTriggered = true;
+            controller.abort();
+          }
+        },
+        logger: noopLogger,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('Authentication cancelled by user.');
+
+    expect(fakeClient.cancelCalls).toHaveLength(1);
+    expect(fakeClient.cancelCalls[0]).toEqual({
+      path: 'cli/pairings/ABCDEFGH/cancel',
+      body: { poll_token: 'poll-token' },
+    });
   });
 });

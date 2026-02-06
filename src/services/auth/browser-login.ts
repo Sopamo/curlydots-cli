@@ -16,6 +16,7 @@ export interface DeviceInfo {
 export interface LoginResponse {
   browserUrl: string;
   pollingUrl: string;
+  cancelUrl: string;
   pairingCode: string;
   expiresAt: string;
   pollToken: string;
@@ -111,6 +112,7 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
     loginResponse = {
       browserUrl: response.verification_url,
       pollingUrl: `cli/pairings/${response.code}`,
+      cancelUrl: `cli/pairings/${response.code}/cancel`,
       pairingCode: response.code,
       expiresAt: response.expires_at,
       pollToken: response.poll_token,
@@ -138,12 +140,14 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
   const token = await pollForResult(
     client,
     loginResponse.pollingUrl,
+    loginResponse.cancelUrl,
     loginResponse.expiresAt,
     wait,
     signal,
     loginResponse.pollToken,
+    logger,
   );
-  logger.success('Authentication successful. Returning token to caller.');
+  logger.success('Authentication successful, storing token..');
 
   return token;
 }
@@ -151,10 +155,12 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
 async function pollForResult(
   client: HttpClient,
   pollingUrl: string,
+  cancelUrl: string,
   expiresAt: string,
   wait: (ms: number) => Promise<void>,
   signal?: AbortSignal,
   pollToken?: string,
+  logger: typeof globalLogger = globalLogger,
 ): Promise<AuthToken> {
   const expiry = new Date(expiresAt).getTime();
   const pollInterval = 2000;
@@ -174,6 +180,7 @@ async function pollForResult(
   while (Date.now() < expiry) {
     if (aborted) {
       signal?.removeEventListener('abort', abortHandler);
+      await notifyCancel(client, cancelUrl, pollToken, logger);
       throw new Error('Authentication cancelled by user.');
     }
 
@@ -238,4 +245,23 @@ async function pollForResult(
 
   signal?.removeEventListener('abort', abortHandler);
   throw new Error('Authentication timed out. Please retry.');
+}
+
+async function notifyCancel(
+  client: HttpClient,
+  cancelUrl: string,
+  pollToken: string | undefined,
+  logger: typeof globalLogger,
+): Promise<void> {
+  if (!pollToken) {
+    return;
+  }
+
+  try {
+    await client.post(cancelUrl, {
+      poll_token: pollToken,
+    });
+  } catch (error) {
+    logger.warn(`Unable to notify backend of cancellation: ${describeHttpError(error)}`);
+  }
 }

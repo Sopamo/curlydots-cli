@@ -8,6 +8,8 @@ export interface HttpClientOptions {
   timeout: number;
   retries: number;
   debug?: boolean;
+  cliVersion?: string;
+  fetcher?: typeof fetch;
 }
 
 export interface HttpErrorMeta {
@@ -50,12 +52,16 @@ export class HttpClient {
   private readonly timeout: number;
   private readonly retries: number;
   private readonly debug: boolean;
+  private readonly cliVersion?: string;
+  private readonly fetcher: typeof fetch;
 
   constructor(options: HttpClientOptions) {
     this.baseUrl = options.baseUrl;
     this.timeout = options.timeout;
     this.retries = options.retries;
     this.debug = options.debug ?? false;
+    this.cliVersion = options.cliVersion;
+    this.fetcher = options.fetcher ?? globalThis.fetch;
   }
 
   static fromConfig(config: CliConfig): HttpClient {
@@ -81,7 +87,7 @@ export class HttpClient {
     body?: unknown,
     options: HttpRequestOptions = {},
   ): Promise<T> {
-    const cliVersion = process.env.npm_package_version ?? '0.1.0';
+    const cliVersion = this.cliVersion ?? process.env.npm_package_version ?? '0.1.0';
     const baseUrl = this.baseUrl.endsWith('/')
       ? this.baseUrl
       : `${this.baseUrl}/`;
@@ -104,7 +110,7 @@ export class HttpClient {
     }
 
     const attemptRequest = async (signal: AbortSignal): Promise<T> => {
-      const response = await fetch(url, {
+      const response = await this.fetcher(url, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,

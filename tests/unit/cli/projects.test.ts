@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { projectsCommand } from '../../../src/commands/projects';
 import type { CliConfig } from '../../../src/config/cli-config';
+import { HttpClient } from '../../../src/services/http/client';
 
 const logs = {
   warn: [] as string[],
@@ -45,10 +46,10 @@ const originalLogger = await import('../../../src/utils/logger');
 const originalAuthModule = await import('../../../src/services/auth/token-manager');
 const originalConfigModule = await import('../../../src/config/cli-config');
 const originalProjectConfigModule = await import('../../../src/config/project-config');
-const originalHttpClientModule = await import('../../../src/services/http/client');
 const originalReadlineModule = await import('node:readline');
 
 const originalConsoleLog = console.log;
+const originalHttpClientFromConfig = HttpClient.fromConfig;
 
 describe('unit/cli/projects', () => {
   beforeEach(() => {
@@ -76,13 +77,9 @@ describe('unit/cli/projects', () => {
       setCurrentProject: setCurrentProjectMock,
     }));
 
-    mock.module('../../../src/services/http/client', () => ({
-      HttpClient: {
-        fromConfig: () => ({
-          get: httpClientGetMock,
-        }),
-      },
-    }));
+    HttpClient.fromConfig = () => ({
+      get: httpClientGetMock,
+    }) as unknown as HttpClient;
 
     mock.module('../../../src/utils/logger', () => ({
       ...originalLogger,
@@ -109,7 +106,7 @@ describe('unit/cli/projects', () => {
     mock.module('../../../src/services/auth/token-manager', () => ({ ...originalAuthModule }));
     mock.module('../../../src/config/cli-config', () => ({ ...originalConfigModule }));
     mock.module('../../../src/config/project-config', () => ({ ...originalProjectConfigModule }));
-    mock.module('../../../src/services/http/client', () => ({ ...originalHttpClientModule }));
+    HttpClient.fromConfig = originalHttpClientFromConfig;
     mock.module('node:readline', () => ({ ...originalReadlineModule }));
     mock.module('../../../src/utils/logger', () => ({ ...originalLogger }));
   });

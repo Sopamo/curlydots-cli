@@ -77,4 +77,21 @@ describe('integration/cli-auth-login', () => {
     expect(persistAuthTokenMock).toHaveBeenCalledWith(token);
     expect(logs.success.some((message) => message.includes('Logged in'))).toBe(true);
   });
+
+  it('skips login when a valid token already exists', async () => {
+    mock.module('../../src/services/auth/token-manager', () => ({
+      persistAuthToken: persistAuthTokenMock,
+      clearAuthToken: async () => {},
+      loadAuthToken: async () => token,
+      isTokenExpired: () => false,
+    }));
+
+    const { runCli } = await import('../../src/cli');
+
+    await runCli(['auth', 'login']);
+
+    expect(runBrowserLoginMock).toHaveBeenCalledTimes(0);
+    expect(persistAuthTokenMock).toHaveBeenCalledTimes(0);
+    expect(logs.success.some((message) => message.includes('Already authenticated'))).toBe(true);
+  });
 });

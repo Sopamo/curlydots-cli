@@ -1,5 +1,5 @@
 import { runBrowserLogin } from '../../services/auth/browser-login';
-import { persistAuthToken } from '../../services/auth/token-manager';
+import { isTokenExpired, loadAuthToken, persistAuthToken } from '../../services/auth/token-manager';
 import { globalLogger } from '../../utils/logger';
 
 const loginState = { inProgress: false };
@@ -8,6 +8,12 @@ export async function authLoginCommand(_args: string[]): Promise<void> {
   if (loginState.inProgress) {
     globalLogger.warn('Authentication already in progress.');
     process.exitCode = 1;
+    return;
+  }
+
+  const existingToken = await loadAuthToken();
+  if (existingToken && !isTokenExpired(existingToken)) {
+    globalLogger.success('Already authenticated. Run `curlydots auth logout` to re-authenticate.');
     return;
   }
 

@@ -39,6 +39,7 @@ describe('unit/cli/auth-logout', () => {
   });
 
   afterEach(() => {
+    process.exitCode = 0;
     mock.clearAllMocks();
     mock.restore();
     // Workaround for https://github.com/oven-sh/bun/issues/7823 due to ESM caching.
