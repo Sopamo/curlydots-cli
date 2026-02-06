@@ -74,6 +74,17 @@ describe('services/auth/status-presenter', () => {
     expect(status.storage).toBe('environment');
   });
 
+  it('reports unauthenticated when env token cannot be validated', async () => {
+    process.env.CURLYDOTS_TOKEN = 'env-token';
+    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Network error', { category: 'system' }));
+
+    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const status = await getAuthStatus();
+
+    expect(status.authenticated).toBe(false);
+    expect(status.storage).toBe('environment');
+  });
+
   it('reports authenticated when stored token is valid', async () => {
     mockLoadAuthToken.mockResolvedValueOnce({
       accessToken: 'stored-token',
@@ -84,6 +95,20 @@ describe('services/auth/status-presenter', () => {
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(true);
+    expect(status.storage).toBe('keychain');
+  });
+
+  it('reports unauthenticated when stored token cannot be validated', async () => {
+    mockLoadAuthToken.mockResolvedValueOnce({
+      accessToken: 'stored-token',
+      expiresAt: '2026-01-01T00:00:00Z',
+    });
+    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Network error', { category: 'system' }));
+
+    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const status = await getAuthStatus();
+
+    expect(status.authenticated).toBe(false);
     expect(status.storage).toBe('keychain');
   });
 });

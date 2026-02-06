@@ -22,7 +22,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
 
   if (envToken) {
     const apiAuth = await validateTokenWithApi(envToken, config);
-    if (apiAuth === false) {
+    if (apiAuth === false || apiAuth === null) {
       return {
         authenticated: false,
         expired: false,
@@ -60,7 +60,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
   }
 
   const apiAuth = await validateTokenWithApi(token.accessToken, config);
-  if (apiAuth === false) {
+  if (apiAuth === false || apiAuth === null) {
     return {
       authenticated: false,
       expired: false,
