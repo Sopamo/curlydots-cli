@@ -11,6 +11,11 @@ export async function authLoginCommand(_args: string[]): Promise<void> {
     return;
   }
 
+  if (process.env.CURLYDOTS_TOKEN) {
+    globalLogger.warn('CURLYDOTS_TOKEN is set. Unset it to use browser login, or keep using the environment token.');
+    return;
+  }
+
   const existingToken = await loadAuthToken();
   if (existingToken && !isTokenExpired(existingToken)) {
     globalLogger.success('Already authenticated. Run `curlydots auth logout` to re-authenticate.');

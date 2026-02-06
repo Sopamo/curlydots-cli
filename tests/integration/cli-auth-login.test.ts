@@ -61,6 +61,7 @@ describe('integration/cli-auth-login', () => {
   });
 
   afterEach(() => {
+    delete process.env.CURLYDOTS_TOKEN;
     mock.clearAllMocks();
     mock.restore();
     // Workaround for https://github.com/oven-sh/bun/issues/7823 due to ESM caching.
@@ -93,5 +94,17 @@ describe('integration/cli-auth-login', () => {
     expect(runBrowserLoginMock).toHaveBeenCalledTimes(0);
     expect(persistAuthTokenMock).toHaveBeenCalledTimes(0);
     expect(logs.success.some((message) => message.includes('Already authenticated'))).toBe(true);
+  });
+
+  it('skips browser login when CURLYDOTS_TOKEN is set', async () => {
+    process.env.CURLYDOTS_TOKEN = 'env-token';
+
+    const { runCli } = await import('../../src/cli');
+
+    await runCli(['auth', 'login']);
+
+    expect(runBrowserLoginMock).toHaveBeenCalledTimes(0);
+    expect(persistAuthTokenMock).toHaveBeenCalledTimes(0);
+    expect(logs.warn.some((message) => message.includes('CURLYDOTS_TOKEN is set'))).toBe(true);
   });
 });
