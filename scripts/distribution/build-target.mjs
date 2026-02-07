@@ -6,6 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 function parseArgs(argv) {
   const args = {
@@ -69,33 +70,72 @@ function run(command, commandArgs, options = {}) {
     ...options,
   });
 
+  if (result.error) {
+    throw result.error;
+  }
+
   if (result.status !== 0) {
     throw new Error(`Command failed: ${command} ${commandArgs.join(' ')}`);
   }
 }
 
-function commandExists(command) {
-  const result = spawnSync(command, ['--version'], {
+function commandExists(command, probeArgs = ['--version']) {
+  const result = spawnSync(command, probeArgs, {
     stdio: 'ignore',
   });
+  if (result.error) {
+    return false;
+  }
   return result.status === 0;
+}
+
+export function resolveWindowsArchiveCommand(probeCommand = commandExists) {
+  const powershellProbeArgs = ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()'];
+  for (const command of ['pwsh', 'powershell', 'powershell.exe']) {
+    if (probeCommand(command, powershellProbeArgs)) {
+      return { type: 'powershell', command };
+    }
+  }
+
+  if (probeCommand('zip')) {
+    return { type: 'zip', command: 'zip' };
+  }
+
+  if (probeCommand('tar')) {
+    return { type: 'tar', command: 'tar' };
+  }
+
+  return null;
 }
 
 function archiveBinary({ binaryPath, artifactPath, isWindows }) {
   if (isWindows) {
-    if (commandExists('powershell')) {
+    const windowsArchiver = resolveWindowsArchiveCommand();
+    if (windowsArchiver?.type === 'powershell') {
       const command = `Compress-Archive -Path '${binaryPath.replace(/'/g, "''")}' -DestinationPath '${artifactPath.replace(/'/g, "''")}' -Force`;
-      run('powershell', ['-NoProfile', '-Command', command]);
+      run(windowsArchiver.command, ['-NoProfile', '-Command', command]);
       return;
     }
 
-    if (commandExists('zip')) {
-      run('zip', ['-j', artifactPath, binaryPath]);
+    if (windowsArchiver?.type === 'zip') {
+      run(windowsArchiver.command, ['-j', artifactPath, binaryPath]);
+      return;
+    }
+
+    if (windowsArchiver?.type === 'tar') {
+      run(windowsArchiver.command, [
+        '-a',
+        '-cf',
+        artifactPath,
+        '-C',
+        path.dirname(binaryPath),
+        path.basename(binaryPath),
+      ]);
       return;
     }
 
     throw new Error(
-      'Unable to create Windows ZIP archive. Expected powershell (Compress-Archive) or zip command.',
+      'Unable to create Windows ZIP archive. Expected pwsh/powershell (Compress-Archive), zip, or tar.',
     );
   }
 
@@ -170,4 +210,9 @@ function main() {
   }
 }
 
-main();
+const isDirectExecution =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectExecution) {
+  main();
+}
