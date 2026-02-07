@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { getParser } from '../../parsers';
+import { loadParserFromFile } from '../../parsers/parser-file-loader';
 import { findContextForKeys } from '../../services/context-finder';
 import {
   fetchExistingTranslationKeys,
@@ -35,7 +36,18 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
   }
 
   const resolvedPath = resolve(parsedArgs.repoPath);
-  const parser = getParser(parsedArgs.parser);
+  let parser = getParser(parsedArgs.parser);
+  if (parsedArgs.parserFile) {
+    try {
+      parser = await loadParserFromFile(parsedArgs.parserFile);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      globalLogger.error(message);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   if (!parser) {
     globalLogger.error(`Unknown parser: ${parsedArgs.parser}`);
     process.exitCode = 1;
@@ -62,7 +74,7 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     translationsDir: parsedArgs.translationsDir,
     sourceLanguage: parsedArgs.source,
     targetLanguage: '',
-    parser: parsedArgs.parser,
+    parser: parser.name,
     extensions: parsedArgs.extensions,
     outputPath: '',
   });
