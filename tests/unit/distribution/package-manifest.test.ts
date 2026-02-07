@@ -9,6 +9,7 @@ function loadPackageManifest() {
     private: boolean;
     bin: Record<string, string>;
     files: string[];
+    dependencies?: Record<string, string>;
     publishConfig?: {
       access?: string;
     };
@@ -35,5 +36,12 @@ describe('distribution/package-manifest', () => {
     expect(manifest.files).toContain('bin');
     expect(manifest.files).toContain('vendor');
     expect(manifest.publishConfig?.access).toBe('public');
+  });
+
+  it('declares react-devtools-core for Bun compile compatibility with ink', () => {
+    const manifest = loadPackageManifest();
+
+    expect(manifest.dependencies).toBeDefined();
+    expect(manifest.dependencies?.['react-devtools-core']).toBeDefined();
   });
 });
