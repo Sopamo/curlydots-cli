@@ -194,9 +194,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Upgrade npm
-        run: npm install -g npm@latest
-
       - name: Show runtime versions
         run: |
           node --version
@@ -222,4 +219,4 @@ jobs:
         run: |
           rm -rf dist/npm/package
           tar -xzf "./dist/npm/curlydots-npm-${VERSION}.tgz" -C dist/npm
-          npm publish "./dist/npm/package" --provenance --access public --registry https://registry.npmjs.org/
+          npx --yes npm@latest publish "./dist/npm/package" --provenance --access public --registry https://registry.npmjs.org/
