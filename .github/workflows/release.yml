@@ -14,186 +14,16 @@ permissions:
   id-token: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.target_triple }}
-    runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            bun_target: bun-linux-x64
-            target_triple: x86_64-unknown-linux-musl
-          - runner: ubuntu-24.04-arm
-            bun_target: bun-linux-arm64
-            target_triple: aarch64-unknown-linux-musl
-          - runner: macos-latest
-            bun_target: bun-darwin-x64
-            target_triple: x86_64-apple-darwin
-          - runner: macos-latest
-            bun_target: bun-darwin-arm64
-            target_triple: aarch64-apple-darwin
-          - runner: windows-latest
-            bun_target: bun-windows-x64
-            target_triple: x86_64-pc-windows-msvc
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.8
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Build release artifact
-        run: |
-          bun run scripts/distribution/build-target.mjs \
-            --bun-target "${{ matrix.bun_target }}" \
-            --target-triple "${{ matrix.target_triple }}" \
-            --output-dir dist/release
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target_triple }}
-          path: |
-            dist/release/curlydots-${{ matrix.target_triple }}.tar.gz
-            dist/release/curlydots-${{ matrix.target_triple }}.zip
-            dist/release/curlydots-${{ matrix.target_triple }}.tar.gz.sha256
-            dist/release/curlydots-${{ matrix.target_triple }}.zip.sha256
-          if-no-files-found: ignore
-
-  stage-npm:
-    name: Stage npm package
-    runs-on: ubuntu-latest
-    needs: build
-    defaults:
-      run:
-        shell: bash
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      npm_tarball: ${{ steps.metadata.outputs.tarball_path }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist/release
-          merge-multiple: true
-
-      - name: Create SHA256SUMS
-        run: cat dist/release/*.sha256 | sort -k2 > dist/release/SHA256SUMS
-
-      - name: Resolve release version from tag
-        id: version
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Stage npm package tarball
-        run: |
-          node scripts/distribution/stage-npm-package.mjs \
-            --version "${{ steps.version.outputs.version }}" \
-            --artifacts-dir dist/release \
-            --output-dir dist/npm \
-            --metadata-file dist/npm/stage-metadata.json
-
-      - name: Read staging metadata
-        id: metadata
-        run: |
-          TAR_PATH="$(node -e "const fs=require('node:fs');const path=require('node:path');const m=JSON.parse(fs.readFileSync('dist/npm/stage-metadata.json','utf8'));process.stdout.write(path.resolve(m.tarballPath));")"
-          echo "tarball_path=${TAR_PATH}" >> "$GITHUB_OUTPUT"
-
-      - name: Validate release artifacts and npm package
-        run: |
-          node scripts/distribution/release-check.mjs \
-            --artifacts-dir dist/release \
-            --npm-tarball "${{ steps.metadata.outputs.tarball_path }}"
-
-      - name: Upload release assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-assets
-          path: |
-            dist/release/*.tar.gz
-            dist/release/*.zip
-            dist/release/SHA256SUMS
-
-      - name: Upload npm tarball
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-package
-          path: dist/npm/curlydots-npm-${{ steps.version.outputs.version }}.tgz
-
-  release:
-    name: Publish GitHub Release
-    runs-on: ubuntu-latest
-    needs: stage-npm
-    permissions:
-      contents: write
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Download release assets
-        uses: actions/download-artifact@v4
-        with:
-          name: release-assets
-          path: dist/release
-
-      - name: Download npm tarball
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package
-          path: dist/npm
-
-      - name: Resolve release version from tag
-        id: version
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ steps.version.outputs.version }}
-          files: |
-            dist/release/*.tar.gz
-            dist/release/*.zip
-            dist/release/SHA256SUMS
-            dist/npm/*.tgz
-          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
-
-  install-smoke:
-    needs: stage-npm
-    uses: ./.github/workflows/install-smoke.yml
-    with:
-      version: ${{ needs.stage-npm.outputs.version }}
-
   publish-npm:
-    name: Publish npm package
-    if: ${{ !contains(needs.release.outputs.version, '-') }}
+    name: Publish npm package (debug)
     runs-on: ubuntu-latest
-    needs:
-      - release
-      - install-smoke
     permissions:
-      id-token: write
       contents: read
+      id-token: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Show runtime versions
         run: |
           node --version
@@ -207,16 +37,10 @@ jobs:
           npm config delete always-auth --location=user || true
           npm config delete always-auth --location=project || true
 
-      - name: Download npm tarball
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package
-          path: dist/npm
-
-      - name: Publish tarball with OIDC
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
+      - name: Stamp package version from tag
         run: |
-          rm -rf dist/npm/package
-          tar -xzf "./dist/npm/curlydots-npm-${VERSION}.tgz" -C dist/npm
-          npx --yes npm@latest publish "./dist/npm/package" --provenance --access public --registry https://registry.npmjs.org/
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm pkg set version="${VERSION}"
+
+      - name: Publish package with trusted publishing
+        run: npx --yes npm@latest publish --provenance --access public --registry https://registry.npmjs.org/
