@@ -1,19 +1,26 @@
 {
-  "name": "curlydots-cli",
+  "name": "@curlydots/cli",
   "version": "0.1.0",
   "description": "CLI tool to analyze translation files and find missing translations with code context",
-  "module": "src/index.ts",
+  "main": "bin/curlydots.js",
   "type": "module",
-  "private": true,
+  "private": false,
   "bin": {
-    "curlydots": "src/index.ts"
+    "curlydots": "bin/curlydots.js"
+  },
+  "files": ["bin", "vendor", "README.md"],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "start": "bun run src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "dist:build-target": "node scripts/distribution/build-target.mjs",
+    "dist:stage-npm": "node scripts/distribution/stage-npm-package.mjs",
+    "dist:release-check": "node scripts/distribution/release-check.mjs"
   },
   "dependencies": {
     "fast-csv": "^5.0.5",

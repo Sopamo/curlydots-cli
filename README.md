@@ -14,6 +14,16 @@ AI-powered CLI tool for translation management. Extract missing translations, tr
 ## Installation
 
 ```bash
+# Global install from npm (recommended)
+npm i -g @curlydots/cli
+
+# Verify installation
+curlydots --version
+```
+
+### Local Development
+
+```bash
 # Clone the repository
 git clone <repo-url> curlydots-cli
 cd curlydots-cli
@@ -21,9 +31,20 @@ cd curlydots-cli
 # Install dependencies (requires Bun.js)
 bun install
 
-# Run the CLI
+# Run the CLI directly from source
 bun run src/index.ts --help
 ```
+
+### Platform Support (Native Bun Executables)
+
+| Platform | Architecture | Status |
+|----------|--------------|--------|
+| Linux | x64 | Supported |
+| Linux | arm64 | Supported |
+| macOS | x64 | Supported |
+| macOS | arm64 | Supported |
+| Windows | x64 | Supported |
+| Windows | arm64 | Not yet supported (`bun-windows-arm64` unavailable as of February 7, 2026) |
 
 ## Usage
 
