@@ -18,9 +18,10 @@ describe('distribution/release-workflow', () => {
     const workflow = loadReleaseWorkflow();
 
     expect(workflow).not.toMatch(/publish-npm:[\s\S]*?registry-url:\s*https:\/\/registry\.npmjs\.org/);
-    expect(workflow).toContain('name: Clear setup-node npm auth environment');
-    expect(workflow).toContain('echo "NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"');
-    expect(workflow).toContain('echo "NPM_CONFIG_USERCONFIG=" >> "$GITHUB_ENV"');
+    expect(workflow).not.toMatch(/publish-npm:[\s\S]*?actions\/setup-node@v4/);
+    expect(workflow).toContain('name: Show runtime versions');
+    expect(workflow).toContain('node --version');
+    expect(workflow).toContain('npm --version');
     expect(workflow).toContain('name: Remove npm token configuration');
     expect(workflow).toContain('npm config delete "//registry.npmjs.org/:_authToken" --location=user || true');
   });
