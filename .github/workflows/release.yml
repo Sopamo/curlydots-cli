@@ -209,4 +209,6 @@ jobs:
           VERSION: ${{ needs.release.outputs.version }}
         run: |
           unset NODE_AUTH_TOKEN
-          npm publish "./dist/npm/curlydots-npm-${VERSION}.tgz" --provenance --access public
+          rm -rf dist/npm/package
+          tar -xzf "./dist/npm/curlydots-npm-${VERSION}.tgz" -C dist/npm
+          npm publish "./dist/npm/package" --provenance --access public
