@@ -14,11 +14,14 @@ describe('distribution/release-workflow', () => {
     expect(workflow).toMatch(/\npermissions:\n  contents: read\n  id-token: write\n/);
   });
 
-  it('configures setup-node with npm registry URL in publish job', () => {
+  it('keeps publish job free from setup-node tokenized npmrc config', () => {
     const workflow = loadReleaseWorkflow();
 
-    expect(workflow).toMatch(
-      /publish-npm:[\s\S]*?Setup Node\.js[\s\S]*?actions\/setup-node@v4[\s\S]*?registry-url:\s*https:\/\/registry\.npmjs\.org/,
-    );
+    expect(workflow).not.toMatch(/publish-npm:[\s\S]*?registry-url:\s*https:\/\/registry\.npmjs\.org/);
+    expect(workflow).toContain('name: Clear setup-node npm auth environment');
+    expect(workflow).toContain('echo "NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"');
+    expect(workflow).toContain('echo "NPM_CONFIG_USERCONFIG=" >> "$GITHUB_ENV"');
+    expect(workflow).toContain('name: Remove npm token configuration');
+    expect(workflow).toContain('npm config delete "//registry.npmjs.org/:_authToken" --location=user || true');
   });
 });
