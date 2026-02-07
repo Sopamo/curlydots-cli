@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "CLI tool to analyze translation files and find missing translations with code context",
   "main": "bin/curlydots.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sopamo/curlydots-cli"
+  },
   "type": "module",
   "private": false,
   "bin": {

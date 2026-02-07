@@ -9,6 +9,10 @@ function loadPackageManifest() {
     private: boolean;
     bin: Record<string, string>;
     files: string[];
+    repository?: {
+      type?: string;
+      url?: string;
+    };
     dependencies?: Record<string, string>;
     publishConfig?: {
       access?: string;
@@ -43,5 +47,12 @@ describe('distribution/package-manifest', () => {
 
     expect(manifest.dependencies).toBeDefined();
     expect(manifest.dependencies?.['react-devtools-core']).toBeDefined();
+  });
+
+  it('declares repository metadata required for npm provenance verification', () => {
+    const manifest = loadPackageManifest();
+
+    expect(manifest.repository?.type).toBe('git');
+    expect(manifest.repository?.url).toBe('https://github.com/Sopamo/curlydots-cli');
   });
 });
