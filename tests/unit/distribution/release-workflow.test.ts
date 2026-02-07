@@ -26,28 +26,35 @@ describe('distribution/release-workflow', () => {
     expect(workflow).toMatch(/\npermissions:\n  contents: read\n  id-token: write\n/);
   });
 
-  it('uses minimal debug publish flow without setup-node', () => {
+  it('uses the full release pipeline with build, staging, release, smoke, and npm publish jobs', () => {
     const workflow = loadReleaseWorkflow();
 
-    expect(workflow).toContain('name: Publish npm package (debug)');
-    expect(workflow).not.toContain('actions/setup-node@v4');
-    expect(workflow).toContain('uses: actions/checkout@v4');
-    expect(workflow).toContain('name: Show npx npm@latest version');
-    expect(workflow).toContain('run: npx --yes npm@latest --version');
+    expect(workflow).toContain('jobs:');
+    expect(workflow).toContain('build:');
+    expect(workflow).toContain('stage-npm:');
+    expect(workflow).toContain('release:');
+    expect(workflow).toContain('install-smoke:');
+    expect(workflow).toContain('publish-npm:');
+    expect(workflow).not.toContain('Publish npm package (debug)');
+    expect(workflow).toContain('uses: oven-sh/setup-bun@v2');
+    expect(workflow).toContain('bun-version: 1.3.8');
+    expect(workflow).toContain('runner: ubuntu-latest');
+    expect(workflow).toContain('runner: ubuntu-24.04-arm');
+    expect(workflow).toContain('runner: macos-latest');
+    expect(workflow).toContain('runner: windows-latest');
+    expect(workflow).toContain('target_triple: x86_64-unknown-linux-musl');
+    expect(workflow).toContain('target_triple: aarch64-unknown-linux-musl');
+    expect(workflow).toContain('target_triple: x86_64-apple-darwin');
+    expect(workflow).toContain('target_triple: aarch64-apple-darwin');
+    expect(workflow).toContain('target_triple: x86_64-pc-windows-msvc');
+    expect(workflow).toContain('node scripts/distribution/stage-npm-package.mjs');
+    expect(workflow).toContain('node scripts/distribution/release-check.mjs');
+    expect(workflow).toContain('uses: softprops/action-gh-release@v2');
+    expect(workflow).toContain('uses: ./.github/workflows/install-smoke.yml');
     expect(workflow).toContain('name: Remove npm token configuration');
-    expect(workflow).toContain('name: Stamp package version from tag');
-    expect(workflow).toContain('npm pkg set version="${VERSION}"');
-    expect(workflow).toContain('name: Inspect OIDC claims for npm audience');
-    expect(workflow).toContain('audience=npm:registry.npmjs.org');
-    expect(workflow).toContain('workflow_ref: claims.workflow_ref');
-    expect(workflow).toContain('name: Check npm OIDC exchange for package');
-    expect(workflow).toContain('npm OIDC exchange status: ${STATUS}');
+    expect(workflow).toContain('name: Publish tarball with OIDC');
     expect(workflow).toContain(
-      'https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40curlydots%2Fcli',
-    );
-    expect(workflow).toContain('name: Publish package with trusted publishing');
-    expect(workflow).toContain(
-      'npx --yes npm@latest publish --provenance --access public --registry https://registry.npmjs.org/',
+      'npx --yes npm@latest publish "./dist/npm/package" --provenance --access public --registry https://registry.npmjs.org/',
     );
     expect(workflow).toContain('npm config delete "//registry.npmjs.org/:_authToken" --location=user || true');
   });
