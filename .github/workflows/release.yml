@@ -194,7 +194,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
 
       - name: Upgrade npm
         run: npm install -g npm@latest
@@ -208,4 +207,6 @@ jobs:
       - name: Publish tarball with OIDC
         env:
           VERSION: ${{ needs.release.outputs.version }}
-        run: npm publish "./dist/npm/curlydots-npm-${VERSION}.tgz" --provenance --access public
+        run: |
+          unset NODE_AUTH_TOKEN
+          npm publish "./dist/npm/curlydots-npm-${VERSION}.tgz" --provenance --access public
