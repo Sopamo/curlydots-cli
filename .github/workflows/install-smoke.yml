@@ -40,7 +40,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Download npm tarball artifact from current run
-        if: ${{ github.event_name == 'workflow_call' }}
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: actions/download-artifact@v4
         with:
           name: npm-package
@@ -57,6 +57,18 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --pattern "curlydots-npm-${VERSION}.tgz" \
             --dir dist/npm
+
+      - name: Ensure npm tarball exists
+        env:
+          VERSION: ${{ inputs.version || github.event.inputs.version }}
+        run: |
+          TARBALL="dist/npm/curlydots-npm-${VERSION}.tgz"
+          if [[ ! -f "$TARBALL" ]]; then
+            echo "Missing npm tarball: $TARBALL"
+            ls -la dist || true
+            ls -la dist/npm || true
+            exit 1
+          fi
 
       - name: Add npm global bin to PATH
         run: |
