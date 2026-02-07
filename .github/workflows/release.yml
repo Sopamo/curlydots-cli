@@ -29,6 +29,9 @@ jobs:
           node --version
           npm --version
 
+      - name: Show npx npm@latest version
+        run: npx --yes npm@latest --version
+
       - name: Remove npm token configuration
         run: |
           rm -f "$HOME/.npmrc"
@@ -69,6 +72,18 @@ jobs:
             };
             console.log(JSON.stringify(selected, null, 2));
           ' "${TOKEN}"
+
+      - name: Check npm OIDC exchange for package
+        run: |
+          RESPONSE="$(curl -fsSL -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org")"
+          TOKEN="$(node -e "const r=JSON.parse(process.argv[1]);process.stdout.write(r.value)" "${RESPONSE}")"
+          STATUS="$(curl -sS -o npm-oidc-exchange.json -w "%{http_code}" -X POST -H "Authorization: Bearer ${TOKEN}" "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40curlydots%2Fcli")"
+          echo "npm OIDC exchange status: ${STATUS}"
+          cat npm-oidc-exchange.json
+          if [ "${STATUS}" -ne 201 ]; then
+            echo "npm OIDC exchange failed"
+            exit 1
+          fi
 
       - name: Publish package with trusted publishing
         run: npx --yes npm@latest publish --provenance --access public --registry https://registry.npmjs.org/

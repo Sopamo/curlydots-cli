@@ -32,12 +32,19 @@ describe('distribution/release-workflow', () => {
     expect(workflow).toContain('name: Publish npm package (debug)');
     expect(workflow).not.toContain('actions/setup-node@v4');
     expect(workflow).toContain('uses: actions/checkout@v4');
+    expect(workflow).toContain('name: Show npx npm@latest version');
+    expect(workflow).toContain('run: npx --yes npm@latest --version');
     expect(workflow).toContain('name: Remove npm token configuration');
     expect(workflow).toContain('name: Stamp package version from tag');
     expect(workflow).toContain('npm pkg set version="${VERSION}"');
     expect(workflow).toContain('name: Inspect OIDC claims for npm audience');
     expect(workflow).toContain('audience=npm:registry.npmjs.org');
     expect(workflow).toContain('workflow_ref: claims.workflow_ref');
+    expect(workflow).toContain('name: Check npm OIDC exchange for package');
+    expect(workflow).toContain('npm OIDC exchange status: ${STATUS}');
+    expect(workflow).toContain(
+      'https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40curlydots%2Fcli',
+    );
     expect(workflow).toContain('name: Publish package with trusted publishing');
     expect(workflow).toContain(
       'npx --yes npm@latest publish --provenance --access public --registry https://registry.npmjs.org/',
