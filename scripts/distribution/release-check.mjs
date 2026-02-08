@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,15 @@ import {
 } from './targets.mjs';
 
 export const REQUIRED_RELEASE_ARCHIVES = PLATFORM_PACKAGE_TARGETS.map((target) => target.artifact);
+
+export const TARBALL_SIZE_BUDGET_BYTES = {
+  '@curlydots/cli': 128 * 1024,
+  '@curlydots/cli-linux-x64': 55 * 1024 * 1024,
+  '@curlydots/cli-linux-arm64': 55 * 1024 * 1024,
+  '@curlydots/cli-darwin-x64': 40 * 1024 * 1024,
+  '@curlydots/cli-darwin-arm64': 40 * 1024 * 1024,
+  '@curlydots/cli-win32-x64': 60 * 1024 * 1024,
+};
 
 export function validateReleaseArtifactSet(fileNames) {
   const fileSet = new Set(fileNames);
@@ -164,6 +173,34 @@ export function validateMainManifest(manifest, version, expectedPackageNames) {
   };
 }
 
+export function validateTarballSizeBudget(
+  packageName,
+  tarballSizeBytes,
+  budgets = TARBALL_SIZE_BUDGET_BYTES,
+) {
+  const maxBytes = budgets[packageName];
+  if (typeof maxBytes !== 'number') {
+    return {
+      valid: false,
+      reason: 'missing-budget',
+      packageName,
+      tarballSizeBytes,
+      maxBytes: null,
+      exceedBytes: null,
+    };
+  }
+
+  const exceedBytes = Math.max(0, tarballSizeBytes - maxBytes);
+  return {
+    valid: exceedBytes === 0,
+    reason: exceedBytes === 0 ? null : 'exceeds-budget',
+    packageName,
+    tarballSizeBytes,
+    maxBytes,
+    exceedBytes,
+  };
+}
+
 function parseArgs(argv) {
   const args = {
     artifactsDir: null,
@@ -311,6 +348,16 @@ function main() {
         console.error(JSON.stringify(manifestValidation, null, 2));
         process.exit(1);
       }
+
+      const tarballSizeValidation = validateTarballSizeBudget(
+        entry.name,
+        statSync(entry.tarballPath).size,
+      );
+      if (!tarballSizeValidation.valid) {
+        console.error(`Tarball size exceeds budget for ${entry.name}`);
+        console.error(JSON.stringify(tarballSizeValidation, null, 2));
+        process.exit(1);
+      }
     }
 
     if (!mainMetadata.tarballPath || !existsSync(mainMetadata.tarballPath)) {
@@ -342,6 +389,16 @@ function main() {
     if (!mainManifestValidation.valid) {
       console.error('Main package manifest validation failed.');
       console.error(JSON.stringify(mainManifestValidation, null, 2));
+      process.exit(1);
+    }
+
+    const mainTarballSizeValidation = validateTarballSizeBudget(
+      '@curlydots/cli',
+      statSync(mainMetadata.tarballPath).size,
+    );
+    if (!mainTarballSizeValidation.valid) {
+      console.error('Main package tarball size exceeds budget.');
+      console.error(JSON.stringify(mainTarballSizeValidation, null, 2));
       process.exit(1);
     }
   }

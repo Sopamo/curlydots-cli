@@ -40,3 +40,15 @@ jobs:
             --bun-target bun-linux-x64 \
             --target-triple x86_64-unknown-linux-musl \
             --output-dir dist/ci-release
+
+      - name: Verify compiled binary version matches package version
+        run: |
+          mkdir -p dist/ci-extract
+          tar -xzf dist/ci-release/curlydots-x86_64-unknown-linux-musl.tar.gz -C dist/ci-extract
+          EXPECTED_VERSION="$(grep -m1 '\"version\"' package.json | sed -E 's/.*\"version\": \"([^\"]+)\".*/\1/')"
+          OUTPUT="$(dist/ci-extract/curlydots --version)"
+          echo "$OUTPUT"
+          if ! echo "$OUTPUT" | grep -q "v${EXPECTED_VERSION}\\b"; then
+            echo "Expected compiled binary version v${EXPECTED_VERSION}, got: $OUTPUT"
+            exit 1
+          fi

@@ -88,17 +88,32 @@ jobs:
       - name: Verify version command (Unix)
         if: runner.os != 'Windows'
         shell: bash
-        run: curlydots --version
+        env:
+          VERSION: ${{ inputs.version || github.event.inputs.version }}
+        run: |
+          OUTPUT="$(curlydots --version)"
+          echo "$OUTPUT"
+          if ! echo "$OUTPUT" | grep -q "v${VERSION}\\b"; then
+            echo "Expected CLI version v${VERSION} but got: $OUTPUT"
+            exit 1
+          fi
 
       - name: Verify version command (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          VERSION: ${{ inputs.version || github.event.inputs.version }}
         run: |
           $nativeBin = Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"
           if (-not (Test-Path $nativeBin)) {
             throw "Expected native binary at $nativeBin"
           }
-          & $nativeBin --version
+          $output = (& $nativeBin --version | Out-String).Trim()
+          Write-Host $output
+          $expected = "v$($env:VERSION)"
+          if ($output -notmatch [regex]::Escape($expected)) {
+            throw "Expected CLI version $expected but got: $output"
+          }
 
       - name: Verify help command (Unix)
         if: runner.os != 'Windows'

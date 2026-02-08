@@ -17,6 +17,7 @@ describe('distribution/install-smoke-workflow', () => {
     expect(workflow).toContain('for ($attempt = 1; $attempt -le 15; $attempt++)');
     expect(workflow).toContain('name: Verify version command (Windows)');
     expect(workflow).toContain('name: Verify help command (Windows)');
+    expect(workflow).toContain('$expected = "v$($env:VERSION)"');
     expect(workflow).toContain('& $nativeBin --version');
     expect(workflow).toContain('& $nativeBin --help');
   });
@@ -29,5 +30,6 @@ describe('distribution/install-smoke-workflow', () => {
     expect(workflow).toContain('name: Verify command resolves to native binary on Windows');
     expect(workflow).toContain('Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"');
     expect(workflow).toContain('Expected Windows PE executable header (MZ)');
+    expect(workflow).toContain('Expected CLI version v${VERSION} but got: $OUTPUT');
   });
 });

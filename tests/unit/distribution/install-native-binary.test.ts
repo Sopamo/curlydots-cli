@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -7,11 +17,23 @@ async function loadInstaller() {
   const module = await import('../../../scripts/distribution/install-native-binary.cjs');
   return (module.default ?? module) as {
     WINDOWS_ARM64_UNSUPPORTED_MESSAGE: string;
-    copyInstalledBinary: (args: {
+    linkInstalledBinary: (args: {
       sourcePath: string;
       destinationPath: string;
       platform?: string;
-    }) => void;
+      operations?: {
+        mkdirSync: typeof mkdirSync;
+        rmSync: typeof rmSync;
+        linkSync: (sourcePath: string, destinationPath: string) => void;
+        symlinkSync: (
+          targetPath: string,
+          destinationPath: string,
+          type?: 'dir' | 'file' | 'junction',
+        ) => void;
+        copyFileSync: typeof copyFileSync;
+        chmodSync: typeof chmodSync;
+      };
+    }) => { method: string };
     installNativeBinary: (args: {
       packageRoot: string;
       platform: string;
@@ -62,9 +84,9 @@ describe('distribution/install-native-binary', () => {
     );
   });
 
-  it('copies the resolved binary to the top-level bin path', async () => {
+  it('links the resolved binary to the top-level bin path without copy duplication', async () => {
     const installer = await loadInstaller();
-    const tempDir = makeTempDir('curlydots-install-copy-');
+    const tempDir = makeTempDir('curlydots-install-link-');
 
     try {
       const sourcePath = path.join(tempDir, 'source', 'curlydots');
@@ -72,12 +94,56 @@ describe('distribution/install-native-binary', () => {
       mkdirSync(path.dirname(sourcePath), { recursive: true });
       writeFileSync(sourcePath, 'native-binary');
 
-      installer.copyInstalledBinary({
+      const result = installer.linkInstalledBinary({
         sourcePath,
         destinationPath,
         platform: 'linux',
       });
 
+      expect(readFileSync(destinationPath, 'utf8')).toBe('native-binary');
+      expect(result.method).not.toBe('copy');
+
+      if (result.method === 'hardlink') {
+        expect(statSync(sourcePath).ino).toBe(statSync(destinationPath).ino);
+      }
+
+      if (result.method === 'symlink') {
+        expect(lstatSync(destinationPath).isSymbolicLink()).toBe(true);
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to copying when hardlink and symlink fail', async () => {
+    const installer = await loadInstaller();
+    const tempDir = makeTempDir('curlydots-install-link-fallback-');
+
+    try {
+      const sourcePath = path.join(tempDir, 'source', 'curlydots');
+      const destinationPath = path.join(tempDir, 'bin', 'curlydots.exe');
+      mkdirSync(path.dirname(sourcePath), { recursive: true });
+      writeFileSync(sourcePath, 'native-binary');
+
+      const result = installer.linkInstalledBinary({
+        sourcePath,
+        destinationPath,
+        platform: 'linux',
+        operations: {
+          mkdirSync,
+          rmSync,
+          linkSync: () => {
+            throw new Error('hardlink unavailable');
+          },
+          symlinkSync: () => {
+            throw new Error('symlink unavailable');
+          },
+          copyFileSync,
+          chmodSync,
+        },
+      });
+
+      expect(result.method).toBe('copy');
       expect(readFileSync(destinationPath, 'utf8')).toBe('native-binary');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

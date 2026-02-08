@@ -2,12 +2,14 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   REQUIRED_RELEASE_ARCHIVES,
+  TARBALL_SIZE_BUDGET_BYTES,
   validateMainManifest,
   validateMainTarballEntries,
   validatePlatformManifest,
   validatePlatformTarballEntries,
   validateReleaseArtifactSet,
   validateSha256SumsContent,
+  validateTarballSizeBudget,
 } from '../../../scripts/distribution/release-check.mjs';
 import {
   PLATFORM_PACKAGE_NAMES,
@@ -126,5 +128,25 @@ describe('distribution/release-check', () => {
     );
 
     expect(manifestValidation.valid).toBe(true);
+  });
+
+  it('enforces tarball size budgets for all packages', () => {
+    const valid = validateTarballSizeBudget('@curlydots/cli-darwin-arm64', 10 * 1024 * 1024);
+    expect(valid.valid).toBe(true);
+    expect(valid.exceedBytes).toBe(0);
+
+    const invalid = validateTarballSizeBudget(
+      '@curlydots/cli-win32-x64',
+      TARBALL_SIZE_BUDGET_BYTES['@curlydots/cli-win32-x64'] + 1,
+    );
+    expect(invalid.valid).toBe(false);
+    expect(invalid.reason).toBe('exceeds-budget');
+    expect(invalid.exceedBytes).toBe(1);
+  });
+
+  it('fails budget validation when no package budget exists', () => {
+    const result = validateTarballSizeBudget('@curlydots/cli-unknown', 1234);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('missing-budget');
   });
 });

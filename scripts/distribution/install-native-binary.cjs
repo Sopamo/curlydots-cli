@@ -1,7 +1,16 @@
 #!/usr/bin/env node
 
 const { spawnSync } = require('node:child_process');
-const { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync } = require('node:fs');
+const {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  linkSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} = require('node:fs');
 const path = require('node:path');
 const process = require('node:process');
 
@@ -121,13 +130,66 @@ function installMissingOptionalPackage({
   }
 }
 
-function copyInstalledBinary({ sourcePath, destinationPath, platform = process.platform }) {
-  mkdirSync(path.dirname(destinationPath), { recursive: true });
-  copyFileSync(sourcePath, destinationPath);
+const DEFAULT_LINK_OPERATIONS = {
+  mkdirSync,
+  rmSync,
+  linkSync,
+  symlinkSync,
+  copyFileSync,
+  chmodSync,
+};
+
+function linkInstalledBinary({
+  sourcePath,
+  destinationPath,
+  platform = process.platform,
+  operations = DEFAULT_LINK_OPERATIONS,
+}) {
+  const {
+    mkdirSync: mkdirSyncImpl,
+    rmSync: rmSyncImpl,
+    linkSync: linkSyncImpl,
+    symlinkSync: symlinkSyncImpl,
+    copyFileSync: copyFileSyncImpl,
+    chmodSync: chmodSyncImpl,
+  } = operations;
+
+  mkdirSyncImpl(path.dirname(destinationPath), { recursive: true });
+  rmSyncImpl(destinationPath, { force: true });
+
+  let method = 'copy';
+  let hardlinkError = null;
+  let symlinkError = null;
+
+  try {
+    linkSyncImpl(sourcePath, destinationPath);
+    method = 'hardlink';
+  } catch (error) {
+    hardlinkError = error;
+    try {
+      const relativeTarget = path.relative(path.dirname(destinationPath), sourcePath);
+      if (platform === 'win32') {
+        symlinkSyncImpl(relativeTarget, destinationPath, 'file');
+      } else {
+        symlinkSyncImpl(relativeTarget, destinationPath);
+      }
+      method = 'symlink';
+    } catch (symlinkFailure) {
+      symlinkError = symlinkFailure;
+      copyFileSyncImpl(sourcePath, destinationPath);
+      method = 'copy';
+    }
+  }
 
   if (platform !== 'win32') {
-    chmodSync(destinationPath, 0o755);
+    chmodSyncImpl(destinationPath, 0o755);
   }
+
+  return {
+    method,
+    hardlinkError,
+    symlinkError,
+  };
 }
 
 function installNativeBinary({
@@ -168,7 +230,7 @@ function installNativeBinary({
     );
   }
 
-  copyInstalledBinary({
+  const linkResult = linkInstalledBinary({
     sourcePath,
     destinationPath,
     platform,
@@ -178,13 +240,15 @@ function installNativeBinary({
     destinationPath,
     sourcePath,
     packageName: target.packageName,
+    installMethod: linkResult.method,
   };
 }
 
 module.exports = {
+  DEFAULT_LINK_OPERATIONS,
   PLATFORM_PACKAGE_TARGETS,
   WINDOWS_ARM64_UNSUPPORTED_MESSAGE,
-  copyInstalledBinary,
+  linkInstalledBinary,
   installMissingOptionalPackage,
   installNativeBinary,
   resolveBinaryFromInstalledPackage,
@@ -195,7 +259,7 @@ if (require.main === module) {
   try {
     const result = installNativeBinary();
     console.log(
-      `[curlydots] installed native binary from ${result.packageName} (${result.sourcePath} -> ${result.destinationPath})`,
+      `[curlydots] installed native binary from ${result.packageName} using ${result.installMethod} (${result.sourcePath} -> ${result.destinationPath})`,
     );
   } catch (error) {
     console.error(error);

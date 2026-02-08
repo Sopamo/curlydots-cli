@@ -37,6 +37,8 @@ describe('distribution/release-workflow', () => {
     expect(workflow).toContain('install-smoke:');
     expect(workflow).toContain('uses: oven-sh/setup-bun@v2');
     expect(workflow).toContain('bun-version: 1.3.8');
+    expect(workflow).toContain('name: Sync package version from release tag');
+    expect(workflow).toContain('npm pkg set "version=${VERSION}"');
     expect(workflow).toContain('runner: ubuntu-latest');
     expect(workflow).toContain('runner: ubuntu-24.04-arm');
     expect(workflow).toContain('runner: macos-latest');
