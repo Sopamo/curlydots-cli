@@ -69,8 +69,8 @@ jobs:
             dist/release/curlydots-${{ matrix.target_triple }}.zip.sha256
           if-no-files-found: ignore
 
-  stage-npm:
-    name: Stage npm package
+  stage-packages:
+    name: Stage npm packages
     runs-on: ubuntu-latest
     needs: build
     defaults:
@@ -78,15 +78,9 @@ jobs:
         shell: bash
     outputs:
       version: ${{ steps.version.outputs.version }}
-      npm_tarball: ${{ steps.metadata.outputs.tarball_path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -103,25 +97,28 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Stage npm package tarball
+      - name: Stage platform npm packages
         run: |
-          node scripts/distribution/stage-npm-package.mjs \
+          node scripts/distribution/stage-platform-packages.mjs \
             --version "${{ steps.version.outputs.version }}" \
             --artifacts-dir dist/release \
             --output-dir dist/npm \
-            --metadata-file dist/npm/stage-metadata.json
+            --metadata-file dist/npm/platform-packages-metadata.json
 
-      - name: Read staging metadata
-        id: metadata
+      - name: Stage main npm package
         run: |
-          TAR_PATH="$(node -e "const fs=require('node:fs');const path=require('node:path');const m=JSON.parse(fs.readFileSync('dist/npm/stage-metadata.json','utf8'));process.stdout.write(path.resolve(m.tarballPath));")"
-          echo "tarball_path=${TAR_PATH}" >> "$GITHUB_OUTPUT"
+          node scripts/distribution/stage-main-package.mjs \
+            --version "${{ steps.version.outputs.version }}" \
+            --output-dir dist/npm \
+            --platform-metadata dist/npm/platform-packages-metadata.json \
+            --metadata-file dist/npm/main-package-metadata.json
 
-      - name: Validate release artifacts and npm package
+      - name: Validate release artifacts and npm packages
         run: |
           node scripts/distribution/release-check.mjs \
             --artifacts-dir dist/release \
-            --npm-tarball "${{ steps.metadata.outputs.tarball_path }}"
+            --platform-metadata dist/npm/platform-packages-metadata.json \
+            --main-metadata dist/npm/main-package-metadata.json
 
       - name: Upload release assets
         uses: actions/upload-artifact@v4
@@ -132,16 +129,18 @@ jobs:
             dist/release/*.zip
             dist/release/SHA256SUMS
 
-      - name: Upload npm tarball
+      - name: Upload npm artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: npm-package
-          path: dist/npm/curlydots-npm-${{ steps.version.outputs.version }}.tgz
+          name: npm-assets
+          path: |
+            dist/npm/*.tgz
+            dist/npm/*-metadata.json
 
   release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: stage-npm
+    needs: stage-packages
     permissions:
       contents: write
     outputs:
@@ -153,10 +152,10 @@ jobs:
           name: release-assets
           path: dist/release
 
-      - name: Download npm tarball
+      - name: Download npm assets
         uses: actions/download-artifact@v4
         with:
-          name: npm-package
+          name: npm-assets
           path: dist/npm
 
       - name: Resolve release version from tag
@@ -177,19 +176,11 @@ jobs:
             dist/npm/*.tgz
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
 
-  install-smoke:
-    needs: stage-npm
-    uses: ./.github/workflows/install-smoke.yml
-    with:
-      version: ${{ needs.stage-npm.outputs.version }}
-
   publish-npm:
-    name: Publish npm package
+    name: Publish npm packages
     if: ${{ !contains(needs.release.outputs.version, '-') }}
     runs-on: ubuntu-latest
-    needs:
-      - release
-      - install-smoke
+    needs: release
     permissions:
       id-token: write
       contents: read
@@ -199,24 +190,31 @@ jobs:
           node --version
           npm --version
 
-      - name: Remove npm token configuration
-        run: |
-          rm -f "$HOME/.npmrc"
-          npm config delete "//registry.npmjs.org/:_authToken" --location=user || true
-          npm config delete "//registry.npmjs.org/:_authToken" --location=project || true
-          npm config delete always-auth --location=user || true
-          npm config delete always-auth --location=project || true
-
-      - name: Download npm tarball
+      - name: Download npm assets
         uses: actions/download-artifact@v4
         with:
-          name: npm-package
+          name: npm-assets
           path: dist/npm
 
-      - name: Publish tarball with OIDC
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
+      - name: Publish platform npm packages with OIDC
         run: |
-          rm -rf dist/npm/package
-          tar -xzf "./dist/npm/curlydots-npm-${VERSION}.tgz" -C dist/npm
-          npx --yes npm@latest publish "./dist/npm/package" --provenance --access public --registry https://registry.npmjs.org/
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('dist/npm/platform-packages-metadata.json','utf8'));for (const entry of p.packages){console.log(entry.tarballFile)}" \
+          | while IFS= read -r tarball; do
+              if [[ -n "$tarball" ]]; then
+                npx --yes npm@latest publish "dist/npm/$tarball" --provenance --access public --registry https://registry.npmjs.org/
+              fi
+            done
+
+      - name: Publish main npm package with OIDC
+        run: |
+          MAIN_TARBALL="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('dist/npm/main-package-metadata.json','utf8'));process.stdout.write(p.tarballFile)")"
+          npx --yes npm@latest publish "dist/npm/${MAIN_TARBALL}" --provenance --access public --registry https://registry.npmjs.org/
+
+  install-smoke:
+    if: ${{ !contains(needs.release.outputs.version, '-') }}
+    needs:
+      - release
+      - publish-npm
+    uses: ./.github/workflows/install-smoke.yml
+    with:
+      version: ${{ needs.release.outputs.version }}

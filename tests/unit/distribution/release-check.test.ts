@@ -2,10 +2,17 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   REQUIRED_RELEASE_ARCHIVES,
-  validateNpmPackageEntries,
+  validateMainManifest,
+  validateMainTarballEntries,
+  validatePlatformManifest,
+  validatePlatformTarballEntries,
   validateReleaseArtifactSet,
   validateSha256SumsContent,
 } from '../../../scripts/distribution/release-check.mjs';
+import {
+  PLATFORM_PACKAGE_NAMES,
+  PLATFORM_PACKAGE_TARGETS,
+} from '../../../scripts/distribution/targets.mjs';
 
 describe('distribution/release-check', () => {
   it('reports missing release artifacts', () => {
@@ -67,19 +74,57 @@ describe('distribution/release-check', () => {
     expect(invalid.malformedLine).toBe('not-a-checksum-line');
   });
 
-  it('checks npm tarball contents for launcher and vendor directories', () => {
-    const missingVendor = validateNpmPackageEntries(['package/bin/curlydots.js']);
-    expect(missingVendor.valid).toBe(false);
+  it('checks main npm tarball contents for binary placeholder and install script', () => {
+    const invalidMain = validateMainTarballEntries(['package/bin/curlydots.exe']);
+    expect(invalidMain.valid).toBe(false);
 
-    const valid = validateNpmPackageEntries([
-      'package/bin/curlydots.js',
-      'package/vendor/x86_64-unknown-linux-musl/curlydots/curlydots',
+    const validMain = validateMainTarballEntries([
+      'package/bin/curlydots.exe',
+      'package/install.cjs',
     ]);
+    expect(validMain.valid).toBe(true);
+  });
 
-    expect(valid).toEqual({
-      hasLauncher: true,
-      hasVendorDir: true,
-      valid: true,
-    });
+  it('validates platform package tarball entries and manifest contracts', () => {
+    const target = PLATFORM_PACKAGE_TARGETS[0];
+    if (!target) {
+      throw new Error('Missing platform target fixture');
+    }
+
+    const entries = [`package/${target.binarySubpath}`];
+    const entryValidation = validatePlatformTarballEntries(entries, target);
+    expect(entryValidation.valid).toBe(true);
+
+    const manifestValidation = validatePlatformManifest(
+      {
+        name: target.packageName,
+        version: '1.0.0',
+        os: [target.os],
+        cpu: [target.cpu],
+        publishConfig: { access: 'public' },
+      },
+      target,
+      '1.0.0',
+    );
+    expect(manifestValidation.valid).toBe(true);
+  });
+
+  it('validates main package manifest with exact optional dependency set', () => {
+    const manifestValidation = validateMainManifest(
+      {
+        name: '@curlydots/cli',
+        version: '1.0.0',
+        bin: { curlydots: 'bin/curlydots.exe' },
+        scripts: { postinstall: 'node install.cjs' },
+        publishConfig: { access: 'public' },
+        optionalDependencies: Object.fromEntries(
+          PLATFORM_PACKAGE_NAMES.map((packageName) => [packageName, '1.0.0']),
+        ),
+      },
+      '1.0.0',
+      PLATFORM_PACKAGE_NAMES,
+    );
+
+    expect(manifestValidation.valid).toBe(true);
   });
 });

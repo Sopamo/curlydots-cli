@@ -28,17 +28,17 @@ describe('distribution/package-manifest', () => {
     expect(manifest.private).toBe(false);
   });
 
-  it('uses Node launcher as bin entrypoint', () => {
+  it('uses native binary placeholder as bin entrypoint', () => {
     const manifest = loadPackageManifest();
 
-    expect(manifest.bin.curlydots).toBe('bin/curlydots.js');
+    expect(manifest.bin.curlydots).toBe('bin/curlydots.exe');
   });
 
-  it('ships binary launcher and vendor payload with public access', () => {
+  it('ships binary placeholder and installer script with public access', () => {
     const manifest = loadPackageManifest();
 
     expect(manifest.files).toContain('bin');
-    expect(manifest.files).toContain('vendor');
+    expect(manifest.files).toContain('scripts/distribution/install-native-binary.cjs');
     expect(manifest.publishConfig?.access).toBe('public');
   });
 

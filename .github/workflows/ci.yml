@@ -34,5 +34,9 @@ jobs:
       - name: Run lint
         run: bun run lint
 
-      - name: Compile smoke
-        run: bun build --compile --target=bun-linux-x64 --outfile /tmp/curlydots-smoke src/index.ts
+      - name: Compile smoke via distribution script
+        run: |
+          bun run scripts/distribution/build-target.mjs \
+            --bun-target bun-linux-x64 \
+            --target-triple x86_64-unknown-linux-musl \
+            --output-dir dist/ci-release

@@ -21,6 +21,10 @@ npm i -g @curlydots/cli
 curlydots --version
 ```
 
+`@curlydots/cli` is a thin meta package. During install it pulls exactly one
+platform package (`@curlydots/cli-<platform>-<arch>`) via `optionalDependencies`
+and wires `curlydots` to a native Bun-compiled executable.
+
 ### Local Development
 
 ```bash
@@ -39,11 +43,11 @@ bun run src/index.ts --help
 
 | Platform | Architecture | Status |
 |----------|--------------|--------|
-| Linux | x64 | Supported |
-| Linux | arm64 | Supported |
-| macOS | x64 | Supported |
-| macOS | arm64 | Supported |
-| Windows | x64 | Supported |
+| Linux | x64 (`@curlydots/cli-linux-x64`) | Supported |
+| Linux | arm64 (`@curlydots/cli-linux-arm64`) | Supported |
+| macOS | x64 (`@curlydots/cli-darwin-x64`) | Supported |
+| macOS | arm64 (`@curlydots/cli-darwin-arm64`) | Supported |
+| Windows | x64 (`@curlydots/cli-win32-x64`) | Supported |
 | Windows | arm64 | Not yet supported (`bun-windows-arm64` unavailable as of February 7, 2026) |
 
 ## Usage

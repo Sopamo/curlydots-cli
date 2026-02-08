@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-export const REQUIRED_RELEASE_ARCHIVES = [
-  'curlydots-x86_64-unknown-linux-musl.tar.gz',
-  'curlydots-aarch64-unknown-linux-musl.tar.gz',
-  'curlydots-x86_64-apple-darwin.tar.gz',
-  'curlydots-aarch64-apple-darwin.tar.gz',
-  'curlydots-x86_64-pc-windows-msvc.zip',
-];
+import {
+  PLATFORM_PACKAGE_NAMES,
+  PLATFORM_PACKAGE_TARGETS,
+  findTargetByPackageName,
+} from './targets.mjs';
+
+export const REQUIRED_RELEASE_ARCHIVES = PLATFORM_PACKAGE_TARGETS.map((target) => target.artifact);
 
 export function validateReleaseArtifactSet(fileNames) {
   const fileSet = new Set(fileNames);
@@ -61,14 +61,14 @@ export function validateSha256SumsContent(content, requiredArchives = REQUIRED_R
   };
 }
 
-export function validateNpmPackageEntries(entries) {
-  const hasLauncher = entries.includes('package/bin/curlydots.js');
-  const hasVendorDir = entries.some((entry) => entry.startsWith('package/vendor/'));
+export function validateMainTarballEntries(entries) {
+  const hasBinary = entries.includes('package/bin/curlydots.exe');
+  const hasInstallScript = entries.includes('package/install.cjs');
 
   return {
-    hasLauncher,
-    hasVendorDir,
-    valid: hasLauncher && hasVendorDir,
+    hasBinary,
+    hasInstallScript,
+    valid: hasBinary && hasInstallScript,
   };
 }
 
@@ -88,10 +88,87 @@ export function readTgzEntries(tarballPath) {
     .filter(Boolean);
 }
 
+export function readTgzPackageJson(tarballPath) {
+  const result = spawnSync('tar', ['-xOzf', tarballPath, 'package/package.json'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  if (result.status !== 0) {
+    throw new Error(
+      `Unable to read package.json from tarball: ${tarballPath}\n${result.stderr ?? ''}`,
+    );
+  }
+
+  return JSON.parse(result.stdout);
+}
+
+export function validatePlatformTarballEntries(entries, target) {
+  const expectedBinaryEntry = `package/${target.binarySubpath}`;
+  return {
+    expectedBinaryEntry,
+    hasBinary: entries.includes(expectedBinaryEntry),
+    valid: entries.includes(expectedBinaryEntry),
+  };
+}
+
+export function validatePlatformManifest(manifest, target, version) {
+  const osValid =
+    Array.isArray(manifest.os) && manifest.os.length === 1 && manifest.os[0] === target.os;
+  const cpuValid =
+    Array.isArray(manifest.cpu) && manifest.cpu.length === 1 && manifest.cpu[0] === target.cpu;
+  const nameValid = manifest.name === target.packageName;
+  const versionValid = manifest.version === version;
+  const publishConfigValid = manifest.publishConfig?.access === 'public';
+
+  return {
+    osValid,
+    cpuValid,
+    nameValid,
+    versionValid,
+    publishConfigValid,
+    valid: osValid && cpuValid && nameValid && versionValid && publishConfigValid,
+  };
+}
+
+export function validateMainManifest(manifest, version, expectedPackageNames) {
+  const binValid = manifest.bin?.curlydots === 'bin/curlydots.exe';
+  const postinstallValid = manifest.scripts?.postinstall === 'node install.cjs';
+  const versionValid = manifest.version === version;
+  const nameValid = manifest.name === '@curlydots/cli';
+  const publishConfigValid = manifest.publishConfig?.access === 'public';
+  const optionalDependencies = manifest.optionalDependencies ?? {};
+  const optionalNames = Object.keys(optionalDependencies).sort();
+  const expectedNames = [...expectedPackageNames].sort();
+  const namesValid = JSON.stringify(optionalNames) === JSON.stringify(expectedNames);
+  const versionsValid = expectedNames.every(
+    (packageName) => optionalDependencies[packageName] === version,
+  );
+
+  return {
+    binValid,
+    postinstallValid,
+    versionValid,
+    nameValid,
+    publishConfigValid,
+    namesValid,
+    versionsValid,
+    valid:
+      binValid &&
+      postinstallValid &&
+      versionValid &&
+      nameValid &&
+      publishConfigValid &&
+      namesValid &&
+      versionsValid,
+  };
+}
+
 function parseArgs(argv) {
   const args = {
     artifactsDir: null,
-    npmTarball: null,
+    platformMetadata: null,
+    mainMetadata: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -103,8 +180,14 @@ function parseArgs(argv) {
       continue;
     }
 
-    if (argument === '--npm-tarball') {
-      args.npmTarball = argv[index + 1] ?? null;
+    if (argument === '--platform-metadata') {
+      args.platformMetadata = argv[index + 1] ?? null;
+      index += 1;
+      continue;
+    }
+
+    if (argument === '--main-metadata') {
+      args.mainMetadata = argv[index + 1] ?? null;
       index += 1;
       continue;
     }
@@ -114,6 +197,13 @@ function parseArgs(argv) {
 
   if (!args.artifactsDir) {
     throw new Error('Missing required argument: --artifacts-dir');
+  }
+
+  if (
+    (args.platformMetadata && !args.mainMetadata) ||
+    (!args.platformMetadata && args.mainMetadata)
+  ) {
+    throw new Error('Both --platform-metadata and --main-metadata must be provided together');
   }
 
   return args;
@@ -164,25 +254,99 @@ function main() {
     process.exit(1);
   }
 
-  if (args.npmTarball) {
-    const npmTarball = path.resolve(args.npmTarball);
-    const tarEntries = readTgzEntries(npmTarball);
-    const npmValidation = validateNpmPackageEntries(tarEntries);
+  if (args.platformMetadata && args.mainMetadata) {
+    const platformMetadata = JSON.parse(readFileSync(path.resolve(args.platformMetadata), 'utf8'));
+    const mainMetadata = JSON.parse(readFileSync(path.resolve(args.mainMetadata), 'utf8'));
 
-    if (!npmValidation.valid) {
-      if (!npmValidation.hasLauncher) {
-        console.error('npm tarball is missing package/bin/curlydots.js');
+    if (platformMetadata.version !== mainMetadata.version) {
+      console.error(
+        `Version mismatch between metadata files: platform=${platformMetadata.version} main=${mainMetadata.version}`,
+      );
+      process.exit(1);
+    }
+
+    if (!Array.isArray(platformMetadata.packages) || platformMetadata.packages.length !== 5) {
+      console.error('Platform metadata must contain exactly five platform packages.');
+      process.exit(1);
+    }
+
+    const packageNames = platformMetadata.packages.map((entry) => entry.name).sort();
+    const expectedPackageNames = [...PLATFORM_PACKAGE_NAMES].sort();
+    if (JSON.stringify(packageNames) !== JSON.stringify(expectedPackageNames)) {
+      console.error('Platform metadata package list is invalid.');
+      console.error(`Expected: ${expectedPackageNames.join(', ')}`);
+      console.error(`Actual:   ${packageNames.join(', ')}`);
+      process.exit(1);
+    }
+
+    for (const entry of platformMetadata.packages) {
+      const target = findTargetByPackageName(entry.name);
+      if (!target) {
+        console.error(`Unknown platform package in metadata: ${entry.name}`);
+        process.exit(1);
       }
 
-      if (!npmValidation.hasVendorDir) {
-        console.error('npm tarball is missing package/vendor/ contents');
+      if (!entry.tarballPath || !existsSync(entry.tarballPath)) {
+        console.error(`Missing platform tarball: ${entry.tarballPath ?? '<undefined>'}`);
+        process.exit(1);
+      }
+
+      const tarEntries = readTgzEntries(entry.tarballPath);
+      const tarballValidation = validatePlatformTarballEntries(tarEntries, target);
+      if (!tarballValidation.valid) {
+        console.error(
+          `Platform tarball ${entry.tarballPath} is missing ${tarballValidation.expectedBinaryEntry}`,
+        );
+        process.exit(1);
+      }
+
+      const manifest = readTgzPackageJson(entry.tarballPath);
+      const manifestValidation = validatePlatformManifest(
+        manifest,
+        target,
+        platformMetadata.version,
+      );
+      if (!manifestValidation.valid) {
+        console.error(`Platform manifest validation failed for ${entry.name}`);
+        console.error(JSON.stringify(manifestValidation, null, 2));
+        process.exit(1);
+      }
+    }
+
+    if (!mainMetadata.tarballPath || !existsSync(mainMetadata.tarballPath)) {
+      console.error(`Missing main package tarball: ${mainMetadata.tarballPath ?? '<undefined>'}`);
+      process.exit(1);
+    }
+
+    const mainEntries = readTgzEntries(mainMetadata.tarballPath);
+    const mainTarballValidation = validateMainTarballEntries(mainEntries);
+    if (!mainTarballValidation.valid) {
+      if (!mainTarballValidation.hasBinary) {
+        console.error('Main package tarball is missing package/bin/curlydots.exe');
+      }
+
+      if (!mainTarballValidation.hasInstallScript) {
+        console.error('Main package tarball is missing package/install.cjs');
       }
 
       process.exit(1);
     }
+
+    const mainManifest = readTgzPackageJson(mainMetadata.tarballPath);
+    const mainManifestValidation = validateMainManifest(
+      mainManifest,
+      platformMetadata.version,
+      PLATFORM_PACKAGE_NAMES,
+    );
+
+    if (!mainManifestValidation.valid) {
+      console.error('Main package manifest validation failed.');
+      console.error(JSON.stringify(mainManifestValidation, null, 2));
+      process.exit(1);
+    }
   }
 
-  console.log('release-check: artifacts and npm package look valid.');
+  console.log('release-check: artifacts and npm package metadata look valid.');
 }
 
 function isMainModule() {

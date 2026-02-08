@@ -23,7 +23,7 @@ describe('distribution/release-workflow', () => {
   it('grants workflow-level OIDC permissions required for trusted npm publishing', () => {
     const workflow = loadReleaseWorkflow();
 
-    expect(workflow).toMatch(/\npermissions:\n  contents: read\n  id-token: write\n/);
+    expect(workflow).toMatch(/\npermissions:\n {2}contents: read\n {2}id-token: write\n/);
   });
 
   it('uses the full release pipeline with build, staging, release, smoke, and npm publish jobs', () => {
@@ -31,11 +31,10 @@ describe('distribution/release-workflow', () => {
 
     expect(workflow).toContain('jobs:');
     expect(workflow).toContain('build:');
-    expect(workflow).toContain('stage-npm:');
+    expect(workflow).toContain('stage-packages:');
     expect(workflow).toContain('release:');
-    expect(workflow).toContain('install-smoke:');
     expect(workflow).toContain('publish-npm:');
-    expect(workflow).not.toContain('Publish npm package (debug)');
+    expect(workflow).toContain('install-smoke:');
     expect(workflow).toContain('uses: oven-sh/setup-bun@v2');
     expect(workflow).toContain('bun-version: 1.3.8');
     expect(workflow).toContain('runner: ubuntu-latest');
@@ -47,15 +46,20 @@ describe('distribution/release-workflow', () => {
     expect(workflow).toContain('target_triple: x86_64-apple-darwin');
     expect(workflow).toContain('target_triple: aarch64-apple-darwin');
     expect(workflow).toContain('target_triple: x86_64-pc-windows-msvc');
-    expect(workflow).toContain('node scripts/distribution/stage-npm-package.mjs');
+    expect(workflow).toContain('node scripts/distribution/stage-platform-packages.mjs');
+    expect(workflow).toContain('node scripts/distribution/stage-main-package.mjs');
     expect(workflow).toContain('node scripts/distribution/release-check.mjs');
     expect(workflow).toContain('uses: softprops/action-gh-release@v2');
     expect(workflow).toContain('uses: ./.github/workflows/install-smoke.yml');
-    expect(workflow).toContain('name: Remove npm token configuration');
-    expect(workflow).toContain('name: Publish tarball with OIDC');
+    expect(workflow).toContain('name: Publish platform npm packages with OIDC');
+    expect(workflow).toContain('name: Publish main npm package with OIDC');
+    expect(workflow).toContain('platform-packages-metadata.json');
+    expect(workflow).toContain('main-package-metadata.json');
     expect(workflow).toContain(
-      'npx --yes npm@latest publish "./dist/npm/package" --provenance --access public --registry https://registry.npmjs.org/',
+      'npx --yes npm@latest publish "dist/npm/$tarball" --provenance --access public --registry https://registry.npmjs.org/',
     );
-    expect(workflow).toContain('npm config delete "//registry.npmjs.org/:_authToken" --location=user || true');
+    expect(workflow).toContain(
+      'npx --yes npm@latest publish "dist/npm/${MAIN_TARBALL}" --provenance --access public --registry https://registry.npmjs.org/',
+    );
   });
 });
