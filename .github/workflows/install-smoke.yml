@@ -26,25 +26,27 @@ jobs:
           - macos-latest
           - windows-latest
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Add npm global bin to PATH
-        run: |
-          PREFIX="$(npm prefix -g)"
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            echo "$PREFIX" >> "$GITHUB_PATH"
-          else
-            echo "$PREFIX/bin" >> "$GITHUB_PATH"
-          fi
+      - name: Add npm global bin to PATH (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
 
-      - name: Install CurlyDots globally from npm registry (with retry)
+      - name: Add npm global bin to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $prefix = npm prefix -g
+          Add-Content -Path $env:GITHUB_PATH -Value $prefix
+
+      - name: Install CurlyDots globally from npm registry (with retry, Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         env:
           VERSION: ${{ inputs.version || github.event.inputs.version }}
         run: |
@@ -62,14 +64,50 @@ jobs:
             sleep 20
           done
 
-      - name: Verify version command
+      - name: Install CurlyDots globally from npm registry (with retry, Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version || github.event.inputs.version }}
+        run: |
+          for ($attempt = 1; $attempt -le 6; $attempt++) {
+            npm install -g "@curlydots/cli@${env:VERSION}"
+            if ($LASTEXITCODE -eq 0) {
+              exit 0
+            }
+
+            if ($attempt -eq 6) {
+              Write-Host "npm install failed after retries"
+              exit 1
+            }
+
+            Write-Host "Install attempt $attempt failed, retrying in 20s..."
+            Start-Sleep -Seconds 20
+          }
+
+      - name: Verify version command (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: curlydots --version
 
-      - name: Verify help command
+      - name: Verify version command (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: curlydots --version
+
+      - name: Verify help command (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: curlydots --help
+
+      - name: Verify help command (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: curlydots --help
 
       - name: Verify command resolves to native binary on Unix
         if: runner.os != 'Windows'
+        shell: bash
         run: |
           BIN_PATH="$(command -v curlydots)"
           FILE_INFO="$(file -L "$BIN_PATH")"
@@ -79,3 +117,13 @@ jobs:
             echo "Expected native executable, got script/text launcher"
             exit 1
           fi
+
+      - name: Verify command resolves to native binary on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $command = Get-Command curlydots -ErrorAction Stop
+          Write-Host "Resolved path: $($command.Source)"
+          if (-not $command.Source.ToLower().EndsWith('.exe')) {
+            throw "Expected curlydots command to resolve to an .exe executable"
+          }
