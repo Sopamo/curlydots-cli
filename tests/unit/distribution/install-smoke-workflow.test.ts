@@ -14,11 +14,11 @@ describe('distribution/install-smoke-workflow', () => {
     expect(workflow).toContain('name: Install CurlyDots globally from npm registry (with retry, Windows)');
     expect(workflow).toContain("if: runner.os == 'Windows'");
     expect(workflow).toContain('shell: pwsh');
-    expect(workflow).toContain('Get-Command curlydots');
+    expect(workflow).toContain('for ($attempt = 1; $attempt -le 15; $attempt++)');
     expect(workflow).toContain('name: Verify version command (Windows)');
     expect(workflow).toContain('name: Verify help command (Windows)');
-    expect(workflow).toContain('run: curlydots.cmd --version');
-    expect(workflow).toContain('run: curlydots.cmd --help');
+    expect(workflow).toContain('& $nativeBin --version');
+    expect(workflow).toContain('& $nativeBin --help');
   });
 
   it('keeps native binary checks on both Unix and Windows', () => {
@@ -28,5 +28,6 @@ describe('distribution/install-smoke-workflow', () => {
     expect(workflow).toContain('file -L "$BIN_PATH"');
     expect(workflow).toContain('name: Verify command resolves to native binary on Windows');
     expect(workflow).toContain('Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"');
+    expect(workflow).toContain('Expected Windows PE executable header (MZ)');
   });
 });

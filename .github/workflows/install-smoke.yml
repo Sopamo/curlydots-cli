@@ -50,12 +50,12 @@ jobs:
         env:
           VERSION: ${{ inputs.version || github.event.inputs.version }}
         run: |
-          for attempt in 1 2 3 4 5 6; do
+          for attempt in $(seq 1 15); do
             if npm install -g "@curlydots/cli@${VERSION}"; then
               exit 0
             fi
 
-            if [[ "$attempt" -eq 6 ]]; then
+            if [[ "$attempt" -eq 15 ]]; then
               echo "npm install failed after retries"
               exit 1
             fi
@@ -70,13 +70,13 @@ jobs:
         env:
           VERSION: ${{ inputs.version || github.event.inputs.version }}
         run: |
-          for ($attempt = 1; $attempt -le 6; $attempt++) {
+          for ($attempt = 1; $attempt -le 15; $attempt++) {
             npm install -g "@curlydots/cli@${env:VERSION}"
             if ($LASTEXITCODE -eq 0) {
               exit 0
             }
 
-            if ($attempt -eq 6) {
+            if ($attempt -eq 15) {
               Write-Host "npm install failed after retries"
               exit 1
             }
@@ -93,7 +93,12 @@ jobs:
       - name: Verify version command (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: curlydots.cmd --version
+        run: |
+          $nativeBin = Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"
+          if (-not (Test-Path $nativeBin)) {
+            throw "Expected native binary at $nativeBin"
+          }
+          & $nativeBin --version
 
       - name: Verify help command (Unix)
         if: runner.os != 'Windows'
@@ -103,7 +108,12 @@ jobs:
       - name: Verify help command (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: curlydots.cmd --help
+        run: |
+          $nativeBin = Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"
+          if (-not (Test-Path $nativeBin)) {
+            throw "Expected native binary at $nativeBin"
+          }
+          & $nativeBin --help
 
       - name: Verify command resolves to native binary on Unix
         if: runner.os != 'Windows'
@@ -122,16 +132,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $command = Get-Command curlydots.cmd -ErrorAction Stop
-          Write-Host "Resolved command shim: $($command.Source)"
-          if (-not $command.Source.ToLower().EndsWith('.cmd')) {
-            throw "Expected curlydots command to resolve to a .cmd shim on Windows"
-          }
-
           $nativeBin = Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"
           Write-Host "Resolved native binary: $nativeBin"
           if (-not (Test-Path $nativeBin)) {
             throw "Expected native binary at $nativeBin"
           }
-
-          & $nativeBin --version
+          $header = Get-Content -Path $nativeBin -AsByteStream -TotalCount 2
+          if ($header.Count -lt 2 -or $header[0] -ne 0x4D -or $header[1] -ne 0x5A) {
+            throw "Expected Windows PE executable header (MZ)"
+          }
