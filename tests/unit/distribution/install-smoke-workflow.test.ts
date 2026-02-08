@@ -17,8 +17,8 @@ describe('distribution/install-smoke-workflow', () => {
     expect(workflow).toContain('Get-Command curlydots');
     expect(workflow).toContain('name: Verify version command (Windows)');
     expect(workflow).toContain('name: Verify help command (Windows)');
-    expect(workflow).toContain('run: curlydots.exe --version');
-    expect(workflow).toContain('run: curlydots.exe --help');
+    expect(workflow).toContain('run: curlydots.cmd --version');
+    expect(workflow).toContain('run: curlydots.cmd --help');
   });
 
   it('keeps native binary checks on both Unix and Windows', () => {
@@ -27,6 +27,6 @@ describe('distribution/install-smoke-workflow', () => {
     expect(workflow).toContain('name: Verify command resolves to native binary on Unix');
     expect(workflow).toContain('file -L "$BIN_PATH"');
     expect(workflow).toContain('name: Verify command resolves to native binary on Windows');
-    expect(workflow).toContain("EndsWith('.exe')");
+    expect(workflow).toContain('Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"');
   });
 });

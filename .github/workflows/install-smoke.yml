@@ -93,7 +93,7 @@ jobs:
       - name: Verify version command (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: curlydots.exe --version
+        run: curlydots.cmd --version
 
       - name: Verify help command (Unix)
         if: runner.os != 'Windows'
@@ -103,7 +103,7 @@ jobs:
       - name: Verify help command (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: curlydots.exe --help
+        run: curlydots.cmd --help
 
       - name: Verify command resolves to native binary on Unix
         if: runner.os != 'Windows'
@@ -122,8 +122,16 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $command = Get-Command curlydots.exe -ErrorAction Stop
-          Write-Host "Resolved path: $($command.Source)"
-          if (-not $command.Source.ToLower().EndsWith('.exe')) {
-            throw "Expected curlydots command to resolve to an .exe executable"
+          $command = Get-Command curlydots.cmd -ErrorAction Stop
+          Write-Host "Resolved command shim: $($command.Source)"
+          if (-not $command.Source.ToLower().EndsWith('.cmd')) {
+            throw "Expected curlydots command to resolve to a .cmd shim on Windows"
           }
+
+          $nativeBin = Join-Path (npm root -g) "@curlydots/cli/bin/curlydots.exe"
+          Write-Host "Resolved native binary: $nativeBin"
+          if (-not (Test-Path $nativeBin)) {
+            throw "Expected native binary at $nativeBin"
+          }
+
+          & $nativeBin --version
