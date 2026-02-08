@@ -39,10 +39,16 @@ describe('distribution/release-workflow', () => {
     expect(workflow).toContain('bun-version: 1.3.8');
     expect(workflow).toContain('name: Sync package version from release tag');
     expect(workflow).toContain('npm pkg set "version=${VERSION}"');
+    expect(workflow).toContain('name: Build ${{ matrix.platform_id }}');
     expect(workflow).toContain('runner: ubuntu-latest');
     expect(workflow).toContain('runner: ubuntu-24.04-arm');
     expect(workflow).toContain('runner: macos-latest');
     expect(workflow).toContain('runner: windows-latest');
+    expect(workflow).toContain('platform_id: linux-x64');
+    expect(workflow).toContain('platform_id: linux-arm64');
+    expect(workflow).toContain('platform_id: darwin-x64');
+    expect(workflow).toContain('platform_id: darwin-arm64');
+    expect(workflow).toContain('platform_id: win32-x64');
     expect(workflow).toContain('target_triple: x86_64-unknown-linux-musl');
     expect(workflow).toContain('target_triple: aarch64-unknown-linux-musl');
     expect(workflow).toContain('target_triple: x86_64-apple-darwin');

@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.target_triple }}
+    name: Build ${{ matrix.platform_id }}
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -25,18 +25,23 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
+            platform_id: linux-x64
             bun_target: bun-linux-x64
             target_triple: x86_64-unknown-linux-musl
           - runner: ubuntu-24.04-arm
+            platform_id: linux-arm64
             bun_target: bun-linux-arm64
             target_triple: aarch64-unknown-linux-musl
           - runner: macos-latest
+            platform_id: darwin-x64
             bun_target: bun-darwin-x64
             target_triple: x86_64-apple-darwin
           - runner: macos-latest
+            platform_id: darwin-arm64
             bun_target: bun-darwin-arm64
             target_triple: aarch64-apple-darwin
           - runner: windows-latest
+            platform_id: win32-x64
             bun_target: bun-windows-x64
             target_triple: x86_64-pc-windows-msvc
     steps:
@@ -66,7 +71,7 @@ jobs:
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target_triple }}
+          name: ${{ matrix.platform_id }}
           path: |
             dist/release/curlydots-${{ matrix.target_triple }}.tar.gz
             dist/release/curlydots-${{ matrix.target_triple }}.zip
