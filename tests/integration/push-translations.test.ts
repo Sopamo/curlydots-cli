@@ -26,10 +26,12 @@ describe('integration/push-translations', () => {
   beforeEach(() => {
     fetchCalls.length = 0;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
+    process.exitCode = undefined;
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    process.exitCode = undefined;
   });
 
   it('pushes translation keys with context payload', async () => {

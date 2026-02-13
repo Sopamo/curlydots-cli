@@ -13,6 +13,7 @@ import { globalLogger } from '../../utils/logger';
 import { formatPushSummary } from '../../ui/output';
 import { HttpClient, HttpClientError } from '../../services/http/client';
 import { loadCliConfig } from '../../config/cli-config';
+import { getCurrentProject } from '../../config/project-config';
 import { parsePushArgs, printPushHelp, validatePushArgs } from './push-args';
 
 export async function runTranslationsPush(args: string[]): Promise<void> {
@@ -32,6 +33,18 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     globalLogger.info('Run "curlydots translations push --help" for usage information.');
     process.exitCode = 1;
     return;
+  }
+
+  // Resolve project UUID from override or fallback to selected project
+  let projectUuid = parsedArgs.projectUuid;
+  if (!projectUuid) {
+    const currentProject = getCurrentProject();
+    if (!currentProject) {
+      globalLogger.error('No project specified. Use --project or run "curlydots projects select" to choose a project.');
+      process.exitCode = 1;
+      return;
+    }
+    projectUuid = currentProject.projectId;
   }
 
   const resolvedPath = resolve(parsedArgs.repoPath);
@@ -90,7 +103,7 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     const withContext = await findContextForKeys(entries, resolvedPath);
     const payloads = buildTranslationKeyPayloads(withContext, parsedArgs.source);
 
-    const existing = await fetchExistingTranslationKeys(client, parsedArgs.projectUuid, token);
+    const existing = await fetchExistingTranslationKeys(client, projectUuid, token);
     const newPayloads = filterNewTranslationKeys(payloads, existing.keys ?? []);
     const skipped = payloads.length - newPayloads.length;
 
@@ -108,7 +121,7 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
 
     const result = await uploadTranslationKeys(
       client,
-      parsedArgs.projectUuid,
+      projectUuid,
       token,
       newPayloads,
       parsedArgs.batchSize,

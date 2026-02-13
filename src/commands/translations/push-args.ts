@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { getAvailableParsers, getParser } from '../../parsers';
 
 export interface PushArgs {
-  projectUuid: string;
+  projectUuid?: string;
   repoPath: string;
   translationsDir: string;
   source: string;
@@ -68,10 +68,6 @@ export function parsePushArgs(args: string[]): PushArgs {
 export function validatePushArgs(args: PushArgs): string[] {
   const errors: string[] = [];
 
-  if (!args.projectUuid) {
-    errors.push('Missing required option: --project');
-  }
-
   if (!args.repoPath) {
     errors.push('Missing required option: --repo');
   } else {
@@ -113,7 +109,7 @@ USAGE:
   curlydots translations push [options]
 
 OPTIONS:
-  --project <uuid>               Project UUID (required)
+  --project <uuid>               Project UUID (optional, falls back to selected project)
   --repo <path>                  Repository path (required)
   -d, --translations-dir <path>  Translations directory (required)
   -s, --source <lang>            Source language code (required)
