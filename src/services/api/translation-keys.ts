@@ -32,12 +32,15 @@ export async function fetchExistingTranslationKeys(
   return client.get<ExistingKeysResponse>(`/api/projects/${projectUuid}/translation-keys`, { token });
 }
 
+export type UploadProgressCallback = (info: { batch: number; totalBatches: number; uploaded: number; total: number }) => void;
+
 export async function uploadTranslationKeys(
   client: HttpClient,
   projectUuid: string,
   token: string,
   keys: TranslationKeyPayload[],
   batchSize = 100,
+  onProgress?: UploadProgressCallback,
 ): Promise<UploadResult> {
   let uploaded = 0;
   let batches = 0;
@@ -48,11 +51,12 @@ export async function uploadTranslationKeys(
     const currentBatch = batches + 1;
     await client.post(
       `/api/projects/${projectUuid}/translation-keys`,
-      { keys: batch, current_batch: currentBatch, total_batch: totalBatch },
+      { entries: batch, current_batch: currentBatch, total_batch: totalBatch },
       token,
     );
     uploaded += batch.length;
     batches += 1;
+    onProgress?.({ batch: currentBatch, totalBatches: totalBatch, uploaded, total: keys.length });
   }
 
   return { uploaded, batches };

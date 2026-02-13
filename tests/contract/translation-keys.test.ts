@@ -12,7 +12,7 @@ class FakeClient extends HttpClient {
 
   override async get<T>(path: string, options?: { token?: string }): Promise<T> {
     this.getCalls.push({ path, token: options?.token });
-    return { keys: ['alpha', 'beta'] } as T;
+    return { data: { keys: ['alpha', 'beta'] } } as T;
   }
 
   override async post<T, B = unknown>(path: string, body?: B, token?: string): Promise<T> {
@@ -28,7 +28,7 @@ describe('contract/translation-keys', () => {
 
     const response = await fetchExistingTranslationKeys(client, 'project-123', 'token-abc');
 
-    expect(response.keys).toEqual(['alpha', 'beta']);
+    expect(response.data.keys).toEqual(['alpha', 'beta']);
     expect(client.getCalls).toEqual([
       { path: '/api/projects/project-123/translation-keys', token: 'token-abc' },
     ]);
@@ -50,12 +50,12 @@ describe('contract/translation-keys', () => {
       {
         path: '/api/projects/project-123/translation-keys',
         token: 'token-abc',
-        body: { keys: payload.slice(0, 2), current_batch: 1, total_batch: 2 },
+        body: { entries: payload.slice(0, 2), current_batch: 1, total_batch: 2 },
       },
       {
         path: '/api/projects/project-123/translation-keys',
         token: 'token-abc',
-        body: { keys: payload.slice(2, 3), current_batch: 2, total_batch: 2 },
+        body: { entries: payload.slice(2, 3), current_batch: 2, total_batch: 2 },
       },
     ]);
   });

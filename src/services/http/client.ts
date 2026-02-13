@@ -94,6 +94,7 @@ export class HttpClient {
     const url = new URL(path, baseUrl).toString();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      Accept: 'application/json',
       'X-Curlydots-Cli-Version': cliVersion,
     };
 
@@ -185,6 +186,9 @@ export class HttpClient {
     } catch {
       // ignore
     }
+
+    // Always include the URL in error messages for debugging
+    errorMessage = `${errorMessage} (${response.url})`;
 
     if (response.status === 401 || response.status === 403) {
       throw new HttpClientError(errorMessage, {

@@ -5,7 +5,7 @@ import { getAvailableParsers, getParser } from '../../parsers';
 export interface PushArgs {
   projectUuid?: string;
   repoPath: string;
-  translationsDir: string;
+  translationsDirs: string[];
   source: string;
   parser: string;
   parserFile?: string;
@@ -24,7 +24,7 @@ export function parsePushArgs(args: string[]): PushArgs {
   const result: PushArgs = {
     projectUuid: '',
     repoPath: '',
-    translationsDir: '',
+    translationsDirs: [],
     source: '',
     parser: 'node-module',
     parserFile: undefined,
@@ -46,7 +46,8 @@ export function parsePushArgs(args: string[]): PushArgs {
     } else if (arg === '--repo') {
       result.repoPath = args[++i] || '';
     } else if (arg === '-d' || arg === '--translations-dir') {
-      result.translationsDir = args[++i] || '';
+      const val = args[++i] || '';
+      if (val) result.translationsDirs.push(val);
     } else if (arg === '-s' || arg === '--source') {
       result.source = args[++i] || '';
     } else if (arg === '-p' || arg === '--parser') {
@@ -87,12 +88,16 @@ export function validatePushArgs(args: PushArgs): string[] {
     errors.push('Missing required option: --source');
   }
 
-  if (!args.translationsDir) {
+  if (args.translationsDirs.length === 0) {
     errors.push('Missing required option: --translations-dir');
   } else if (args.repoPath) {
-    const translationsPath = join(resolve(args.repoPath), args.translationsDir);
-    if (!existsSync(translationsPath)) {
-      errors.push(`Translations directory not found: ${translationsPath}`);
+    for (const dir of args.translationsDirs) {
+      // Skip glob patterns — they'll be resolved at runtime
+      if (dir.includes('*')) continue;
+      const translationsPath = join(resolve(args.repoPath), dir);
+      if (!existsSync(translationsPath)) {
+        errors.push(`Translations directory not found: ${translationsPath}`);
+      }
     }
   }
 
@@ -126,7 +131,7 @@ USAGE:
 OPTIONS:
   --project <uuid>               Project UUID (optional, falls back to selected project)
   --repo <path>                  Repository path (required)
-  -d, --translations-dir <path>  Translations directory (required)
+  -d, --translations-dir <path>  Translations directory (required, repeatable, supports globs)
   -s, --source <lang>            Source language code (required)
   -p, --parser <name>            Parser to use [default: node-module]
   --parser-file <path>           Load parser module from file (.js/.ts)

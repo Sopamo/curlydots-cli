@@ -5,7 +5,7 @@ info:
 servers:
   - url: https://curlydots.com/api
 paths:
-  /api/cli/projects/{projectUuid}/translation-keys:
+  /api/projects/{projectUuid}/translation-keys:
     get:
       summary: List existing translation keys for a project
       parameters:
@@ -115,7 +115,10 @@ components:
     ExistingKeysResponse:
       type: object
       properties:
-        keys:
-          type: array
-          items:
-            type: string
+        data:
+          type: object
+          properties:
+            keys:
+              type: array
+              items:
+                type: string

@@ -33,11 +33,11 @@ Replace the CSV extract workflow with a CLI command that extracts translation ke
 
 | Principle                              | Gate                                                                 | Status |
 | -------------------------------------- | -------------------------------------------------------------------- | ------ |
-| I. TypeScript-First CLI Design         | Strict TS, CLI-first I/O, JSON + human-readable output               | ⬜     |
-| II. Bun.js Runtime                     | Bun-only runtime, bun run/build, no Node.js                          | ⬜     |
-| III. Test-First Development            | Tests written before implementation                                  | ⬜     |
-| IV. Test Completion Gate               | bun test passes before completion                                    | ⬜     |
-| V. Simplicity & YAGNI                  | Minimal dependencies, no unnecessary features                        | ⬜     |
+| I. TypeScript-First CLI Design         | Strict TS, CLI-first I/O, JSON + human-readable output               | ✅     |
+| II. Bun.js Runtime                     | Bun-only runtime, bun run/build, no Node.js                          | ✅     |
+| III. Test-First Development            | Tests written before implementation                                  | ✅     |
+| IV. Test Completion Gate               | bun test passes before completion                                    | ✅     |
+| V. Simplicity & YAGNI                  | Minimal dependencies, no unnecessary features                        | ✅     |
 
 ## Project Structure
 

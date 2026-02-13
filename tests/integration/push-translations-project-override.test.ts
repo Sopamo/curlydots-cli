@@ -12,7 +12,7 @@ describe('integration/push-translations-project-override', () => {
     fetchCalls.push({ input, init });
     const method = init?.method ?? 'GET';
     if (method === 'GET') {
-      return new Response(JSON.stringify({ keys: [] }), {
+      return new Response(JSON.stringify({ data: { keys: [] } }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
