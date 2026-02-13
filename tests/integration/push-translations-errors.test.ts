@@ -23,12 +23,12 @@ describe('integration/push-translations-errors', () => {
 
   beforeEach(() => {
     fetchCalls.length = 0;
-    process.exitCode = undefined;
+    process.exitCode = 0;
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    process.exitCode = undefined;
+    process.exitCode = 0;
   });
 
   it('sets non-zero exit code on authentication errors', async () => {

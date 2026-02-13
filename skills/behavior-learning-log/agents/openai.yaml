@@ -1,0 +1,4 @@
+interface:
+  display_name: "Behavior Learning Log"
+  short_description: "Record behavior-level lessons in learning.md. Call anytime you figured out how to achieve something that previously didn't work, or you got feedback"
+  default_prompt: "Capture workflow/style corrections and append abstract lessons to learning.md in the repository root."

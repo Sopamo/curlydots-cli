@@ -8,6 +8,7 @@ export interface PushArgs {
   translationsDir: string;
   source: string;
   parser: string;
+  parserFile?: string;
   extensions: string[];
   apiHost: string;
   apiToken?: string;
@@ -26,6 +27,7 @@ export function parsePushArgs(args: string[]): PushArgs {
     translationsDir: '',
     source: '',
     parser: 'node-module',
+    parserFile: undefined,
     extensions: [...includeExtensions],
     apiHost: 'https://curlydots.com',
     apiToken: undefined,
@@ -49,6 +51,10 @@ export function parsePushArgs(args: string[]): PushArgs {
       result.source = args[++i] || '';
     } else if (arg === '-p' || arg === '--parser') {
       result.parser = args[++i] || 'node-module';
+    } else if (arg === '--parser-file') {
+      result.parserFile = args[++i] || '';
+    } else if (arg?.startsWith('--parser-file=')) {
+      result.parserFile = arg.slice('--parser-file='.length);
     } else if (arg === '-e' || arg === '--extensions') {
       const extString = args[++i] || '';
       result.extensions = extString.split(',').map((ext) => ext.trim()).filter(Boolean);
@@ -90,7 +96,16 @@ export function validatePushArgs(args: PushArgs): string[] {
     }
   }
 
-  if (!getParser(args.parser)) {
+  if (args.parserFile !== undefined) {
+    if (!args.parserFile.trim()) {
+      errors.push('Missing required value for --parser-file');
+    } else {
+      const resolvedParserFile = resolve(args.parserFile);
+      if (!existsSync(resolvedParserFile)) {
+        errors.push(`Parser file not found: ${resolvedParserFile}`);
+      }
+    }
+  } else if (!getParser(args.parser)) {
     errors.push(`Unknown parser: ${args.parser} (available: ${getAvailableParsers().join(', ')})`);
   }
 
@@ -114,6 +129,7 @@ OPTIONS:
   -d, --translations-dir <path>  Translations directory (required)
   -s, --source <lang>            Source language code (required)
   -p, --parser <name>            Parser to use [default: node-module]
+  --parser-file <path>           Load parser module from file (.js/.ts)
   -e, --extensions <list>        File extensions to search [default: all files]
   --api-host <url>               API host [default: https://curlydots.com]
   --api-token <token>            API token override

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run tests
+        run: bun test
+
+      - name: Run typecheck
+        run: bun run typecheck
+
+      - name: Run lint
+        run: bun run lint
+
+      - name: Compile smoke via distribution script
+        run: |
+          bun run scripts/distribution/build-target.mjs \
+            --bun-target bun-linux-x64 \
+            --target-triple x86_64-unknown-linux-musl \
+            --output-dir dist/ci-release
+
+      - name: Verify compiled binary version matches package version
+        run: |
+          mkdir -p dist/ci-extract
+          tar -xzf dist/ci-release/curlydots-x86_64-unknown-linux-musl.tar.gz -C dist/ci-extract
+          EXPECTED_VERSION="$(grep -m1 '\"version\"' package.json | sed -E 's/.*\"version\": \"([^\"]+)\".*/\1/')"
+          OUTPUT="$(dist/ci-extract/curlydots --version)"
+          echo "$OUTPUT"
+          if ! echo "$OUTPUT" | grep -q "v${EXPECTED_VERSION}\\b"; then
+            echo "Expected compiled binary version v${EXPECTED_VERSION}, got: $OUTPUT"
+            exit 1
+          fi

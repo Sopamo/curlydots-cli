@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+echo "CurlyDots native binary was not installed." >&2
+echo "Reinstall @curlydots/cli without --ignore-scripts and without omitting optional dependencies." >&2
+exit 1
