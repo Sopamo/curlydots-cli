@@ -2,30 +2,31 @@
 
 ## Prerequisites
 - Bun installed
-- Logged in via `aitranslate login` (optional if using `--api-token`)
+- Logged in via `curlydots auth login` (optional if using `--api-token`)
 - Project translations available on disk
 
 ## Basic Usage
 
 ```bash
-aitranslate translations push \
-  --project <uuid> \
+curlydots translations push \
   --repo <path> \
   --translations-dir <path> \
   --source <lang> \
   --parser <name>
 ```
 
+`--project` is optional if you already selected a project via `curlydots projects select`.
+
 ## Optional Flags
 
 ```bash
-aitranslate translations push \
+curlydots translations push \
   --project <uuid> \
   --repo <path> \
   --translations-dir <path> \
   --source <lang> \
   --parser <name> \
-  --api-host https://curlydots.com/api \
+  --api-host https://curlydots.com \
   --api-token <token> \
   --extensions .js,.ts,.vue # optional; omit to scan all files
 ```
@@ -33,4 +34,4 @@ aitranslate translations push \
 ## Expected Output
 - Summary of keys scanned, skipped, and uploaded
 - Backend returns accepted/duplicate counts summary
-- Non-zero exit code on auth or API failures
+- Non-zero exit code on auth or API failures after retries

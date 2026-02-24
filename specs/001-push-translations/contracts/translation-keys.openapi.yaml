@@ -3,7 +3,7 @@ info:
   title: Curlydots Translation Keys API
   version: 1.0.0
 servers:
-  - url: https://curlydots.com/api
+  - url: https://curlydots.com
 paths:
   /api/projects/{projectUuid}/translation-keys:
     get:

@@ -9,10 +9,10 @@
 
 ### Session 2026-02-06
 
-- Q: What should the CLI do when an upload batch fails? → A: Retry the failed batch 3 times, then continue with remaining batches.
+- Q: What should the CLI do when an upload batch fails? → A: Retry failed HTTP requests up to the configured retry count (default 3), then fail the command if a batch still cannot be uploaded.
 - Q: What default upload batch size should be used? → A: 100 keys per batch.
 - Q: When should authentication be validated? → A: Validate auth before scanning the repo.
-- Q: What default API host should be used? → A: https://curlydots.com/api.
+- Q: What default API host should be used? → A: https://curlydots.com.
 - Q: Which extensions should be scanned by default? → A: Scan all supported extensions by default.
 - Q: Should the CLI fetch existing keys before upload? → A: Yes, the backend returns all existing keys and the CLI uploads only new keys.
 
@@ -62,7 +62,7 @@ As a developer, I want the new command to reuse the existing extraction logic so
 
 ### User Story 3 - Report missing configuration (Priority: P3)
 
-As a developer, I want clear CLI feedback when the project UUID or default language is missing so that I can fix configuration quickly.
+As a developer, I want clear CLI feedback when the project UUID context or source language argument is missing so that I can fix configuration quickly.
 
 **Why this priority**: Helpful feedback improves usability but does not block the core upload flow when configuration is correct.
 
@@ -70,7 +70,7 @@ As a developer, I want clear CLI feedback when the project UUID or default langu
 
 **Acceptance Scenarios**:
 
-1. **Given** a project without a configured UUID or default language, **When** I run the push command, **Then** the CLI exits with a clear error describing the missing configuration.
+1. **Given** a project without a selected or provided UUID, or missing `--source`, **When** I run the push command, **Then** the CLI exits with a clear error describing the missing configuration.
 
 ---
 
@@ -80,7 +80,8 @@ As a developer, I want clear CLI feedback when the project UUID or default langu
 - Backend returns the full list of existing keys for the project.
 - Extraction finds duplicate translation keys in the codebase.
 - Network/API errors during fetch or upload (timeouts, 5xx responses).
-- Default language configured but source value is empty or missing.
+- Source language is missing from command arguments.
+- Source value is empty or missing for extracted keys.
 
 ## Requirements *(mandatory)*
 
@@ -91,18 +92,18 @@ As a developer, I want clear CLI feedback when the project UUID or default langu
 
 ### Functional Requirements
 
-- **FR-001**: The CLI MUST provide a new command that replaces the CSV extract workflow and targets translation key upload.
+- **FR-001**: The CLI MUST provide a `translations push` command that uploads translation keys to the backend.
 - **FR-002**: The command MUST collect translationKey, sourceValue, sourceLanguage, and codeContext for each extracted entry.
 - **FR-003**: The command MUST omit translation_context from the collected data.
 - **FR-004**: The command MUST fetch the existing translation keys for the configured project UUID before uploading.
 - **FR-005**: The command MUST upload only translationKey entries that are missing from the backend for the project.
-- **FR-006**: The command MUST use the configured default language as sourceLanguage for extraction.
+- **FR-006**: The command MUST use the provided `--source` language as `sourceLanguage` for extraction.
 - **FR-007**: The command MUST report when no new keys are found and skip the upload.
-- **FR-008**: The command MUST surface clear errors when project UUID or default language configuration is missing.
-- **FR-009**: The command MUST retry failed upload batches up to 3 times before continuing with remaining batches.
+- **FR-008**: The command MUST surface clear errors when project UUID context or source language input is missing.
+- **FR-009**: The command MUST retry transient API failures up to the configured retry count (default 3) and fail with a non-zero exit if upload still fails.
 - **FR-010**: The command MUST default to 100 keys per upload batch.
 - **FR-011**: The command MUST validate authentication before scanning the repo and fail fast if auth is missing.
-- **FR-012**: The command MUST default the API host to https://curlydots.com/api when not explicitly provided.
+- **FR-012**: The command MUST default the API host to https://curlydots.com when not explicitly provided.
 - **FR-013**: The command MUST scan all supported extensions by default unless --extensions is provided.
 - **FR-014**: The command MUST handle API failures with a non-zero exit and actionable error message.
 
@@ -122,5 +123,5 @@ As a developer, I want clear CLI feedback when the project UUID or default langu
 
 - **SC-001**: The command uploads 100% of translation keys that are missing in the backend for the project.
 - **SC-002**: Running the command on a project with no new keys results in zero uploads and a clear no-op message.
-- **SC-003**: The command reports configuration errors (missing UUID or default language) in under 5 seconds of execution.
+- **SC-003**: The command reports configuration errors (missing project UUID context or source language) in under 5 seconds of execution.
 - **SC-004**: The extracted data fields for uploaded keys include translationKey, sourceValue, sourceLanguage, and codeContext for every uploaded entry.
