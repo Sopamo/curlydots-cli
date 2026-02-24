@@ -60,6 +60,39 @@ describe('contract/translation-keys', () => {
     ]);
   });
 
+  it('deduplicates translation keys before batching and upload', async () => {
+    const { uploadTranslationKeys } = await import('../../src/services/api/translation-keys');
+    const client = new FakeClient();
+    const payload: TranslationKeyPayload[] = [
+      { translationKey: 'a', sourceValue: 'A', sourceLanguage: 'en', codeContext: [] },
+      { translationKey: 'b', sourceValue: 'B', sourceLanguage: 'en', codeContext: [] },
+      { translationKey: 'a', sourceValue: 'A newer', sourceLanguage: 'en', codeContext: [] },
+      { translationKey: 'c', sourceValue: 'C', sourceLanguage: 'en', codeContext: [] },
+    ];
+
+    const result = await uploadTranslationKeys(client, 'project-123', 'token-abc', payload, 2);
+
+    expect(result).toEqual({ uploaded: 3, batches: 2 });
+    expect(client.postCalls).toEqual([
+      {
+        path: '/api/projects/project-123/translation-keys',
+        token: 'token-abc',
+        body: { entries: payload.slice(0, 2), current_batch: 1, total_batch: 2 },
+      },
+      {
+        path: '/api/projects/project-123/translation-keys',
+        token: 'token-abc',
+        body: {
+          entries: [
+            { translationKey: 'c', sourceValue: 'C', sourceLanguage: 'en', codeContext: [] },
+          ],
+          current_batch: 2,
+          total_batch: 2,
+        },
+      },
+    ]);
+  });
+
   it('resolves auth token from provided override or stored token', async () => {
     const { resolveAuthToken } = await import('../../src/services/api/translation-keys');
     const stored = await resolveAuthToken({

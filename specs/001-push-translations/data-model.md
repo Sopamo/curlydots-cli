@@ -16,7 +16,8 @@
   - `sourceLanguage`: string, required (default language)
   - `codeContext`: array of UsageContext, required (may be empty)
 - **Constraints**:
-  - `translationKey` may repeat in a batch; backend reports duplicates
+  - `translationKey` must be unique across the full CLI upload set (before batching)
+  - A `translationKey` must not appear in more than one batch
   - `codeContext` is capped to 10 items
 
 ### UsageContext

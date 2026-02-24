@@ -34,6 +34,22 @@ export async function fetchExistingTranslationKeys(
 
 export type UploadProgressCallback = (info: { batch: number; totalBatches: number; uploaded: number; total: number }) => void;
 
+function deduplicatePayloadsByTranslationKey(keys: TranslationKeyPayload[]): TranslationKeyPayload[] {
+  const seenKeys = new Set<string>();
+  const uniquePayloads: TranslationKeyPayload[] = [];
+
+  for (const key of keys) {
+    if (seenKeys.has(key.translationKey)) {
+      continue;
+    }
+
+    seenKeys.add(key.translationKey);
+    uniquePayloads.push(key);
+  }
+
+  return uniquePayloads;
+}
+
 export async function uploadTranslationKeys(
   client: HttpClient,
   projectUuid: string,
@@ -42,12 +58,13 @@ export async function uploadTranslationKeys(
   batchSize = 100,
   onProgress?: UploadProgressCallback,
 ): Promise<UploadResult> {
+  const uniqueKeys = deduplicatePayloadsByTranslationKey(keys);
   let uploaded = 0;
   let batches = 0;
-  const totalBatch = keys.length === 0 ? 0 : Math.ceil(keys.length / batchSize);
+  const totalBatch = uniqueKeys.length === 0 ? 0 : Math.ceil(uniqueKeys.length / batchSize);
 
-  for (let i = 0; i < keys.length; i += batchSize) {
-    const batch = keys.slice(i, i + batchSize);
+  for (let i = 0; i < uniqueKeys.length; i += batchSize) {
+    const batch = uniqueKeys.slice(i, i + batchSize);
     const currentBatch = batches + 1;
     await client.post(
       `/api/projects/${projectUuid}/translation-keys`,
@@ -56,7 +73,7 @@ export async function uploadTranslationKeys(
     );
     uploaded += batch.length;
     batches += 1;
-    onProgress?.({ batch: currentBatch, totalBatches: totalBatch, uploaded, total: keys.length });
+    onProgress?.({ batch: currentBatch, totalBatches: totalBatch, uploaded, total: uniqueKeys.length });
   }
 
   return { uploaded, batches };
