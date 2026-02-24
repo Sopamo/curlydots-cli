@@ -12,7 +12,7 @@ describe('integration/push-translations', () => {
     fetchCalls.push({ input, init });
     const method = init?.method ?? 'GET';
     if (method === 'GET') {
-      return new Response(JSON.stringify({ keys: [] }), {
+      return new Response(JSON.stringify({ data: { keys: [] } }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -26,10 +26,12 @@ describe('integration/push-translations', () => {
   beforeEach(() => {
     fetchCalls.length = 0;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
+    process.exitCode = undefined;
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    process.exitCode = undefined;
   });
 
   it('pushes translation keys with context payload', async () => {
@@ -57,17 +59,17 @@ describe('integration/push-translations', () => {
     expect(getCall?.input.toString()).toContain('/api/projects/project-123/translation-keys');
     expect(postCall?.input.toString()).toContain('/api/projects/project-123/translation-keys');
     const body = JSON.parse((postCall?.init?.body as string) ?? '{}') as {
-      keys?: Array<Record<string, unknown>>;
+      entries?: Array<Record<string, unknown>>;
       current_batch?: number;
       total_batch?: number;
     };
 
-    expect(Array.isArray(body.keys)).toBe(true);
-    expect(body.keys?.length).toBeGreaterThan(0);
+    expect(Array.isArray(body.entries)).toBe(true);
+    expect(body.entries?.length).toBeGreaterThan(0);
     expect(body.current_batch).toBe(1);
     expect(body.total_batch).toBe(1);
 
-    const first = body.keys?.[0] as Record<string, unknown> | undefined;
+    const first = body.entries?.[0] as Record<string, unknown> | undefined;
     expect(first?.translationKey).toBeDefined();
     expect(first?.sourceValue).toBeDefined();
     expect(first?.sourceLanguage).toBe('en');
@@ -82,7 +84,7 @@ describe('integration/push-translations', () => {
       fetchCalls.push({ input, init });
       const method = init?.method ?? 'GET';
       if (method === 'GET') {
-        return new Response(JSON.stringify({ keys: ['generic.back', 'generic.save'] }), {
+        return new Response(JSON.stringify({ data: { keys: ['generic.back', 'generic.save'] } }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -112,10 +114,10 @@ describe('integration/push-translations', () => {
 
     const postCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') !== 'GET');
     const body = JSON.parse((postCall?.init?.body as string) ?? '{}') as {
-      keys?: Array<Record<string, unknown>>;
+      entries?: Array<Record<string, unknown>>;
     };
 
-    expect(body.keys?.some((key) => key.translationKey === 'generic.back')).toBe(false);
-    expect(body.keys?.some((key) => key.translationKey === 'generic.save')).toBe(false);
+    expect(body.entries?.some((key) => key.translationKey === 'generic.back')).toBe(false);
+    expect(body.entries?.some((key) => key.translationKey === 'generic.save')).toBe(false);
   });
 });

@@ -15,6 +15,12 @@ const MAX_CONTEXTS_PER_KEY = 10;
 /** Number of lines to extract around each match */
 const CONTEXT_LINES = 15;
 
+/** Maximum snippet length in characters to avoid DB overflow */
+const MAX_SNIPPET_LENGTH = 5000;
+
+/** Average line length threshold to detect minified files */
+const MINIFIED_AVG_LINE_LENGTH = 500;
+
 /**
  * Check if a file is likely binary
  */
@@ -35,10 +41,15 @@ export function extractContext(lines: string[], matchLine: number, filePath: str
 
   const snippetLines = lines.slice(startLine, endLine + 1);
 
+  let snippet = snippetLines.join('\n');
+  if (snippet.length > MAX_SNIPPET_LENGTH) {
+    snippet = snippet.slice(0, MAX_SNIPPET_LENGTH) + '\n... (truncated)';
+  }
+
   return {
     filePath,
     lineNumber: matchLine + 1, // 1-indexed
-    snippet: snippetLines.join('\n'),
+    snippet,
     snippetStartLine: startLine + 1, // 1-indexed
     snippetEndLine: endLine + 1, // 1-indexed
   };
@@ -117,10 +128,10 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
         const file = Bun.file(filePath);
         const content = await file.text();
 
-        // Skip binary files
+        // Skip binary or minified files
         if (isBinaryFile(content)) continue;
-
         const lines = content.split('\n');
+        if (lines.length > 0 && content.length / lines.length > MINIFIED_AVG_LINE_LENGTH) continue;
         const matchLines = findKeyInContent(content, key);
 
         for (const matchLine of matchLines) {
@@ -142,29 +153,46 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
  * @param searchDir - Directory to search in
  * @returns Array with contexts added to each key
  */
+export type ContextProgressCallback = (info: { current: number; total: number; key: string }) => void;
+
+const DEFAULT_CONCURRENCY = 10;
+
 export async function findContextForKeys(
   missingKeys: Array<{ key: string; sourceValue: string }>,
   searchDir: string,
+  onProgress?: ContextProgressCallback,
+  concurrency = DEFAULT_CONCURRENCY,
 ): Promise<Array<{ key: string; sourceValue: string; contexts: UsageContext[] }>> {
   const analysis = analysisStore.getState();
-  const results: Array<{ key: string; sourceValue: string; contexts: UsageContext[] }> = [];
+  const results: Array<{ key: string; sourceValue: string; contexts: UsageContext[] }> = new Array(missingKeys.length);
+  let completed = 0;
 
-  for (let i = 0; i < missingKeys.length; i++) {
-    const item = missingKeys[i];
-    if (!item) continue;
-
-    analysis.setCurrentKey(item.key);
-    analysis.setProgress(i + 1, missingKeys.length);
-    analysis.setTaskProgress('find_code_context', i + 1, missingKeys.length);
+  async function processKey(index: number): Promise<void> {
+    const item = missingKeys[index];
+    if (!item) return;
 
     const contexts = await findKeyUsages(item.key, searchDir);
+    results[index] = { key: item.key, sourceValue: item.sourceValue, contexts };
 
-    results.push({
-      key: item.key,
-      sourceValue: item.sourceValue,
-      contexts,
-    });
+    completed += 1;
+    analysis.setCurrentKey(item.key);
+    analysis.setProgress(completed, missingKeys.length);
+    analysis.setTaskProgress('find_code_context', completed, missingKeys.length);
+    onProgress?.({ current: completed, total: missingKeys.length, key: item.key });
   }
 
-  return results;
+  // Process keys in parallel with concurrency limit
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < missingKeys.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      await processKey(index);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, missingKeys.length) }, () => worker());
+  await Promise.all(workers);
+
+  return results.filter(Boolean);
 }

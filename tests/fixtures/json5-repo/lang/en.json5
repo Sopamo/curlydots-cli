@@ -1,0 +1,20 @@
+{
+  binList: {
+    buttonLabels: {
+      deleteSelected: "Delete selected",
+      restoreSelected: "Restore selected",
+    },
+    moduleTitle: "Bin",
+    title: "Title",
+  },
+  categories: {
+    categorySelectLabelPlural: "Categories",
+    categorySelectLabelSingular: "Category",
+  },
+  settings: {
+    profile: {
+      name: "Name",
+      email: "Email",
+    },
+  },
+}

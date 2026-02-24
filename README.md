@@ -274,7 +274,7 @@ curlydots translations push --project <uuid> --repo <path> --translations-dir <p
 
 | Option | Description |
 |--------|-------------|
-| `--project <uuid>` | Project UUID (required) |
+| `--project <uuid>` | Project UUID (optional if a project is already selected) |
 | `--repo <path>` | Repository path (required) |
 | `--translations-dir <path>` | Translations directory (required) |
 | `--source <lang>` | Source language code (required) |
