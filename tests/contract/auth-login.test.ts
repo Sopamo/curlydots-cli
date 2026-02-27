@@ -74,8 +74,6 @@ const API_ENDPOINT = process.env.CURLYDOTS_API_ENDPOINT ?? 'https://curlydots.co
 
 const baseConfig: CliConfig = {
   apiEndpoint: API_ENDPOINT,
-  authMethod: 'browser',
-  tokenStorage: 'keychain',
   timeout: 5000,
   retries: 0,
   debug: false,

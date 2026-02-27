@@ -2,6 +2,16 @@ import { describe, expect, it, mock } from 'bun:test';
 import { HttpClient } from '../../src/services/http/client';
 import type { TranslationKeyPayload } from '../../src/types/translation-keys';
 
+const loadCliAuthConfigMock = mock(() => ({
+  authMethod: 'browser' as const,
+  tokenStorage: 'keychain' as const,
+  token: undefined as string | undefined,
+}));
+
+mock.module('../../src/config/auth-config', () => ({
+  loadCliAuthConfig: loadCliAuthConfigMock,
+}));
+
 class FakeClient extends HttpClient {
   public getCalls: Array<{ path: string; token?: string }> = [];
   public postCalls: Array<{ path: string; token?: string; body?: unknown }> = [];
@@ -62,12 +72,24 @@ describe('contract/translation-keys', () => {
 
   it('resolves auth token from provided override or stored token', async () => {
     const { resolveAuthToken } = await import('../../src/services/api/translation-keys');
+    loadCliAuthConfigMock.mockReturnValueOnce({
+      authMethod: 'api_key',
+      tokenStorage: 'environment',
+      token: 'config-token',
+    });
+
+    const configured = await resolveAuthToken({
+      client: new FakeClient(),
+      loadToken: async () => ({ accessToken: 'stored-token' }),
+    });
+
     const stored = await resolveAuthToken({
       client: new FakeClient(),
       loadToken: async () => ({ accessToken: 'stored-token' }),
     });
     const override = await resolveAuthToken({ client: new FakeClient(), token: 'override' });
 
+    expect(configured).toBe('config-token');
     expect(stored).toBe('stored-token');
     expect(override).toBe('override');
   });

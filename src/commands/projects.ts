@@ -2,6 +2,7 @@ import { HttpClient, HttpClientError } from '../services/http/client.js';
 import { loadAuthToken } from '../services/auth/token-manager.js';
 import { globalLogger } from '../utils/logger.js';
 import { loadCliConfig } from '../config/cli-config.js';
+import { loadCliAuthConfig } from '../config/auth-config.js';
 import { clearCurrentProject, getCurrentProject, setCurrentProject } from '../config/project-config.js';
 import * as readline from 'node:readline';
 import chalk from 'chalk';
@@ -67,7 +68,7 @@ export async function projectsCommand(_args: string[]): Promise<void> {
   try {
     const token = await loadAuthToken();
     if (!token) {
-      globalLogger.error('Not authenticated. Run "curlydots login" first.');
+      globalLogger.error('Not authenticated. Run "curlydots auth login" first.');
       process.exitCode = 1;
       return;
     }
@@ -85,7 +86,8 @@ export async function projectsCommand(_args: string[]): Promise<void> {
     }
 
     const storedProject = getCurrentProject();
-    const hasApiKey = !!config.token;
+    const authConfig = loadCliAuthConfig();
+    const hasApiKey = !!authConfig.token;
     const projectIds = new Set(response.data.map((project) => project.id));
     let currentProject = storedProject;
 
@@ -99,7 +101,7 @@ export async function projectsCommand(_args: string[]): Promise<void> {
     
     if (response.data.length === 1 && hasApiKey) {
       console.log(chalk.yellow('⚠ You are using an API key which only has access to one project.'));
-      console.log(chalk.yellow(' Remove the API key and run "curlydots login" to be able to switch between all your projects.\n'));
+      console.log(chalk.yellow(' Remove the API key and run "curlydots auth login" to be able to switch between all your projects.\n'));
     }
     
     response.data.forEach((project, index) => {

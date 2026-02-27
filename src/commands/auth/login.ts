@@ -1,6 +1,7 @@
 import { runBrowserLogin } from '../../services/auth/browser-login';
 import { isTokenExpired, loadAuthToken, persistAuthToken } from '../../services/auth/token-manager';
 import { globalLogger } from '../../utils/logger';
+import { loadCliAuthConfig } from '../../config/auth-config';
 
 const loginState = { inProgress: false };
 
@@ -13,6 +14,12 @@ export async function authLoginCommand(_args: string[]): Promise<void> {
 
   if (process.env.CURLYDOTS_TOKEN) {
     globalLogger.warn('CURLYDOTS_TOKEN is set. Unset it to use browser login, or keep using the environment token.');
+    return;
+  }
+
+  const authConfig = loadCliAuthConfig();
+  if (authConfig.token) {
+    globalLogger.warn('A token is configured in .curlydots/auth.json. Remove it to use browser login.');
     return;
   }
 

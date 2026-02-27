@@ -22,12 +22,21 @@ const runTranslationsPushMock = async () => {
 };
 
 const loadAuthTokenMock = mock(async () => null);
+const loadCliAuthConfigMock = mock(() => ({
+  authMethod: 'browser' as const,
+  tokenStorage: 'keychain' as const,
+  token: undefined as string | undefined,
+}));
 
 describe('auth validation', () => {
   beforeEach(() => {
     loadAuthTokenMock.mockClear();
+    loadCliAuthConfigMock.mockClear();
     mock.module('../../src/services/auth/token-manager', () => ({
       loadAuthToken: loadAuthTokenMock,
+    }));
+    mock.module('../../src/config/auth-config', () => ({
+      loadCliAuthConfig: loadCliAuthConfigMock,
     }));
     process.exitCode = undefined;
   });
