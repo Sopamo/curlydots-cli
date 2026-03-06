@@ -98,6 +98,7 @@ export function ensureGlobalCurlydotsConfigFiles(): void {
     {
       schemaVersion: 1,
       apiEndpoint: 'https://curlydots.com/api',
+      frontendUrl: 'https://curlydots.com',
       debug: false,
     },
   );

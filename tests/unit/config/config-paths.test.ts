@@ -4,6 +4,8 @@ import { join } from 'node:path';
 let moduleNonce = 0;
 let mockedCwd = '/workspace';
 const existingPaths = new Set<string>();
+let mkdirSyncMock: ReturnType<typeof mock>;
+let writeFileSyncMock: ReturnType<typeof mock>;
 
 async function importFreshConfigPathsModule() {
   moduleNonce += 1;
@@ -16,12 +18,18 @@ describe('config/config-paths', () => {
   beforeEach(() => {
     mockedCwd = '/workspace';
     existingPaths.clear();
+    mkdirSyncMock = mock(() => undefined);
+    writeFileSyncMock = mock(() => undefined);
 
     mock.module('node:fs', () => ({
       existsSync: (filePath: string) => existingPaths.has(filePath),
-      mkdirSync: () => undefined,
+      mkdirSync: mkdirSyncMock,
       readFileSync: () => '',
-      writeFileSync: () => undefined,
+      writeFileSync: writeFileSyncMock,
+    }));
+
+    mock.module('node:os', () => ({
+      homedir: () => '/home/test',
     }));
 
     process.cwd = (() => mockedCwd) as typeof process.cwd;
@@ -72,5 +80,32 @@ describe('config/config-paths', () => {
     const { findNearestProjectCurlydotsFilePath } = await importFreshConfigPathsModule();
     const result = findNearestProjectCurlydotsFilePath('config.json');
     expect(result).toBeUndefined();
+  });
+
+  it('creates global config and auth templates with frontendUrl when missing', async () => {
+    const { ensureGlobalCurlydotsConfigFiles } = await importFreshConfigPathsModule();
+
+    ensureGlobalCurlydotsConfigFiles();
+
+    expect(mkdirSyncMock).toHaveBeenCalledWith('/home/test/.curlydots', { recursive: true });
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      '/home/test/.curlydots/config.json',
+      `${JSON.stringify({
+        schemaVersion: 1,
+        apiEndpoint: 'https://curlydots.com/api',
+        frontendUrl: 'https://curlydots.com',
+        debug: false,
+      }, null, 2)}\n`,
+      'utf8',
+    );
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      '/home/test/.curlydots/auth.json',
+      `${JSON.stringify({
+        schemaVersion: 1,
+        authMethod: 'browser',
+        tokenStorage: 'keychain',
+      }, null, 2)}\n`,
+      'utf8',
+    );
   });
 });
