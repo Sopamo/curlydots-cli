@@ -24,11 +24,13 @@ describe('integration/push-translations-errors', () => {
   beforeEach(() => {
     fetchCalls.length = 0;
     process.exitCode = 0;
+    mock.restore();
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     process.exitCode = 0;
+    mock.restore();
   });
 
   it('sets non-zero exit code on authentication errors', async () => {
@@ -70,5 +72,51 @@ describe('integration/push-translations-errors', () => {
 
     expect(fetchMock).toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
+  });
+
+  it('renews an expired stored token before fetching translation keys', async () => {
+    const fetchMock = mock(async (...args: FetchArgs) => {
+      const [input, init] = args;
+      fetchCalls.push({ input, init });
+      const method = init?.method ?? 'GET';
+      if (method === 'GET') {
+        return new Response(JSON.stringify({ data: { keys: [] } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({}), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const getValidTokenMock = mock(async () => 'renewed-token');
+    mock.module('../../src/services/auth/token-manager', () => ({
+      getValidToken: getValidTokenMock,
+    }));
+
+    const { runTranslationsPush } = await import('../../src/commands/translations/push');
+    await runTranslationsPush([
+      '--project',
+      'project-123',
+      '--repo',
+      TEST_REPO,
+      '--translations-dir',
+      'translations',
+      '--source',
+      'en',
+      '--parser',
+      'node-module',
+      '--api-host',
+      'https://curlydots.com',
+    ]);
+
+    expect(getValidTokenMock).toHaveBeenCalledTimes(1);
+    const authHeaders = fetchCalls.map((call) => (call.init?.headers as Record<string, string> | undefined)?.Authorization);
+    expect(authHeaders.filter(Boolean)).toEqual(['Bearer renewed-token', 'Bearer renewed-token']);
+    expect(process.exitCode).toBe(0);
   });
 });

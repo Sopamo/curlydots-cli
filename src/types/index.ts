@@ -16,6 +16,9 @@ export interface Config {
   /** Path to translations directory relative to repoPath */
   translationsDir: string;
 
+  /** Paths to translation directories relative to repoPath */
+  translationsDirs: string[];
+
   /** Source language code (e.g., "en") */
   sourceLanguage: string;
 

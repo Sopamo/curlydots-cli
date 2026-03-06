@@ -7,10 +7,7 @@ const logs = {
   warn: [] as string[],
 };
 
-const loadAuthTokenMock = mock(async () => ({
-  accessToken: 'token',
-  expiresAt: new Date(Date.now() + 60_000).toISOString(),
-}));
+const getValidTokenMock = mock(async () => 'token');
 
 const loadCliConfigMock = mock<() => CliConfig>(() => ({
   apiEndpoint: 'http://curlydots.com/api',
@@ -54,7 +51,7 @@ const originalHttpClientFromConfig = HttpClient.fromConfig;
 describe('unit/cli/projects', () => {
   beforeEach(() => {
     logs.warn.length = 0;
-    loadAuthTokenMock.mockClear();
+    getValidTokenMock.mockClear();
     loadCliConfigMock.mockClear();
     clearCurrentProjectMock.mockClear();
     getCurrentProjectMock.mockClear();
@@ -64,7 +61,7 @@ describe('unit/cli/projects', () => {
     console.log = () => {};
 
     mock.module('../../../src/services/auth/token-manager', () => ({
-      loadAuthToken: loadAuthTokenMock,
+      getValidToken: getValidTokenMock,
     }));
 
     mock.module('../../../src/config/cli-config', () => ({
@@ -116,5 +113,16 @@ describe('unit/cli/projects', () => {
 
     expect(clearCurrentProjectMock).toHaveBeenCalledTimes(1);
     expect(logs.warn.some((message) => message.includes('no longer available'))).toBe(true);
+  });
+
+  it('uses the renewed valid token when loading projects', async () => {
+    getValidTokenMock.mockResolvedValueOnce('renewed-token');
+
+    await projectsCommand([]);
+
+    expect(getValidTokenMock).toHaveBeenCalledTimes(1);
+    expect(httpClientGetMock).toHaveBeenCalledWith('cli/projects', {
+      token: 'renewed-token',
+    });
   });
 });

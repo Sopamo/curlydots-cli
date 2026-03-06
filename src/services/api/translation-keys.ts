@@ -19,9 +19,8 @@ export async function resolveAuthToken(options: TranslationKeysClientOptions): P
     const stored = await options.loadToken();
     return stored?.accessToken ?? null;
   }
-  const { loadAuthToken } = await import('../auth/token-manager');
-  const stored = await loadAuthToken();
-  return stored?.accessToken ?? null;
+  const { getValidToken } = await import('../auth/token-manager');
+  return getValidToken();
 }
 
 export async function fetchExistingTranslationKeys(

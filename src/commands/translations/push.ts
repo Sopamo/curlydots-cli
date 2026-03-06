@@ -94,7 +94,7 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
 
   configStore.getState().setConfig({
     repoPath: resolvedPath,
-    translationsDir: parsedArgs.translationsDirs[0] ?? '',
+    translationsDirs: parsedArgs.translationsDirs,
     sourceLanguage: parsedArgs.source,
     targetLanguage: '',
     parser: parser.name,

@@ -270,15 +270,19 @@ Upload new translation keys to the backend, including code context and default l
 curlydots translations push --project <uuid> --repo <path> --translations-dir <path> --source <lang> --parser <name>
 ```
 
+`--repo` means the root folder of the app you want to scan. For example, if your project lives in `/Users/you/my-app`, then `--repo /Users/you/my-app`.
+
+`--translations-dir` is the folder inside that repo where your translation files live. For example, if your files are in `/Users/you/my-app/src/locales/en`, then use `--repo /Users/you/my-app --translations-dir src/locales` and `--source en`.
+
 ### Options
 
 | Option | Description |
 |--------|-------------|
 | `--project <uuid>` | Project UUID (optional if a project is already selected) |
-| `--repo <path>` | Repository path (required) |
-| `--translations-dir <path>` | Translations directory (required) |
-| `--source <lang>` | Source language code (required) |
-| `--parser <name>` | Parser to use (default: node-module) |
+| `--repo <path>` | Path to the root of the app/repository to scan for code usage and translation folders (required) |
+| `--translations-dir <path>` | Path inside `--repo` where translation files live; repeatable and can use globs (required) |
+| `--source <lang>` | Source language folder/code inside each translations directory, for example `en` (required) |
+| `--parser <name>` | Parser that matches how your translations are stored, for example `node-module` (default: node-module) |
 | `--api-host <url>` | API host (default: https://curlydots.com) |
 | `--api-token <token>` | API token override (optional if logged in) |
 | `--extensions <list>` | Comma-separated extensions to scan (default: all files) |

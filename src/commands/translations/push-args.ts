@@ -130,10 +130,10 @@ USAGE:
 
 OPTIONS:
   --project <uuid>               Project UUID (optional, falls back to selected project)
-  --repo <path>                  Repository path (required)
-  -d, --translations-dir <path>  Translations directory (required, repeatable, supports globs)
-  -s, --source <lang>            Source language code (required)
-  -p, --parser <name>            Parser to use [default: node-module]
+  --repo <path>                  Path to the root of the app/repository to scan (required)
+  -d, --translations-dir <path>  Path inside --repo where translation files live (required, repeatable, supports globs)
+  -s, --source <lang>            Source language folder/code inside each translations dir, e.g. en (required)
+  -p, --parser <name>            Parser that matches how translations are stored, e.g. node-module [default: node-module]
   --parser-file <path>           Load parser module from file (.js/.ts)
   -e, --extensions <list>        File extensions to search [default: all files]
   --api-host <url>               API host [default: https://curlydots.com]
