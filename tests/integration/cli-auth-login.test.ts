@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CliAuthConfig } from '../../src/config/auth-config';
 import type { AuthToken } from '../../src/services/auth/browser-login';
 import * as browserLoginModule from '../../src/services/auth/browser-login';
 import * as tokenManagerModule from '../../src/services/auth/token-manager';
@@ -14,11 +15,13 @@ const token: AuthToken = {
 
 const runBrowserLoginMock = mock(async () => token);
 const persistAuthTokenMock = mock(async () => {});
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock((): CliAuthConfig => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,
 }));
+const getSecureTokenMock = mock(async () => null);
+const saveSecureTokenMock = mock(async () => {});
 const originalBrowserLogin = { ...browserLoginModule };
 const originalTokenManager = { ...tokenManagerModule };
 const originalAuthConfig = { ...authConfigModule };
@@ -37,12 +40,18 @@ describe('[module-mock] integration/cli-auth-login', () => {
     loadCliAuthConfigMock.mockClear();
     logs.warn.length = 0;
     logs.success.length = 0;
+    process.exitCode = undefined;
     delete process.env.CURLYDOTS_TOKEN;
     mock.module('../../src/services/auth/browser-login', () => ({
       runBrowserLogin: runBrowserLoginMock,
     }));
     mock.module('../../src/services/auth/token-manager', () => ({
       persistAuthToken: persistAuthTokenMock,
+    }));
+    mock.module('../../src/services/storage/secure-store', () => ({
+      getSecureToken: getSecureTokenMock,
+      saveSecureToken: saveSecureTokenMock,
+      clearSecureToken: async () => {},
     }));
     mock.module('../../src/config/auth-config', () => ({
       loadCliAuthConfig: loadCliAuthConfigMock,
@@ -70,7 +79,7 @@ describe('[module-mock] integration/cli-auth-login', () => {
   });
 
   it('[module-mock] runs browser login command and persists token', async () => {
-    const { authLoginCommand } = await import('../../src/cli/auth/login');
+    const { authLoginCommand } = await import('../../src/commands/auth/login');
 
     await authLoginCommand([]);
 

@@ -161,7 +161,6 @@ export class HttpClient {
         if (!(error instanceof HttpClientError) || error.meta.category !== 'transient' || attempt >= this.retries) {
           throw error;
         }
-
         attempt += 1;
         await delay(delayMs);
         delayMs = Math.min(delayMs * 2, maxDelayMs);

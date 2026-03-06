@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 
 describe('services/http/client', () => {
   let receivedHeaders: RequestInit['headers'] | undefined;
@@ -9,23 +9,15 @@ describe('services/http/client', () => {
     return HttpClient;
   }
 
-  beforeEach(() => {
-    receivedHeaders = undefined;
-  });
-
-  afterEach(() => {
-    receivedHeaders = undefined;
-  });
-
   it('always sends CLI version header', async () => {
     const HttpClient = await loadHttpClient();
-    const fetcher = (async (_url, init) => {
+    const fetcher = (async (_url: string | URL, init?: RequestInit) => {
       receivedHeaders = init?.headers;
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
       timeout: 1000,
@@ -47,7 +39,7 @@ describe('services/http/client', () => {
   it('aborts the request when the timeout elapses', async () => {
     const HttpClient = await loadHttpClient();
     let receivedSignal: AbortSignal | undefined;
-    const fetcher = (async (_url, init) => {
+    const fetcher = (async (_url: string | URL, init?: RequestInit) => {
       receivedSignal = init?.signal as AbortSignal | undefined;
       return new Promise((_resolve, reject) => {
         if (!receivedSignal) {
@@ -58,7 +50,7 @@ describe('services/http/client', () => {
           reject(new Error('Aborted'));
         });
       }) as unknown as Response;
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
@@ -83,7 +75,7 @@ describe('services/http/client', () => {
   it('retries on 500 responses and succeeds on a later attempt', async () => {
     const HttpClient = await loadHttpClient();
     let calls = 0;
-    const fetcher = (async () => {
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
       calls += 1;
       if (calls === 1) {
         return new Response(JSON.stringify({ message: 'Temporary outage' }), {
@@ -96,7 +88,7 @@ describe('services/http/client', () => {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
@@ -105,7 +97,7 @@ describe('services/http/client', () => {
       fetcher,
     });
 
-    const response = await client.get<{ ok: boolean }>('health');
+    const response = await client.get('health') as { ok: boolean };
 
     expect(response.ok).toBe(true);
     expect(calls).toBe(2);
@@ -114,13 +106,13 @@ describe('services/http/client', () => {
   it('does not retry on 403 authentication errors', async () => {
     const HttpClient = await loadHttpClient();
     let calls = 0;
-    const fetcher = (async () => {
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
       calls += 1;
       return new Response(JSON.stringify({ message: 'Token has been deactivated.' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
@@ -142,13 +134,13 @@ describe('services/http/client', () => {
   it('does not retry on 429 responses', async () => {
     const HttpClient = await loadHttpClient();
     let calls = 0;
-    const fetcher = (async () => {
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
       calls += 1;
       return new Response(JSON.stringify({ message: 'Too many requests' }), {
         status: 429,
         headers: { 'Content-Type': 'application/json' },
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
@@ -170,10 +162,10 @@ describe('services/http/client', () => {
   it('does not retry on system errors from fetch', async () => {
     const HttpClient = await loadHttpClient();
     let calls = 0;
-    const fetcher = (async () => {
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
       calls += 1;
       throw new Error('Network down');
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
@@ -182,13 +174,11 @@ describe('services/http/client', () => {
       fetcher,
     });
 
-    await expect(client.get('health')).rejects.toEqual(
-      expect.objectContaining({
-        name: 'HttpClientError',
-        message: 'System error communicating with backend',
-        meta: expect.objectContaining({ category: 'system' }),
-      }),
-    );
+    await expect(client.get('health')).rejects.toMatchObject({
+      name: 'HttpClientError',
+      message: 'System error communicating with backend',
+      meta: expect.objectContaining({ category: 'system' }),
+    });
 
     expect(calls).toBe(1);
   });

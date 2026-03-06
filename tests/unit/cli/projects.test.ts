@@ -14,6 +14,7 @@ const loadAuthTokenMock = mock(async () => ({
 
 const loadCliConfigMock = mock<() => CliConfig>(() => ({
   apiEndpoint: 'http://curlydots.com/api',
+  frontendUrl: 'http://curlydots.com',
   timeout: 1000,
   retries: 0,
   debug: false,

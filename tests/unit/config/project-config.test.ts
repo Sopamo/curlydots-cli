@@ -50,8 +50,8 @@ describe('config/project-config', () => {
     mock.module('node:fs', () => ({
       existsSync: existsSyncMock,
       readFileSync: readFileSyncMock,
-      writeFileSync: mock(() => undefined),
-      mkdirSync: mock(() => undefined),
+      writeFileSync: () => undefined,
+      mkdirSync: () => undefined,
     }));
 
     const { getCurrentProject } = await importFreshProjectConfigModule();
@@ -90,8 +90,8 @@ describe('config/project-config', () => {
     mock.module('node:fs', () => ({
       existsSync: existsSyncMock,
       readFileSync: readFileSyncMock,
-      writeFileSync: mock(() => undefined),
-      mkdirSync: mock(() => undefined),
+      writeFileSync: () => undefined,
+      mkdirSync: () => undefined,
     }));
 
     const { getCurrentProject } = await importFreshProjectConfigModule();
@@ -119,7 +119,7 @@ describe('config/project-config', () => {
 
     mock.module('node:fs', () => ({
       existsSync: existsSyncMock,
-      readFileSync: mock(() => '{}'),
+      readFileSync: () => '{}',
       writeFileSync: writeFileSyncMock,
       mkdirSync: mkdirSyncMock,
     }));
@@ -154,7 +154,7 @@ describe('config/project-config', () => {
 
     mock.module('node:fs', () => ({
       existsSync: existsSyncMock,
-      readFileSync: mock(() => '{}'),
+      readFileSync: () => '{}',
       writeFileSync: writeFileSyncMock,
       mkdirSync: mkdirSyncMock,
     }));
@@ -189,9 +189,9 @@ describe('config/project-config', () => {
 
     mock.module('node:fs', () => ({
       existsSync: existsSyncMock,
-      readFileSync: mock(() => '{}'),
+      readFileSync: () => '{}',
       writeFileSync: writeFileSyncMock,
-      mkdirSync: mock(() => undefined),
+      mkdirSync: () => undefined,
     }));
 
     const { clearCurrentProject } = await importFreshProjectConfigModule();

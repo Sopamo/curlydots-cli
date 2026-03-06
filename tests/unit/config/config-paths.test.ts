@@ -1,77 +1,75 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { join } from 'node:path';
-import { findNearestProjectCurlydotsFilePath } from '../../../src/config/config-paths';
+
+let moduleNonce = 0;
+let mockedCwd = '/workspace';
+const existingPaths = new Set<string>();
+
+async function importFreshConfigPathsModule() {
+  moduleNonce += 1;
+  return import(`../../../src/config/config-paths.ts?test=${moduleNonce}`);
+}
 
 describe('config/config-paths', () => {
-  const originalCwd = process.cwd();
-  const createdDirs: string[] = [];
+  const originalProcessCwd = process.cwd;
 
   beforeEach(() => {
-    process.chdir(originalCwd);
-    createdDirs.length = 0;
+    mockedCwd = '/workspace';
+    existingPaths.clear();
+
+    mock.module('node:fs', () => ({
+      existsSync: (filePath: string) => existingPaths.has(filePath),
+      mkdirSync: () => undefined,
+      readFileSync: () => '',
+      writeFileSync: () => undefined,
+    }));
+
+    process.cwd = (() => mockedCwd) as typeof process.cwd;
   });
 
   afterEach(() => {
-    process.chdir(originalCwd);
-    for (const dir of createdDirs) {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    mock.restore();
+    mock.clearAllMocks();
+    process.cwd = originalProcessCwd;
   });
 
-  it('does not search beyond the nearest git boundary', () => {
-    const sandbox = mkdtempSync(join(tmpdir(), 'curlydots-config-paths-'));
-    createdDirs.push(sandbox);
-
-    const repoDir = join(sandbox, 'repo');
+  it('does not search beyond the nearest git boundary', async () => {
+    const repoDir = '/tmp/config-paths/repo';
     const nestedDir = join(repoDir, 'apps', 'web');
-    const outsideConfigDir = join(sandbox, '.curlydots');
+    const outsideConfigDir = '/tmp/config-paths/.curlydots';
 
-    mkdirSync(nestedDir, { recursive: true });
-    mkdirSync(outsideConfigDir, { recursive: true });
-    writeFileSync(join(repoDir, '.git'), 'gitdir');
-    writeFileSync(join(outsideConfigDir, 'config.json'), '{}');
+    existingPaths.add(join(repoDir, '.git'));
+    existingPaths.add(join(outsideConfigDir, 'config.json'));
+    mockedCwd = nestedDir;
 
-    process.chdir(nestedDir);
-
+    const { findNearestProjectCurlydotsFilePath } = await importFreshConfigPathsModule();
     const result = findNearestProjectCurlydotsFilePath('config.json');
     expect(result).toBeUndefined();
   });
 
-  it('resolves project config within the git boundary hierarchy', () => {
-    const sandbox = mkdtempSync(join(tmpdir(), 'curlydots-config-paths-'));
-    createdDirs.push(sandbox);
-
-    const repoDir = join(sandbox, 'repo');
+  it('resolves project config within the git boundary hierarchy', async () => {
+    const repoDir = '/tmp/config-paths/repo';
     const nestedDir = join(repoDir, 'apps', 'web');
     const repoConfigDir = join(repoDir, '.curlydots');
 
-    mkdirSync(nestedDir, { recursive: true });
-    mkdirSync(repoConfigDir, { recursive: true });
-    writeFileSync(join(repoDir, '.git'), 'gitdir');
-    writeFileSync(join(repoConfigDir, 'config.json'), '{}');
+    existingPaths.add(join(repoDir, '.git'));
+    existingPaths.add(join(repoConfigDir, 'config.json'));
+    mockedCwd = nestedDir;
 
-    process.chdir(nestedDir);
-
+    const { findNearestProjectCurlydotsFilePath } = await importFreshConfigPathsModule();
     const result = findNearestProjectCurlydotsFilePath('config.json');
     expect(result).toBe(join(repoConfigDir, 'config.json'));
   });
 
-  it('does not walk parent directories when no git boundary exists', () => {
-    const sandbox = mkdtempSync(join(tmpdir(), 'curlydots-config-paths-'));
-    createdDirs.push(sandbox);
-
-    const workspaceDir = join(sandbox, 'workspace');
+  it('does not walk parent directories when no git boundary exists', async () => {
+    const workspaceDir = '/tmp/config-paths/workspace';
     const nestedDir = join(workspaceDir, 'child');
     const workspaceConfigDir = join(workspaceDir, '.curlydots');
 
-    mkdirSync(nestedDir, { recursive: true });
-    mkdirSync(workspaceConfigDir, { recursive: true });
-    writeFileSync(join(workspaceConfigDir, 'config.json'), '{}');
+    existingPaths.add(join(workspaceConfigDir, 'config.json'));
+    mockedCwd = nestedDir;
 
-    process.chdir(nestedDir);
-
+    const { findNearestProjectCurlydotsFilePath } = await importFreshConfigPathsModule();
     const result = findNearestProjectCurlydotsFilePath('config.json');
     expect(result).toBeUndefined();
   });

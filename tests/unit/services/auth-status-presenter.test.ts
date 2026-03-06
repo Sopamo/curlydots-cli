@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
 import { HttpClient, HttpClientError } from '../../../src/services/http/client';
 
 const ORIGINAL_ENV = { ...process.env };
 
 const mockLoadCliConfig = mock(() => ({
   apiEndpoint: 'http://curlydots.com/api',
+  frontendUrl: 'http://curlydots.com',
   timeout: 1000,
   retries: 0,
   debug: false,
   defaultLocale: undefined,
 }));
-const mockLoadCliAuthConfig = mock(() => ({
+const mockLoadCliAuthConfig = mock((): CliAuthConfig => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,

@@ -93,7 +93,7 @@ Most people can ignore this section. The CLI “just works” once you run `curl
 
 You can configure the CLI with two files:
 
-- `config.json` for runtime settings (`apiEndpoint`, `debug`, `defaultLocale`)
+- `config.json` for runtime settings (`apiEndpoint`, `frontendUrl`, `debug`, `defaultLocale`)
 - `auth.json` for token-based auth overrides (`token`, `authMethod`, `tokenStorage`)
 
 Project selection is stored in:
@@ -137,6 +137,7 @@ Example `config.json`:
 {
   "schemaVersion": 1,
   "apiEndpoint": "http://localhost/api",
+  "frontendUrl": "http://localhost:5173",
   "debug": true
 }
 ```
@@ -150,13 +151,11 @@ Example `auth.json`:
 }
 ```
 
-Environment variables still work and override file values when set (highest precedence):
+Environment variable support is limited to authentication tokens:
 
 | Setting | What it does |
 |---------|--------------|
-| `CURLYDOTS_API_URL` | Point the CLI to a different server (for example, staging). |
 | `CURLYDOTS_TOKEN` | Drop in a pre-made `sk-...` token so the CLI can run without opening a browser. |
-| `CURLYDOTS_DEBUG` | Set to `true` to print extra logs when you are troubleshooting. |
 
 When no custom settings are provided, the CLI follows the normal login flow.
 

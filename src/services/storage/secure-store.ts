@@ -92,22 +92,34 @@ async function saveWithKeytar(value: string): Promise<boolean> {
   const keytar = await loadKeytar();
   if (!keytar) return false;
 
-  await keytar.setPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT, value);
-  return true;
+  try {
+    await keytar.setPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT, value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function readWithKeytar(): Promise<string | null> {
   const keytar = await loadKeytar();
   if (!keytar) return null;
 
-  return keytar.getPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
+  try {
+    return await keytar.getPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
+  } catch {
+    return null;
+  }
 }
 
 async function deleteWithKeytar(): Promise<void> {
   const keytar = await loadKeytar();
   if (!keytar) return;
 
-  await keytar.deletePassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
+  try {
+    await keytar.deletePassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
+  } catch {
+    // ignore and allow file cleanup to continue
+  }
 }
 
 function saveWithFile(value: string) {

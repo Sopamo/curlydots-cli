@@ -6,7 +6,8 @@ type FetchArgs = Parameters<typeof fetch>;
 
 mock.module('../../src/config/cli-config', () => ({
   loadCliConfig: () => ({
-    apiEndpoint: 'https://curlydots.com',
+    apiEndpoint: 'https://curlydots.com/api',
+    frontendUrl: 'https://curlydots.com',
     timeout: 500,
     retries: 0,
     debug: false,

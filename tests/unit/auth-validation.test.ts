@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { join } from 'node:path';
+import * as tokenManagerModule from '../../src/services/auth/token-manager';
+import * as authConfigModule from '../../src/config/auth-config';
 
 const TEST_REPO = join(import.meta.dir, '../fixtures/sample-repo');
 
@@ -27,15 +29,19 @@ const loadCliAuthConfigMock = mock(() => ({
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,
 }));
+const originalTokenManager = { ...tokenManagerModule };
+const originalAuthConfig = { ...authConfigModule };
 
 describe('auth validation', () => {
   beforeEach(() => {
     loadAuthTokenMock.mockClear();
     loadCliAuthConfigMock.mockClear();
     mock.module('../../src/services/auth/token-manager', () => ({
+      ...originalTokenManager,
       loadAuthToken: loadAuthTokenMock,
     }));
     mock.module('../../src/config/auth-config', () => ({
+      ...originalAuthConfig,
       loadCliAuthConfig: loadCliAuthConfigMock,
     }));
     process.exitCode = undefined;
@@ -44,6 +50,8 @@ describe('auth validation', () => {
   afterEach(() => {
     mock.clearAllMocks();
     mock.restore();
+    mock.module('../../src/services/auth/token-manager', () => ({ ...originalTokenManager }));
+    mock.module('../../src/config/auth-config', () => ({ ...originalAuthConfig }));
     process.exitCode = 0;
   });
 

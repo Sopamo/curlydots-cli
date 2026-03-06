@@ -70,10 +70,12 @@ class FakeClient extends HttpClient {
 }
 
 const AUTH_BROWSER_URL = process.env.CURLYDOTS_AUTH_BROWSER_URL ?? 'https://curlydots.com/cli';
-const API_ENDPOINT = process.env.CURLYDOTS_API_ENDPOINT ?? 'https://curlydots.com/api';
+const API_ENDPOINT = 'https://curlydots.com/api';
+const FRONTEND_PAIR_URL = 'https://curlydots.com/cli/pair?code=ABCD';
 
 const baseConfig: CliConfig = {
   apiEndpoint: API_ENDPOINT,
+  frontendUrl: 'https://curlydots.com/cli',
   timeout: 5000,
   retries: 0,
   debug: false,
@@ -88,11 +90,11 @@ describe('contract/auth-login', () => {
 
   it('completes browser login flow with polling', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
-    const loginResponse: LoginResponse = {
-      browserUrl: AUTH_BROWSER_URL + '/login',
-      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
-      pairingCode: 'ABCD',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    const loginResponse = {
+      code: 'ABCD',
+      verification_url: AUTH_BROWSER_URL + '/login',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
     };
 
     const token: AuthToken = {
@@ -122,18 +124,58 @@ describe('contract/auth-login', () => {
 
     expect(result.accessToken).toBe(token.accessToken);
     expect(result.refreshToken).toBe(token.refreshToken);
-    expect(opened).toEqual([loginResponse.verification_url]);
+    expect(opened).toEqual([FRONTEND_PAIR_URL]);
     expect(fakeClient.postCalls).toBe(1);
     expect(fakeClient.getCalls).toBe(2);
   });
 
+  it('uses the configured frontend URL to build the pairing URL', async () => {
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
+    const loginResponse = {
+      code: 'ABCD',
+      verification_url: 'https://backend.curlydots.test/cli/pair?code=ABCD',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
+    };
+
+    const token: AuthToken = {
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      scope: ['translations:write'],
+    };
+
+    const pollResponses: FakePollEntry[] = [
+      { body: { status: 'approved', token_payload: token } },
+    ];
+
+    const fakeClient = new FakeClient(loginResponse, pollResponses);
+    const opened: string[] = [];
+
+    await runBrowserLogin({
+      client: fakeClient,
+      config: {
+        ...baseConfig,
+        apiEndpoint: 'http://localhost:8000/api',
+        frontendUrl: 'http://localhost:5173',
+      },
+      openBrowser: async (url: string) => {
+        opened.push(url);
+      },
+      wait: async () => {},
+      logger: noopLogger,
+    });
+
+    expect(opened).toEqual(['http://localhost:5173/cli/pair?code=ABCD']);
+  });
+
   it('fails when polling returns failure', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
-    const loginResponse: LoginResponse = {
-      browserUrl: AUTH_BROWSER_URL + '/login',
-      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
-      pairingCode: 'ABCD',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    const loginResponse = {
+      code: 'ABCD',
+      verification_url: AUTH_BROWSER_URL + '/login',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
     };
 
     const pollResponses: FakePollEntry[] = [{ body: { status: 'denied', denied_reason: 'Invalid session' } }];
@@ -152,11 +194,11 @@ describe('contract/auth-login', () => {
 
   it('reuses conditional headers and skips JSON parsing on 304', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
-    const loginResponse: LoginResponse = {
-      browserUrl: AUTH_BROWSER_URL + '/login',
-      pollingUrl: AUTH_BROWSER_URL + '/auth-poll/123',
-      pairingCode: 'ABCD',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    const loginResponse = {
+      code: 'ABCD',
+      verification_url: AUTH_BROWSER_URL + '/login',
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      poll_token: 'poll-token',
     };
 
     const token: AuthToken = {
@@ -206,6 +248,7 @@ describe('contract/auth-login', () => {
   });
 
   it('notifies backend when authentication is cancelled', async () => {
+    const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
       code: 'ABCDEFGH',
       verification_url: AUTH_BROWSER_URL + '/login',
