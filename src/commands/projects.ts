@@ -2,6 +2,7 @@ import { HttpClient, HttpClientError } from '../services/http/client.js';
 import { getValidToken } from '../services/auth/token-manager.js';
 import { globalLogger } from '../utils/logger.js';
 import { loadCliConfig } from '../config/cli-config.js';
+import { loadCliAuthConfig } from '../config/auth-config.js';
 import { clearCurrentProject, getCurrentProject, setCurrentProject } from '../config/project-config.js';
 import * as readline from 'node:readline';
 import chalk from 'chalk';
@@ -85,7 +86,8 @@ export async function projectsCommand(_args: string[]): Promise<void> {
     }
 
     const storedProject = getCurrentProject();
-    const hasApiKey = !!config.token;
+    const authConfig = loadCliAuthConfig();
+    const hasApiKey = !!authConfig.token;
     const projectIds = new Set(response.data.map((project) => project.id));
     let currentProject = storedProject;
 

@@ -1,4 +1,5 @@
 import { loadCliConfig } from '../../config/cli-config';
+import { loadCliAuthConfig } from '../../config/auth-config';
 import { HttpClient, HttpClientError } from '../http/client';
 import { isTokenExpired, loadAuthToken } from './token-manager';
 
@@ -18,16 +19,20 @@ interface ApiAuthStatus {
 
 export async function getAuthStatus(): Promise<AuthStatus> {
   const config = loadCliConfig();
+  const authConfig = loadCliAuthConfig();
   const envToken = process.env.CURLYDOTS_TOKEN;
+  const configuredToken = authConfig.token;
+  const explicitToken = envToken ?? configuredToken;
+  const explicitTokenStorage: AuthStorageType = envToken ? 'environment' : 'file';
 
-  if (envToken) {
-    const apiAuth = await validateTokenWithApi(envToken, config);
+  if (explicitToken) {
+    const apiAuth = await validateTokenWithApi(explicitToken, config);
     if (apiAuth === false || apiAuth === null) {
       return {
         authenticated: false,
         expired: false,
         expiresAt: undefined,
-        storage: 'environment',
+        storage: explicitTokenStorage,
       };
     }
 
@@ -35,7 +40,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
       authenticated: true,
       expired: false,
       expiresAt: apiAuth?.expires_at ?? undefined,
-      storage: 'environment',
+      storage: explicitTokenStorage,
     };
   }
 
@@ -45,7 +50,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
       authenticated: false,
       expired: false,
       expiresAt: undefined,
-      storage: config.tokenStorage ?? 'unknown',
+      storage: authConfig.tokenStorage ?? 'unknown',
     };
   }
 
@@ -55,7 +60,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
       authenticated: false,
       expired: true,
       expiresAt: token.expiresAt,
-      storage: config.tokenStorage ?? 'unknown',
+      storage: authConfig.tokenStorage ?? 'unknown',
     };
   }
 
@@ -65,7 +70,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
       authenticated: false,
       expired: false,
       expiresAt: token.expiresAt,
-      storage: config.tokenStorage ?? 'unknown',
+      storage: authConfig.tokenStorage ?? 'unknown',
     };
   }
 
@@ -73,7 +78,7 @@ export async function getAuthStatus(): Promise<AuthStatus> {
     authenticated: true,
     expired: false,
     expiresAt: token.expiresAt,
-    storage: config.tokenStorage ?? 'unknown',
+    storage: authConfig.tokenStorage ?? 'unknown',
   };
 }
 

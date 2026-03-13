@@ -53,8 +53,6 @@ function describeHttpError(error: unknown): string {
       ? 'Authentication error'
       : error.meta.category === 'transient'
         ? 'Temporary network error'
-        : error.meta.category === 'system'
-          ? 'System error'
           : 'Request error';
     return `${prefix}: ${error.message}`;
   }
@@ -80,6 +78,12 @@ function createFingerprintHash(deviceInfo: DeviceInfo): string {
     .createHash('sha256')
     .update(`${deviceInfo.hostname}:${deviceInfo.platform}:${deviceInfo.arch}:${deviceInfo.release}`)
     .digest('hex');
+}
+
+function createBrowserPairingUrl(frontendUrl: string, pairingCode: string): string {
+  const browserUrl = new URL('/cli/pair', frontendUrl);
+  browserUrl.searchParams.set('code', pairingCode);
+  return browserUrl.toString();
 }
 
 export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promise<AuthToken> {
@@ -110,7 +114,7 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
     );
 
     loginResponse = {
-      browserUrl: response.verification_url,
+      browserUrl: createBrowserPairingUrl(config.frontendUrl, response.code),
       pollingUrl: `cli/pairings/${response.code}`,
       cancelUrl: `cli/pairings/${response.code}/cancel`,
       pairingCode: response.code,

@@ -1,6 +1,14 @@
-import { describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { HttpClient } from '../../src/services/http/client';
 import type { TranslationKeyPayload } from '../../src/types/translation-keys';
+import * as authConfigModule from '../../src/config/auth-config';
+
+const loadCliAuthConfigMock = mock(() => ({
+  authMethod: 'browser' as const,
+  tokenStorage: 'keychain' as const,
+  token: undefined as string | undefined,
+}));
+const originalAuthConfig = { ...authConfigModule };
 
 class FakeClient extends HttpClient {
   public getCalls: Array<{ path: string; token?: string }> = [];
@@ -22,6 +30,20 @@ class FakeClient extends HttpClient {
 }
 
 describe('contract/translation-keys', () => {
+  beforeEach(() => {
+    loadCliAuthConfigMock.mockClear();
+    mock.module('../../src/config/auth-config', () => ({
+      ...originalAuthConfig,
+      loadCliAuthConfig: loadCliAuthConfigMock,
+    }));
+  });
+
+  afterEach(() => {
+    mock.clearAllMocks();
+    mock.restore();
+    mock.module('../../src/config/auth-config', () => ({ ...originalAuthConfig }));
+  });
+
   it('fetches existing keys using project endpoint + auth token', async () => {
     const { fetchExistingTranslationKeys } = await import('../../src/services/api/translation-keys');
     const client = new FakeClient();
@@ -95,12 +117,24 @@ describe('contract/translation-keys', () => {
 
   it('resolves auth token from provided override or stored token', async () => {
     const { resolveAuthToken } = await import('../../src/services/api/translation-keys');
+    loadCliAuthConfigMock.mockReturnValueOnce({
+      authMethod: 'api_key',
+      tokenStorage: 'environment',
+      token: 'config-token',
+    });
+
+    const configured = await resolveAuthToken({
+      client: new FakeClient(),
+      loadToken: async () => ({ accessToken: 'stored-token' }),
+    });
+
     const stored = await resolveAuthToken({
       client: new FakeClient(),
       loadToken: async () => ({ accessToken: 'stored-token' }),
     });
     const override = await resolveAuthToken({ client: new FakeClient(), token: 'override' });
 
+    expect(configured).toBe('config-token');
     expect(stored).toBe('stored-token');
     expect(override).toBe('override');
   });

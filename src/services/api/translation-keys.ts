@@ -15,6 +15,9 @@ export interface UploadResult {
 
 export async function resolveAuthToken(options: TranslationKeysClientOptions): Promise<string | null> {
   if (options.token) return options.token;
+  const { loadCliAuthConfig } = await import('../../config/auth-config');
+  const configuredToken = loadCliAuthConfig().token;
+  if (configuredToken) return configuredToken;
   if (options.loadToken) {
     const stored = await options.loadToken();
     return stored?.accessToken ?? null;

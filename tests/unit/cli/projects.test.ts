@@ -11,12 +11,16 @@ const getValidTokenMock = mock(async () => 'token');
 
 const loadCliConfigMock = mock<() => CliConfig>(() => ({
   apiEndpoint: 'http://curlydots.com/api',
-  authMethod: 'browser',
-  tokenStorage: 'keychain',
+  frontendUrl: 'http://curlydots.com',
   timeout: 1000,
   retries: 0,
   debug: false,
-  token: undefined,
+  defaultLocale: undefined,
+}));
+const loadCliAuthConfigMock = mock(() => ({
+  authMethod: 'browser' as const,
+  tokenStorage: 'keychain' as const,
+  token: undefined as string | undefined,
 }));
 
 const clearCurrentProjectMock = mock(() => {});
@@ -42,6 +46,7 @@ const httpClientGetMock = mock(async () => ({
 const originalLogger = await import('../../../src/utils/logger');
 const originalAuthModule = await import('../../../src/services/auth/token-manager');
 const originalConfigModule = await import('../../../src/config/cli-config');
+const originalAuthConfigModule = await import('../../../src/config/auth-config');
 const originalProjectConfigModule = await import('../../../src/config/project-config');
 const originalReadlineModule = await import('node:readline');
 
@@ -53,6 +58,7 @@ describe('unit/cli/projects', () => {
     logs.warn.length = 0;
     getValidTokenMock.mockClear();
     loadCliConfigMock.mockClear();
+    loadCliAuthConfigMock.mockClear();
     clearCurrentProjectMock.mockClear();
     getCurrentProjectMock.mockClear();
     setCurrentProjectMock.mockClear();
@@ -66,6 +72,10 @@ describe('unit/cli/projects', () => {
 
     mock.module('../../../src/config/cli-config', () => ({
       loadCliConfig: loadCliConfigMock,
+    }));
+
+    mock.module('../../../src/config/auth-config', () => ({
+      loadCliAuthConfig: loadCliAuthConfigMock,
     }));
 
     mock.module('../../../src/config/project-config', () => ({
@@ -102,6 +112,7 @@ describe('unit/cli/projects', () => {
     mock.restore();
     mock.module('../../../src/services/auth/token-manager', () => ({ ...originalAuthModule }));
     mock.module('../../../src/config/cli-config', () => ({ ...originalConfigModule }));
+    mock.module('../../../src/config/auth-config', () => ({ ...originalAuthConfigModule }));
     mock.module('../../../src/config/project-config', () => ({ ...originalProjectConfigModule }));
     HttpClient.fromConfig = originalHttpClientFromConfig;
     mock.module('node:readline', () => ({ ...originalReadlineModule }));

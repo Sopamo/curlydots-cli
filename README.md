@@ -61,7 +61,7 @@ curlydots <command> [options]
 | Command | Description |
 |---------|-------------|
 | `auth login` | Browser-based authentication flow with long polling |
-| `auth status` | Display stored authentication token metadata |
+| `auth status` | Display authentication status, expiry, and token source |
 | `auth logout` | Revoke current token and clear secure storage |
 | `translations push` | Push translation JSON payload with context to backend |
 | `translations status` | Check status of a push request |
@@ -80,26 +80,84 @@ Think of the `auth` commands as the “log in / log out” buttons for the CLI.
 
 The CLI keeps your access token in your operating system’s secure storage. If that isn’t available, it saves an encrypted backup in a hidden `.curlydots` folder in your home directory. You can also provide a token yourself (see the next section) when you automate things like CI jobs.
 
-### Environment Configuration
+`curlydots auth status` also tells you where authentication is coming from:
+
+- `environment token (CURLYDOTS_TOKEN)` when `CURLYDOTS_TOKEN` is set.
+- `API token from auth.json` when a token is configured in `.curlydots/auth.json`.
+- `browser session (keychain)` for normal browser login stored in the OS keychain.
+- `browser session (file fallback)` when keychain is unavailable and secure file fallback is used.
+
+### Configuration
 
 Most people can ignore this section. The CLI “just works” once you run `curlydots auth login`.
 
-If you run the CLI on a build server or in another automated environment, you can create a small `.env` file to tell it how to behave:
+You can configure the CLI with two files:
+
+- `config.json` for runtime settings (`apiEndpoint`, `frontendUrl`, `debug`, `defaultLocale`)
+- `auth.json` for token-based auth overrides (`token`, `authMethod`, `tokenStorage`)
+
+Project selection is stored in:
+
+- Global default: `~/.curlydots/current-project.json`
+- Local override (optional): `<project>/.curlydots/current-project.json`
+
+How it works:
+
+- If `<project>/.curlydots/current-project.json` exists, it takes precedence inside that project.
+- If no local override exists, the global `~/.curlydots/current-project.json` is used.
+- `curlydots projects select` writes to local override when `<project>/.curlydots/` (or the local override file) exists.
+- Otherwise, `curlydots projects select` writes to the global file.
+
+Example `current-project.json`:
+
+```json
+{
+  "projectId": "8fdbf63d-5efe-40fa-8ff7-55eb9fd1f0a0",
+  "projectName": "Frontend App",
+  "teamName": "Async Avengers"
+}
+```
+
+Both files support global and per-project locations:
+
+- Global: `~/.curlydots/config.json`, `~/.curlydots/auth.json`
+- Project override: `<project>/.curlydots/config.json`, `<project>/.curlydots/auth.json`
+
+Project files override global files when both exist.
+Project lookup only walks inside the current git project boundary.
+
+On first run, the CLI will create global template files automatically if they do not exist.
+Each file includes a `schemaVersion` so the CLI can detect outdated/newer config formats.
+If a file has a newer schema version than your CLI supports, the CLI will warn you to update.
+For supported schema versions, the CLI auto-heals config files by adding missing safe defaults and removing deprecated keys.
+
+Example `config.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "apiEndpoint": "http://localhost/api",
+  "frontendUrl": "http://localhost:5173",
+  "debug": true
+}
+```
+
+Example `auth.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "token": "sk-your-dashboard-token"
+}
+```
+
+Environment variable support is limited to authentication tokens:
 
 | Setting | What it does |
 |---------|--------------|
-| `CURLYDOTS_API_URL` | Point the CLI to a different server (for example, staging). |
-| `CURLYDOTS_TOKEN` | Drop in a pre-made token so the CLI can run without opening a browser. |
-| `CURLYDOTS_DEBUG` | Set to `true` to print extra logs when you are troubleshooting. |
+| `CURLYDOTS_TOKEN` | Drop in a pre-made `sk-...` token so the CLI can run without opening a browser. |
 
-```bash
-# .env example for automation
-CURLYDOTS_API_URL="http://localhost/api"
-CURLYDOTS_TOKEN="token-from-dashboard"
-CURLYDOTS_DEBUG=true
-```
-
-When these settings are missing, the CLI simply follows the normal login flow.
+When no custom settings are provided, the CLI follows the normal login flow.
 
 ### Global Options
 
@@ -115,9 +173,10 @@ When these settings are missing, the CLI simply follows the normal login flow.
 1. The CLI shows all projects you can access, plus the team that owns each one.
 2. Your current project has a green dot so you can spot it quickly.
 3. Type the number next to a project to switch; the CLI remembers your choice in a small file so it sticks between runs.
+   If `<project>/.curlydots/current-project.json` exists, that local file is updated instead of the global one.
 4. If Curlydots removes your access to a project, the CLI forgets it automatically and asks you to choose again.
 
-Using an API token (`CURLYDOTS_TOKEN`)? You only see the projects that token is allowed to touch. If there is just one, the CLI reminds you to sign in normally so you can switch between multiple projects.
+Using an API token (`CURLYDOTS_TOKEN` or `.curlydots/auth.json`)? You only see the projects that token is allowed to touch. If there is just one, the CLI reminds you to sign in normally so you can switch between multiple projects.
 
 Need a refresher on the available sub-commands? Run `curlydots projects --help` to show the projects picker instructions or `curlydots auth --help` to view the auth namespace commands.
 

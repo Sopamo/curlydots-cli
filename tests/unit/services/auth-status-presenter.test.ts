@@ -1,17 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
 import { HttpClient, HttpClientError } from '../../../src/services/http/client';
 
 const ORIGINAL_ENV = { ...process.env };
 
 const mockLoadCliConfig = mock(() => ({
   apiEndpoint: 'http://curlydots.com/api',
-  authMethod: 'browser',
-  tokenStorage: 'keychain',
+  frontendUrl: 'http://curlydots.com',
   timeout: 1000,
   retries: 0,
   debug: false,
-  token: undefined,
   defaultLocale: undefined,
+}));
+const mockLoadCliAuthConfig = mock((): CliAuthConfig => ({
+  authMethod: 'browser' as const,
+  tokenStorage: 'keychain' as const,
+  token: undefined as string | undefined,
 }));
 
 const mockLoadAuthToken = mock<() => Promise<unknown>>(async () => null);
@@ -33,9 +37,14 @@ describe('services/auth/status-presenter', () => {
     mockLoadAuthToken.mockClear();
     mockIsTokenExpired.mockClear();
     mockFromConfig.mockClear();
+    mockLoadCliAuthConfig.mockClear();
 
     mock.module('../../../src/config/cli-config', () => ({
       loadCliConfig: mockLoadCliConfig,
+    }));
+
+    mock.module('../../../src/config/auth-config', () => ({
+      loadCliAuthConfig: mockLoadCliAuthConfig,
     }));
 
     mock.module('../../../src/services/auth/token-manager', () => ({
@@ -83,6 +92,20 @@ describe('services/auth/status-presenter', () => {
 
     expect(status.authenticated).toBe(false);
     expect(status.storage).toBe('environment');
+  });
+
+  it('reports authenticated when auth.json token is valid', async () => {
+    mockLoadCliAuthConfig.mockReturnValueOnce({
+      authMethod: 'api_key',
+      tokenStorage: 'file',
+      token: 'config-token',
+    });
+
+    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const status = await getAuthStatus();
+
+    expect(status.authenticated).toBe(true);
+    expect(status.storage).toBe('file');
   });
 
   it('reports authenticated when stored token is valid', async () => {
