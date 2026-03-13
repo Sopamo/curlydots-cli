@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const TEST_REPO = join(import.meta.dir, '../fixtures/sample-repo');
@@ -18,6 +20,7 @@ mock.module('../../src/config/cli-config', () => ({
 describe('integration/push-translations-errors', () => {
   const originalFetch = globalThis.fetch;
   const fetchCalls: Array<{ input: FetchArgs[0]; init?: FetchArgs[1] }> = [];
+  let tempDir = '';
 
   beforeEach(() => {
     fetchCalls.length = 0;
@@ -25,10 +28,14 @@ describe('integration/push-translations-errors', () => {
     mock.restore();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     globalThis.fetch = originalFetch;
     process.exitCode = 0;
     mock.restore();
+    if (tempDir) {
+      await rm(tempDir, { recursive: true, force: true });
+      tempDir = '';
+    }
   });
 
   it('sets non-zero exit code on authentication errors', async () => {
@@ -115,6 +122,83 @@ describe('integration/push-translations-errors', () => {
     expect(getValidTokenMock).toHaveBeenCalledTimes(1);
     const authHeaders = fetchCalls.map((call) => (call.init?.headers as Record<string, string> | undefined)?.Authorization);
     expect(authHeaders.filter(Boolean)).toEqual(['Bearer renewed-token', 'Bearer renewed-token']);
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('fails when all resolved translation directories fail to parse', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'push-translations-fail-'));
+    await mkdir(join(tempDir, 'translations-a'), { recursive: true });
+    await mkdir(join(tempDir, 'translations-b'), { recursive: true });
+
+    const fetchMock = mock(async (...args: FetchArgs) => {
+      const [input, init] = args;
+      fetchCalls.push({ input, init });
+      return new Response(JSON.stringify({ data: { keys: [] } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const { runTranslationsPush } = await import('../../src/commands/translations/push');
+    await runTranslationsPush([
+      '--project',
+      'project-123',
+      '--repo',
+      tempDir,
+      '--translations-dir',
+      'translations-a',
+      '--translations-dir',
+      'translations-b',
+      '--source',
+      'en',
+      '--parser',
+      'node-module',
+      '--api-host',
+      'https://curlydots.com',
+      '--api-token',
+      'token-abc',
+    ]);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('succeeds without uploading when resolved directories contain no translation keys', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'push-translations-empty-'));
+    await mkdir(join(tempDir, 'translations', 'en'), { recursive: true });
+
+    const fetchMock = mock(async (...args: FetchArgs) => {
+      const [input, init] = args;
+      fetchCalls.push({ input, init });
+      return new Response(JSON.stringify({ data: { keys: [] } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const { runTranslationsPush } = await import('../../src/commands/translations/push');
+    await runTranslationsPush([
+      '--project',
+      'project-123',
+      '--repo',
+      tempDir,
+      '--translations-dir',
+      'translations',
+      '--source',
+      'en',
+      '--parser',
+      'node-module',
+      '--api-host',
+      'https://curlydots.com',
+      '--api-token',
+      'token-abc',
+    ]);
+
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(0);
   });
 });

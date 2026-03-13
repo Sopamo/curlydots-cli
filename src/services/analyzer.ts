@@ -4,10 +4,10 @@
  * Compares source and target language translation files to find missing keys.
  */
 
-import { join } from 'node:path';
 import { getParser } from '../parsers';
 import { analysisStore, configStore } from '../stores';
 import type { MissingTranslation } from '../types';
+import { loadTranslationDirectoryKeys } from './translation-directory';
 import { findTranslationContextForKey } from './translation-context';
 
 /**
@@ -75,21 +75,38 @@ export async function findMissingTranslations(): Promise<AnalysisResult> {
     throw new Error(`Unknown parser: ${config.parser}`);
   }
 
-  // Task 1: Parse source language
-  analysis.startTask('find_source_keys');
-  analysis.setStatus('parsing_source');
-  const sourcePath = join(config.repoPath, config.translationsDir, config.sourceLanguage);
-  const sourceKeys = await parser.export(sourcePath);
-  analysis.completeTask('find_source_keys');
+  if (config.translationsDirs.length === 0) {
+    throw new Error('No translation directories configured');
+  }
 
-  // Task 2: Parse target language
-  analysis.startTask('find_target_keys');
-  analysis.setStatus('parsing_target');
-  const targetPath = join(config.repoPath, config.translationsDir, config.targetLanguage);
-  const targetKeys = await parser.export(targetPath);
-  analysis.completeTask('find_target_keys');
+  // Task 1: Parse translation keys
+  analysis.startTask('find_translation_keys');
+  analysis.setStatus('parsing_translations');
+  const sourceKeys = new Map<string, string>();
+  const targetKeys = new Map<string, string>();
+  const directoryResults = await Promise.all(
+    config.translationsDirs.map((translationsDir) => loadTranslationDirectoryKeys(
+      parser,
+      config.repoPath,
+      translationsDir,
+      config.sourceLanguage,
+      config.targetLanguage,
+    )),
+  );
 
-  // Task 3: Compare and find missing
+  for (const directoryKeys of directoryResults) {
+
+    for (const [key, value] of directoryKeys.sourceKeys) {
+      sourceKeys.set(key, value);
+    }
+
+    for (const [key, value] of directoryKeys.targetKeys) {
+      targetKeys.set(key, value);
+    }
+  }
+  analysis.completeTask('find_translation_keys');
+
+  // Task 2: Compare and find missing
   analysis.startTask('find_missing');
   analysis.setStatus('comparing');
   const missing = compareTranslationSets(sourceKeys, targetKeys);

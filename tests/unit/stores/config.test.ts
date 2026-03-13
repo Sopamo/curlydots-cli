@@ -86,7 +86,6 @@ describe('configStore', () => {
 
       const state = configStore.getState();
       expect(state.repoPath).toBe('');
-      expect(state.translationsDir).toBe('');
       expect(state.translationsDirs).toEqual([]);
       expect(state.sourceLanguage).toBe('');
       expect(state.targetLanguage).toBe('');

@@ -7,8 +7,8 @@
 
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { Glob } from 'bun';
 import type { Parser, ParserImportResult } from '../types';
+import { listFilesRespectingGitIgnore } from '../utils/git-aware-files';
 
 /**
  * Flatten nested object to dot-notation keys
@@ -126,22 +126,17 @@ export const nodeModuleParser: Parser = {
     if (!existsSync(langDir)) {
       throw new Error(`Language directory not found: ${langDir}`);
     }
-
+    
     // Find all .js files in the language directory
-    const glob = new Glob('*.js');
-    const files: string[] = [];
-
-    for await (const file of glob.scan({ cwd: langDir, absolute: false })) {
-      // Skip index.js as it typically just re-exports other modules
-      if (file !== 'index.js') {
-        files.push(file);
-      }
-    }
+    // but skip index.js (it's usually the entry point)
+    // also respect .gitignore files
+    const files = await listFilesRespectingGitIgnore(langDir, (relativePath) => (
+      relativePath.endsWith('.js') && relativePath !== 'index.js' && !relativePath.includes('/')
+    ));
 
     // Parse each file
-    for (const file of files) {
-      const filePath = join(langDir, file);
-      const moduleName = basename(file, '.js');
+    for (const filePath of files) {
+      const moduleName = basename(filePath, '.js');
 
       try {
         const moduleContent = await parseModuleFile(filePath);

@@ -6,8 +6,7 @@ import type { AnalysisStatus, TaskId, TaskState } from '../types';
  * Default task list with labels (initialized on reset)
  */
 const DEFAULT_TASKS: TaskState[] = [
-  { id: 'find_source_keys', label: 'Find source translation keys', status: 'pending' },
-  { id: 'find_target_keys', label: 'Find target translation keys', status: 'pending' },
+  { id: 'find_translation_keys', label: 'Find translation keys', status: 'pending' },
   { id: 'find_missing', label: 'Find missing translations', status: 'pending' },
   {
     id: 'find_code_context',

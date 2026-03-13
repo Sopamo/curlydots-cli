@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { getParser } from '../../parsers';
 import { loadParserFromFile } from '../../parsers/parser-file-loader';
 import { findContextForKeys } from '../../services/context-finder';
+import { loadLanguageKeysFromTranslationsDir } from '../../services/translation-directory';
 import {
   fetchExistingTranslationKeys,
   resolveAuthToken,
@@ -103,42 +104,67 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
   });
 
   try {
+    //REX: End to end test of push flow
     // Step 1: Resolve translation directories (expand globs)
-    const resolvedDirs: string[] = [];
+    const resolvedDirs = new Set<string>();
     for (const dir of parsedArgs.translationsDirs) {
       if (dir.includes('*')) {
         const glob = new Glob(dir);
+        let matched = false;
         for await (const match of glob.scan({ cwd: resolvedPath, absolute: false, onlyFiles: false })) {
-          resolvedDirs.push(match);
+          matched = true;
+          resolvedDirs.add(match);
+        }
+        if (!matched) {
+          globalLogger.warn(`No translation directories matched pattern: ${chalk.dim(dir)}`);
         }
       } else {
-        resolvedDirs.push(dir);
+        resolvedDirs.add(dir);
       }
     }
 
-    if (resolvedDirs.length === 0) {
+    const resolvedTranslationDirs = Array.from(resolvedDirs);
+
+    if (resolvedTranslationDirs.length === 0) {
       globalLogger.error('No translation directories found after resolving glob patterns');
       process.exitCode = 1;
       return;
     }
 
     // Step 2: Parse source translation keys from all directories
-    globalLogger.info(`Parsing ${chalk.cyan(parsedArgs.source)} translation keys using ${chalk.cyan(parser.name)} parser from ${chalk.bold(resolvedDirs.length)} location${resolvedDirs.length === 1 ? '' : 's'}...`);
+    globalLogger.info(`Parsing ${chalk.cyan(parsedArgs.source)} translation keys using ${chalk.cyan(parser.name)} parser from ${chalk.bold(resolvedTranslationDirs.length)} location${resolvedTranslationDirs.length === 1 ? '' : 's'}...`);
     const sourceKeys = new Map<string, string>();
+    let parsedDirsCount = 0;
+    let failedDirsCount = 0;
 
-    for (const dir of resolvedDirs) {
-      const languageDir = resolve(resolvedPath, dir, parsedArgs.source);
+    for (const dir of resolvedTranslationDirs) {
       try {
-        const keys = await parser.export(languageDir);
+        const keys = await loadLanguageKeysFromTranslationsDir(
+          parser,
+          resolvedPath,
+          dir,
+          parsedArgs.source,
+        );
         const dirLabel = chalk.dim(dir);
         globalLogger.info(`  ${dirLabel} → ${keys.size} keys`);
+        if (keys.size === 0) {
+          globalLogger.warn(`  ${dirLabel} → no translations found for source language ${chalk.cyan(parsedArgs.source)}`);
+        }
+        parsedDirsCount += 1;
         for (const [key, value] of keys) {
           sourceKeys.set(key, value);
         }
       } catch (error) {
+        failedDirsCount += 1;
         const message = error instanceof Error ? error.message : String(error);
         globalLogger.warn(`  ${chalk.dim(dir)} → skipped (${message})`);
       }
+    }
+
+    if (parsedDirsCount === 0 && failedDirsCount > 0) {
+      globalLogger.error('Failed to parse translations from all resolved directories');
+      process.exitCode = 1;
+      return;
     }
 
     const allEntries = Array.from(sourceKeys.entries()).map(([key, sourceValue]) => ({
@@ -153,6 +179,7 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     globalLogger.success(`Found ${chalk.bold(entries.length)} translation keys total`);
 
     if (entries.length === 0) {
+      globalLogger.info('No translation keys found to upload');
       console.log('');
       console.log(formatPushSummary({ scanned: 0, skipped: 0, uploaded: 0, failed: 0, batches: 0 }));
       return;

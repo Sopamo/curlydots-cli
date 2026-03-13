@@ -13,9 +13,6 @@ export interface Config {
   /** Absolute path to the repository root */
   repoPath: string;
 
-  /** Path to translations directory relative to repoPath */
-  translationsDir: string;
-
   /** Paths to translation directories relative to repoPath */
   translationsDirs: string[];
 
@@ -44,8 +41,7 @@ export interface Config {
  */
 export type AnalysisStatus =
   | 'idle'
-  | 'parsing_source'
-  | 'parsing_target'
+  | 'parsing_translations'
   | 'comparing'
   | 'searching_context'
   | 'searching_translation_context'
@@ -62,8 +58,7 @@ export type AnalysisStatus =
  * Tasks are displayed and completed in this order
  */
 export type TaskId =
-  | 'find_source_keys'
-  | 'find_target_keys'
+  | 'find_translation_keys'
   | 'find_missing'
   | 'find_code_context'
   | 'find_translation_context'

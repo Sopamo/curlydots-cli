@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const TEST_REPO = join(import.meta.dir, '../fixtures/sample-repo');
@@ -7,6 +9,7 @@ type FetchArgs = Parameters<typeof fetch>;
 describe('integration/push-translations', () => {
   const originalFetch = globalThis.fetch;
   const fetchCalls: Array<{ input: FetchArgs[0]; init?: FetchArgs[1] }> = [];
+  let tempDir = '';
   const fetchMock = mock(async (...args: FetchArgs) => {
     const [input, init] = args;
     fetchCalls.push({ input, init });
@@ -29,9 +32,13 @@ describe('integration/push-translations', () => {
     process.exitCode = undefined;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     globalThis.fetch = originalFetch;
     process.exitCode = undefined;
+    if (tempDir) {
+      await rm(tempDir, { recursive: true, force: true });
+      tempDir = '';
+    }
   });
 
   it('pushes translation keys with context payload', async () => {
@@ -119,5 +126,60 @@ describe('integration/push-translations', () => {
 
     expect(body.entries?.some((key) => key.translationKey === 'generic.back')).toBe(false);
     expect(body.entries?.some((key) => key.translationKey === 'generic.save')).toBe(false);
+  });
+
+  it('merges translation keys across multiple translation directories', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'push-translations-multi-dir-'));
+    await mkdir(join(tempDir, 'translations-a', 'en'), { recursive: true });
+    await mkdir(join(tempDir, 'translations-b', 'en'), { recursive: true });
+    await writeFile(
+      join(tempDir, 'translations-a', 'en', 'common.js'),
+      'module.exports = { save: "Save" };\n',
+      'utf8',
+    );
+    await writeFile(
+      join(tempDir, 'translations-b', 'en', 'admin.js'),
+      'module.exports = { publish: "Publish" };\n',
+      'utf8',
+    );
+    await writeFile(
+      join(tempDir, 'usage.ts'),
+      [
+        "const save = t('common.save');",
+        "const publish = t('admin.publish');",
+      ].join('\n'),
+      'utf8',
+    );
+
+    const { runTranslationsPush } = await import('../../src/commands/translations/push');
+
+    await runTranslationsPush([
+      '--project',
+      'project-123',
+      '--repo',
+      tempDir,
+      '--translations-dir',
+      'translations-a',
+      '--translations-dir',
+      'translations-b',
+      '--source',
+      'en',
+      '--parser',
+      'node-module',
+      '--api-host',
+      'https://curlydots.com/api',
+      '--api-token',
+      'token-abc',
+      '--extensions',
+      '.ts',
+    ]);
+
+    const postCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') !== 'GET');
+    const body = JSON.parse((postCall?.init?.body as string) ?? '{}') as {
+      entries?: Array<Record<string, unknown>>;
+    };
+
+    expect(body.entries?.some((key) => key.translationKey === 'common.save')).toBe(true);
+    expect(body.entries?.some((key) => key.translationKey === 'admin.publish')).toBe(true);
   });
 });

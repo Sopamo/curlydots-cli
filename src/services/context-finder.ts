@@ -4,10 +4,9 @@
  * Searches for translation key usages in code and extracts surrounding context.
  */
 
-import { join } from 'node:path';
-import { Glob } from 'bun';
 import { analysisStore, configStore } from '../stores';
 import type { UsageContext } from '../types';
+import { listFilesRespectingGitIgnore } from '../utils/git-aware-files';
 
 /** Maximum number of context snippets per key */
 const MAX_CONTEXTS_PER_KEY = 10;
@@ -70,8 +69,8 @@ function findKeyInContent(content: string, key: string): number[] {
 
   // Match patterns: 'key', "key", or key (unquoted in certain contexts)
   const patterns = [
-    new RegExp(`['"]${escapedKey}['"]`, 'g'), // Quoted
-    new RegExp(`\\b${escapedKey}\\b`, 'g'), // Unquoted word boundary
+    new RegExp(`['"]${escapedKey}['"]`),
+    new RegExp(`\\b${escapedKey}\\b`),
   ];
 
   for (let i = 0; i < lines.length; i++) {
@@ -99,49 +98,47 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
   const config = configStore.getState();
   const contexts: UsageContext[] = [];
 
-  // Build glob pattern from extensions
-  const extensions = config.extensions.length > 0
-    ? config.extensions.map((ext) => `**/*${ext}`)
-    : ['**/*'];
+  const searchableFiles = await listFilesRespectingGitIgnore(searchDir, (relativePath) => {
+    if (
+      relativePath.includes('node_modules/') ||
+      relativePath.includes('/node_modules/') ||
+      relativePath.includes('/.git/') ||
+      relativePath.startsWith('.git/') ||
+      relativePath.includes('/dist/') ||
+      relativePath.startsWith('dist/') ||
+      relativePath.includes('/build/') ||
+      relativePath.startsWith('build/')
+    ) {
+      return false;
+    }
 
-  for (const pattern of extensions) {
+    if (config.extensions.length === 0) {
+      return true;
+    }
+
+    return config.extensions.some((extension) => relativePath.endsWith(extension));
+  });
+
+  for (const filePath of searchableFiles) {
     if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
 
-    const glob = new Glob(pattern);
+    try {
+      const file = Bun.file(filePath);
+      const content = await file.text();
 
-    for await (const relativePath of glob.scan({ cwd: searchDir, absolute: false })) {
-      if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
+      // Skip binary or minified files
+      if (isBinaryFile(content)) continue;
+      const lines = content.split('\n');
+      if (lines.length > 0 && content.length / lines.length > MINIFIED_AVG_LINE_LENGTH) continue;
+      const matchLines = findKeyInContent(content, key);
 
-      // Skip node_modules and other common non-source directories
-      if (
-        relativePath.includes('node_modules') ||
-        relativePath.includes('.git') ||
-        relativePath.includes('dist') ||
-        relativePath.includes('build')
-      ) {
-        continue;
+      for (const matchLine of matchLines) {
+        if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
+
+        const context = extractContext(lines, matchLine, filePath);
+        contexts.push(context);
       }
-
-      const filePath = join(searchDir, relativePath);
-
-      try {
-        const file = Bun.file(filePath);
-        const content = await file.text();
-
-        // Skip binary or minified files
-        if (isBinaryFile(content)) continue;
-        const lines = content.split('\n');
-        if (lines.length > 0 && content.length / lines.length > MINIFIED_AVG_LINE_LENGTH) continue;
-        const matchLines = findKeyInContent(content, key);
-
-        for (const matchLine of matchLines) {
-          if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
-
-          const context = extractContext(lines, matchLine, filePath);
-          contexts.push(context);
-        }
-      } catch {}
-    }
+    } catch {}
   }
 
   return contexts;
