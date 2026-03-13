@@ -85,12 +85,7 @@ function resolveWritePath(): string {
     return GLOBAL_PROJECT_CONFIG_PATH;
   }
 
-  const localDir = dirname(localPath);
-  if (existsSync(localPath) || existsSync(localDir)) {
-    return localPath;
-  }
-
-  return GLOBAL_PROJECT_CONFIG_PATH;
+  return localPath;
 }
 
 export function getCurrentProject(): ProjectConfig | null {

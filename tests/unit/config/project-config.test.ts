@@ -139,14 +139,48 @@ describe('config/project-config', () => {
     );
   });
 
-  it('writes project selection to global config when no local override is configured', async () => {
+  it('writes project selection to local override even when .curlydots does not yet exist', async () => {
     const cwd = process.cwd();
     const projectGitMarker = join(cwd, '.git');
+    const localDir = join(cwd, '.curlydots');
+    const localPath = join(localDir, 'current-project.json');
+    const writeFileSyncMock = mock(() => undefined);
+    const mkdirSyncMock = mock(() => undefined);
+    const existsSyncMock = mock((filePath: string) => filePath === projectGitMarker);
+
+    mock.module('node:os', () => ({
+      homedir: () => '/home/test',
+    }));
+
+    mock.module('node:fs', () => ({
+      existsSync: existsSyncMock,
+      readFileSync: () => '{}',
+      writeFileSync: writeFileSyncMock,
+      mkdirSync: mkdirSyncMock,
+    }));
+
+    const { setCurrentProject } = await importFreshProjectConfigModule();
+    setCurrentProject('project-1b', 'Project One B', 'Team One B');
+
+    expect(mkdirSyncMock).toHaveBeenCalledWith(localDir, { recursive: true });
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      localPath,
+      JSON.stringify({
+        projectId: 'project-1b',
+        projectName: 'Project One B',
+        teamName: 'Team One B',
+      }, null, 2),
+      'utf8',
+    );
+  });
+
+  it('writes project selection to global config when outside a git repository', async () => {
+    const cwd = process.cwd();
     const globalDir = '/home/test/.curlydots';
     const globalPath = '/home/test/.curlydots/current-project.json';
     const writeFileSyncMock = mock(() => undefined);
     const mkdirSyncMock = mock(() => undefined);
-    const existsSyncMock = mock((filePath: string) => filePath === projectGitMarker);
+    const existsSyncMock = mock(() => false);
 
     mock.module('node:os', () => ({
       homedir: () => '/home/test',
