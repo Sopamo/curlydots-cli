@@ -104,7 +104,6 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
   });
 
   try {
-    //REX: End to end test of push flow
     // Step 1: Resolve translation directories (expand globs)
     const resolvedDirs = new Set<string>();
     for (const dir of parsedArgs.translationsDirs) {
