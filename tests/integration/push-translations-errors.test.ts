@@ -2,9 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import * as authConfigModule from '../../src/config/auth-config';
+import * as tokenManagerModule from '../../src/services/auth/token-manager';
 
 const TEST_REPO = join(import.meta.dir, '../fixtures/sample-repo');
 type FetchArgs = Parameters<typeof fetch>;
+const originalAuthConfig = { ...authConfigModule };
+const originalTokenManager = { ...tokenManagerModule };
 
 mock.module('../../src/config/cli-config', () => ({
   loadCliConfig: () => ({
@@ -26,12 +30,16 @@ describe('integration/push-translations-errors', () => {
     fetchCalls.length = 0;
     process.exitCode = 0;
     mock.restore();
+    mock.module('../../src/config/auth-config', () => ({ ...originalAuthConfig }));
+    mock.module('../../src/services/auth/token-manager', () => ({ ...originalTokenManager }));
   });
 
   afterEach(async () => {
     globalThis.fetch = originalFetch;
     process.exitCode = 0;
     mock.restore();
+    mock.module('../../src/config/auth-config', () => ({ ...originalAuthConfig }));
+    mock.module('../../src/services/auth/token-manager', () => ({ ...originalTokenManager }));
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true });
       tempDir = '';
@@ -98,8 +106,23 @@ describe('integration/push-translations-errors', () => {
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
+    mock.module('../../src/config/auth-config', () => ({
+      ...originalAuthConfig,
+      loadCliAuthConfig: () => ({
+        authMethod: 'browser',
+        tokenStorage: 'keychain',
+        token: undefined,
+      }),
+    }));
+
     const getValidTokenMock = mock(async () => 'renewed-token');
     mock.module('../../src/services/auth/token-manager', () => ({
+      ...originalTokenManager,
+      loadAuthToken: async () => ({
+        accessToken: 'expired-token',
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      }),
+      isTokenExpired: () => true,
       getValidToken: getValidTokenMock,
     }));
 

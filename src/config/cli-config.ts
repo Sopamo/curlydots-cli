@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ensureGlobalCurlydotsConfigFiles,
+  findNearestCurlydotsFilePathFrom,
   findNearestProjectCurlydotsFilePath,
   getGlobalCurlydotsFilePath,
   parseJsonObjectFile,
@@ -121,14 +122,16 @@ function hasOwnBooleanLike(config: Record<string, unknown>, key: string): boolea
   return config[key] !== undefined && coerceBoolean(config[key]) !== undefined;
 }
 
-export function loadCliConfig(): ResolvedCliConfig {
+export function loadCliConfig(baseDir?: string): ResolvedCliConfig {
   ensureGlobalCurlydotsConfigFiles();
 
   const globalConfigPath = CLI_CONFIG_PATH;
   const globalRawConfig = normalizeVersionedConfig(globalConfigPath, parseJsonObjectFile(globalConfigPath));
 
   const globalConfig = pickFileConfigValues(globalRawConfig);
-  const projectConfigPath = findNearestProjectCurlydotsFilePath('config.json');
+  const projectConfigPath = baseDir
+    ? findNearestCurlydotsFilePathFrom('config.json', baseDir)
+    : findNearestProjectCurlydotsFilePath('config.json');
   const projectRawConfig = projectConfigPath && projectConfigPath !== CLI_CONFIG_PATH
     ? normalizeVersionedConfig(projectConfigPath, parseJsonObjectFile(projectConfigPath))
     : null;

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, parse, relative, resolve } from 'node:path';
 
 const CONFIG_DIR_NAME = '.curlydots';
 
@@ -8,8 +8,49 @@ export function getGlobalCurlydotsFilePath(fileName: string): string {
   return join(homedir(), CONFIG_DIR_NAME, fileName);
 }
 
+/**
+ * Finds the lowest shared directory that contains every resolved path in the input.
+ *
+ * Business logic: commands that operate on multiple translation directories need one consistent
+ * project-local config scope. We use the common ancestor as that scope so `current-project.json`,
+ * `config.json`, and `auth.json` are all resolved from a single location that represents the whole
+ * set of inputs, instead of letting whichever translation directory or shell cwd happens to be first
+ * decide the config source.
+ */
+export function findCommonAncestorDirectory(paths: string[]): string | undefined {
+  if (paths.length === 0) {
+    return undefined;
+  }
+
+  const resolvedPaths = paths.map((filePath) => resolve(filePath));
+  let commonAncestor = resolvedPaths[0]!;
+
+  for (const currentPath of resolvedPaths.slice(1)) {
+    if (parse(commonAncestor).root !== parse(currentPath).root) {
+      return undefined;
+    }
+
+    while (true) {
+      const relativePath = relative(commonAncestor, currentPath);
+
+      if (relativePath === '' || (!relativePath.startsWith('..') && !isAbsolute(relativePath))) {
+        break;
+      }
+
+      const parentDir = dirname(commonAncestor);
+      if (parentDir === commonAncestor) {
+        break;
+      }
+
+      commonAncestor = parentDir;
+    }
+  }
+
+  return commonAncestor;
+}
+
 function findProjectSearchBoundary(startDir: string): string {
-  let currentDir = startDir;
+  let currentDir = resolve(startDir);
 
   while (true) {
     // Support both .git directories and .git files (worktrees/submodules).
@@ -26,10 +67,38 @@ function findProjectSearchBoundary(startDir: string): string {
   }
 }
 
-export function findNearestProjectCurlydotsFilePath(fileName: string): string | undefined {
-  const startDir = process.cwd();
+/**
+ * Finds the nearest project-local config file, such as `.curlydots/current-project.json`, starting
+ * from an explicit base directory.
+ *
+ * Business logic: callers use this when config lookup should follow the resolved work being acted on,
+ * not the user's shell cwd. For example, `translations push` resolves translation directories first,
+ * computes their common ancestor, and then uses that shared ancestor as the starting point for
+ * `current-project.json`, `config.json`, or `auth.json` lookup. This helper intentionally walks all
+ * the way to the filesystem root instead of stopping at a git boundary because the chosen base
+ * directory already represents the scope that the command should honor .
+ */
+export function findNearestCurlydotsFilePathFrom(fileName: string, startDir: string): string | undefined {
+  let currentDir = resolve(startDir);
+
+  while (true) {
+    const candidate = join(currentDir, CONFIG_DIR_NAME, fileName);
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+
+    const parentDir = dirname(currentDir);
+    if (parentDir === currentDir) {
+      return undefined;
+    }
+
+    currentDir = parentDir;
+  }
+}
+
+export function findNearestProjectCurlydotsFilePath(fileName: string, startDir = process.cwd()): string | undefined {
   const boundaryDir = findProjectSearchBoundary(startDir);
-  let currentDir = startDir;
+  let currentDir = resolve(startDir);
 
   while (true) {
     const candidate = join(currentDir, CONFIG_DIR_NAME, fileName);

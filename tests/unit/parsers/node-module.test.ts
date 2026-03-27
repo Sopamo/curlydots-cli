@@ -141,21 +141,23 @@ describe('nodeModuleParser', () => {
   });
 
   describe('import', () => {
-    let tempPath = '';
+    const TEMP_PATH = join(import.meta.dir, '../../fixtures/temp-import');
 
     beforeEach(async () => {
-      tempPath = await mkdtemp(join(tmpdir(), 'node-module-import-'));
+      try {
+        await rm(TEMP_PATH, { recursive: true, force: true });
+      } catch {
+        // Ignore if doesn't exist
+      }
+      await mkdir(TEMP_PATH, { recursive: true });
     });
 
     afterEach(async () => {
-      if (tempPath) {
-        await rm(tempPath, { recursive: true, force: true });
-        tempPath = '';
-      }
+      await rm(TEMP_PATH, { recursive: true, force: true });
     });
 
     it('should create new file with translations', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.welcome', 'Willkommen'],
         ['generic.goodbye', 'Auf Wiedersehen'],
@@ -174,7 +176,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create nested key structure', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['auth.login.button', 'Anmelden'],
         ['auth.login.title', 'Einloggen'],
@@ -190,7 +192,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should merge with existing file content', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
 
       // First import
       const initial = new Map([
@@ -214,7 +216,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should update existing keys', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
 
       // First import
       const initial = new Map([['generic.hello', 'Hallo']]);
@@ -229,7 +231,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create multiple files for different prefixes', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.welcome', 'Willkommen'],
         ['auth.login', 'Anmelden'],
@@ -248,7 +250,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create language directory if it does not exist', async () => {
-      const langDir = join(tempPath, 'fr', 'nested');
+      const langDir = join(TEMP_PATH, 'fr', 'nested');
       const translations = new Map([['generic.hello', 'Bonjour']]);
 
       const result = await nodeModuleParser.import(langDir, translations);
@@ -259,7 +261,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle empty translations map', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
       const translations = new Map<string, string>();
 
       const result = await nodeModuleParser.import(langDir, translations);
@@ -270,7 +272,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should skip keys without file prefix and log warning', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.hello', 'Hallo'], // valid
         ['invalidkey', 'Invalid'], // no dot - should be skipped
@@ -287,7 +289,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle deeply nested keys', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['settings.account.profile.name', 'Name'],
         ['settings.account.profile.email', 'E-Mail'],
@@ -303,7 +305,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle special characters in values', async () => {
-      const langDir = join(tempPath, 'de');
+      const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.quote', "It's a test"],
         ['generic.html', '<span>HTML</span>'],

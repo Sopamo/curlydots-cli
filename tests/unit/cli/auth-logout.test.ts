@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authLogoutCommand } from '../../../src/commands/auth/logout';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
 import * as tokenManagerModule from '../../../src/services/auth/token-manager';
 import * as loggerModule from '../../../src/utils/logger';
 import * as authConfigModule from '../../../src/config/auth-config';
@@ -11,7 +12,7 @@ const logs = {
 };
 
 const clearAuthTokenMock = mock(async () => {});
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,

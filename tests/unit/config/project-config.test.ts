@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { join } from 'node:path';
 
 let moduleNonce = 0;
+const EXPLICIT_BASE_DIR = '/workspace/shared';
+const EXPLICIT_PROJECT_CONFIG_PATH = join(EXPLICIT_BASE_DIR, '.curlydots', 'current-project.json');
 
 function importFreshProjectConfigModule() {
   moduleNonce += 1;
@@ -47,6 +49,12 @@ describe('config/project-config', () => {
       homedir: () => '/home/test',
     }));
 
+    mock.module('../../../src/config/config-paths', () => ({
+      findNearestCurlydotsFilePathFrom: (fileName: string, startDir: string) => (
+        fileName === 'current-project.json' && startDir === EXPLICIT_BASE_DIR ? EXPLICIT_PROJECT_CONFIG_PATH : undefined
+      ),
+    }));
+
     mock.module('node:fs', () => ({
       existsSync: existsSyncMock,
       readFileSync: readFileSyncMock,
@@ -87,6 +95,12 @@ describe('config/project-config', () => {
       homedir: () => '/home/test',
     }));
 
+    mock.module('../../../src/config/config-paths', () => ({
+      findNearestCurlydotsFilePathFrom: (fileName: string, startDir: string) => (
+        fileName === 'current-project.json' && startDir === EXPLICIT_BASE_DIR ? EXPLICIT_PROJECT_CONFIG_PATH : undefined
+      ),
+    }));
+
     mock.module('node:fs', () => ({
       existsSync: existsSyncMock,
       readFileSync: readFileSyncMock,
@@ -100,6 +114,60 @@ describe('config/project-config', () => {
     expect(project?.projectId).toBe('global-project');
     expect(readFileSyncMock).toHaveBeenCalledWith(globalPath, 'utf8');
     expect(readFileSyncMock.mock.calls.some(([filePath]) => filePath === localPath)).toBe(false);
+  });
+
+  it('resolves the project selection from an explicit base directory', async () => {
+    const cwd = process.cwd();
+    const projectGitMarker = join(cwd, '.git');
+    const explicitBaseDir = EXPLICIT_BASE_DIR;
+    const explicitPath = EXPLICIT_PROJECT_CONFIG_PATH;
+    const globalPath = '/home/test/.curlydots/current-project.json';
+
+    const existsSyncMock = mock((filePath: string) => (
+      filePath === projectGitMarker || filePath === explicitPath || filePath === globalPath
+    ));
+    const readFileSyncMock = mock((filePath: string) => {
+      if (filePath === explicitPath) {
+        return JSON.stringify({
+          projectId: 'explicit-project',
+          projectName: 'Explicit Project',
+          teamName: 'Explicit Team',
+        });
+      }
+
+      if (filePath === globalPath) {
+        return JSON.stringify({
+          projectId: 'global-project',
+          projectName: 'Global Project',
+          teamName: 'Global Team',
+        });
+      }
+
+      throw new Error(`Unexpected read: ${filePath}`);
+    });
+
+    mock.module('node:os', () => ({
+      homedir: () => '/home/test',
+    }));
+
+    mock.module('../../../src/config/config-paths', () => ({
+      findNearestCurlydotsFilePathFrom: (fileName: string, startDir: string) => (
+        fileName === 'current-project.json' && startDir === EXPLICIT_BASE_DIR ? EXPLICIT_PROJECT_CONFIG_PATH : undefined
+      ),
+    }));
+
+    mock.module('node:fs', () => ({
+      existsSync: existsSyncMock,
+      readFileSync: readFileSyncMock,
+      writeFileSync: () => undefined,
+      mkdirSync: () => undefined,
+    }));
+
+    const { getCurrentProject } = await importFreshProjectConfigModule();
+    const project = getCurrentProject(explicitBaseDir);
+
+    expect(project?.projectId).toBe('explicit-project');
+    expect(readFileSyncMock).toHaveBeenCalledWith(explicitPath, 'utf8');
   });
 
   it('writes project selection to local override when a local .curlydots directory exists', async () => {

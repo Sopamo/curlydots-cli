@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { findNearestCurlydotsFilePathFrom } from './config-paths';
 
 const CONFIG_DIR_NAME = '.curlydots';
 const PROJECT_CONFIG_FILE_NAME = 'current-project.json';
@@ -30,7 +31,11 @@ function findProjectRoot(startDir: string): string | null {
   }
 }
 
-function getLocalProjectConfigPath(): string | null {
+function getLocalProjectConfigPath(startDir?: string): string | null {
+  if (startDir) {
+    return findNearestCurlydotsFilePathFrom(PROJECT_CONFIG_FILE_NAME, startDir) ?? null;
+  }
+
   const projectRoot = findProjectRoot(process.cwd());
   if (!projectRoot) {
     return null;
@@ -68,8 +73,8 @@ function readProjectConfigFromPath(filePath: string): ProjectConfig | null {
   }
 }
 
-function resolveReadPath(): string {
-  const localPath = getLocalProjectConfigPath();
+function resolveReadPath(startDir?: string): string {
+  const localPath = getLocalProjectConfigPath(startDir);
 
   if (localPath && existsSync(localPath)) {
     return localPath;
@@ -88,8 +93,8 @@ function resolveWritePath(): string {
   return localPath;
 }
 
-export function getCurrentProject(): ProjectConfig | null {
-  const configPath = resolveReadPath();
+export function getCurrentProject(startDir?: string): ProjectConfig | null {
+  const configPath = resolveReadPath(startDir);
   if (!existsSync(configPath)) {
     return null;
   }

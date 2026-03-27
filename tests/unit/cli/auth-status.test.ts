@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authStatusCommand } from '../../../src/commands/auth/status';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
 import type { AuthStatus } from '../../../src/services/auth/status-presenter';
 import * as statusPresenterModule from '../../../src/services/auth/status-presenter';
 import * as authConfigModule from '../../../src/config/auth-config';
@@ -15,7 +16,7 @@ const getAuthStatusMock = mock<() => Promise<AuthStatus>>(async () => ({
   expired: false,
   storage: 'keychain' as const,
 }));
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,

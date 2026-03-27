@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CliAuthConfig } from '../../src/config/auth-config';
 import { HttpClient } from '../../src/services/http/client';
 import type { TranslationKeyPayload } from '../../src/types/translation-keys';
 import * as authConfigModule from '../../src/config/auth-config';
 
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,

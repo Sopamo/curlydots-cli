@@ -2,6 +2,7 @@ import { HttpClient } from '../http/client';
 import type { ExistingKeysResponse, TranslationKeyPayload } from '../../types/translation-keys';
 
 export interface TranslationKeysClientOptions {
+  baseDir?: string;
   client: HttpClient;
   token?: string;
   batchSize?: number;
@@ -16,13 +17,20 @@ export interface UploadResult {
 export async function resolveAuthToken(options: TranslationKeysClientOptions): Promise<string | null> {
   if (options.token) return options.token;
   const { loadCliAuthConfig } = await import('../../config/auth-config');
-  const configuredToken = loadCliAuthConfig().token;
+  const configuredToken = loadCliAuthConfig(options.baseDir).token;
   if (configuredToken) return configuredToken;
   if (options.loadToken) {
     const stored = await options.loadToken();
     return stored?.accessToken ?? null;
   }
-  const { getValidToken } = await import('../auth/token-manager');
+  const { getValidToken, isTokenExpired, loadAuthToken } = await import('../auth/token-manager');
+  const storedToken = await loadAuthToken();
+  if (!storedToken) {
+    return null;
+  }
+  if (!isTokenExpired(storedToken)) {
+    return storedToken.accessToken;
+  }
   return getValidToken();
 }
 

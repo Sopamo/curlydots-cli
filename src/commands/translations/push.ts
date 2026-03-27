@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { Glob } from 'bun';
 import chalk from 'chalk';
+import { findCommonAncestorDirectory } from '../../config/config-paths';
 import { getParser } from '../../parsers';
 import { loadParserFromFile } from '../../parsers/parser-file-loader';
 import { findContextForKeys } from '../../services/context-finder';
@@ -28,6 +29,29 @@ function renderProgressBar(current: number, total: number, width = 30): string {
   return `${bar} ${pct}% (${current}/${total})`;
 }
 
+async function resolveTranslationDirectories(repoPath: string, translationsDirs: string[]): Promise<string[]> {
+  const resolvedDirs = new Set<string>();
+
+  for (const dir of translationsDirs) {
+    if (dir.includes('*')) {
+      const glob = new Glob(dir);
+      let matched = false;
+      for await (const match of glob.scan({ cwd: repoPath, absolute: false, onlyFiles: false })) {
+        matched = true;
+        resolvedDirs.add(match);
+      }
+      if (!matched) {
+        globalLogger.warn(`No translation directories matched pattern: ${chalk.dim(dir)}`);
+      }
+      continue;
+    }
+
+    resolvedDirs.add(dir);
+  }
+
+  return Array.from(resolvedDirs);
+}
+
 export async function runTranslationsPush(args: string[]): Promise<void> {
   const parsedArgs = parsePushArgs(args);
 
@@ -45,18 +69,6 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     globalLogger.info('Run "curlydots translations push --help" for usage information.');
     process.exitCode = 1;
     return;
-  }
-
-  // Resolve project UUID from override or fallback to selected project
-  let projectUuid = parsedArgs.projectUuid;
-  if (!projectUuid) {
-    const currentProject = getCurrentProject();
-    if (!currentProject) {
-      globalLogger.error('No project specified. Use --project or run "curlydots projects select" to choose a project.');
-      process.exitCode = 1;
-      return;
-    }
-    projectUuid = currentProject.projectId;
   }
 
   const resolvedPath = resolve(parsedArgs.repoPath);
@@ -78,15 +90,39 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     return;
   }
 
-  const config = loadCliConfig();
+  const resolvedTranslationDirs = await resolveTranslationDirectories(resolvedPath, parsedArgs.translationsDirs);
+
+  if (resolvedTranslationDirs.length === 0) {
+    globalLogger.error('No translation directories found after resolving glob patterns');
+    process.exitCode = 1;
+    return;
+  }
+
+  const configBaseDir = findCommonAncestorDirectory(
+    resolvedTranslationDirs.map((dir) => resolve(resolvedPath, dir)),
+  ) ?? resolvedPath;
+
+  // Resolve project UUID from override or fallback to selected project
+  let projectUuid = parsedArgs.projectUuid;
+  if (!projectUuid) {
+    const currentProject = getCurrentProject(configBaseDir);
+    if (!currentProject) {
+      globalLogger.error('No project specified. Use --project or run "curlydots projects select" to choose a project.');
+      process.exitCode = 1;
+      return;
+    }
+    projectUuid = currentProject.projectId;
+  }
+
+  const config = loadCliConfig(configBaseDir);
   const client = new HttpClient({
-    baseUrl: parsedArgs.apiHost,
+    baseUrl: parsedArgs.apiHost ?? config.apiEndpoint,
     timeout: config.timeout,
     retries: config.retries,
     debug: config.debug,
   });
 
-  const token = await resolveAuthToken({ client, token: parsedArgs.apiToken });
+  const token = await resolveAuthToken({ baseDir: configBaseDir, client, token: parsedArgs.apiToken });
   if (!token) {
     globalLogger.error('Missing API token. Run "curlydots auth login" or pass --api-token.');
     process.exitCode = 1;
@@ -104,32 +140,6 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
   });
 
   try {
-    // Step 1: Resolve translation directories (expand globs)
-    const resolvedDirs = new Set<string>();
-    for (const dir of parsedArgs.translationsDirs) {
-      if (dir.includes('*')) {
-        const glob = new Glob(dir);
-        let matched = false;
-        for await (const match of glob.scan({ cwd: resolvedPath, absolute: false, onlyFiles: false })) {
-          matched = true;
-          resolvedDirs.add(match);
-        }
-        if (!matched) {
-          globalLogger.warn(`No translation directories matched pattern: ${chalk.dim(dir)}`);
-        }
-      } else {
-        resolvedDirs.add(dir);
-      }
-    }
-
-    const resolvedTranslationDirs = Array.from(resolvedDirs);
-
-    if (resolvedTranslationDirs.length === 0) {
-      globalLogger.error('No translation directories found after resolving glob patterns');
-      process.exitCode = 1;
-      return;
-    }
-
     // Step 2: Parse source translation keys from all directories
     globalLogger.info(`Parsing ${chalk.cyan(parsedArgs.source)} translation keys using ${chalk.cyan(parser.name)} parser from ${chalk.bold(resolvedTranslationDirs.length)} location${resolvedTranslationDirs.length === 1 ? '' : 's'}...`);
     const sourceKeys = new Map<string, string>();

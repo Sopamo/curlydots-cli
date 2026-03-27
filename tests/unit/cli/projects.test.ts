@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
 import { projectsCommand } from '../../../src/commands/projects';
 import type { CliConfig } from '../../../src/config/cli-config';
 import { HttpClient } from '../../../src/services/http/client';
@@ -17,7 +18,7 @@ const loadCliConfigMock = mock<() => CliConfig>(() => ({
   debug: false,
   defaultLocale: undefined,
 }));
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,

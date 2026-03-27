@@ -11,7 +11,7 @@
 
 - Q: What should the CLI do when an upload batch fails? → A: Retry failed HTTP requests up to the configured retry count (default 3), then fail the command if a batch still cannot be uploaded.
 - Q: What default upload batch size should be used? → A: 100 keys per batch.
-- Q: When should authentication be validated? → A: Validate auth before scanning the repo.
+- Q: When should authentication be validated? → A: Validate locally before scanning the repo when expiration metadata is available; if a token is only invalidated server-side, discovering that after the scan is acceptable.
 - Q: What default API host should be used? → A: https://curlydots.com.
 - Q: Which extensions should be scanned by default? → A: Scan all supported extensions by default.
 - Q: Should the CLI fetch existing keys before upload? → A: Yes, the backend returns all existing keys and the CLI uploads only new keys.
@@ -80,6 +80,8 @@ As a developer, I want clear CLI feedback when the project UUID context or sourc
 - Backend returns the full list of existing keys for the project.
 - Extraction finds duplicate translation keys in the codebase.
 - Network/API errors during fetch or upload (timeouts, 5xx responses).
+- A stored auth token has expired locally and can be detected from its expiration metadata before scanning begins.
+- A token appears valid locally but has been invalidated server-side, so the backend only rejects it after the repo scan.
 - Source language is missing from command arguments.
 - Source value is empty or missing for extracted keys.
 
@@ -102,10 +104,11 @@ As a developer, I want clear CLI feedback when the project UUID context or sourc
 - **FR-008**: The command MUST surface clear errors when project UUID context or source language input is missing.
 - **FR-009**: The command MUST retry transient API failures up to the configured retry count (default 3) and fail with a non-zero exit if upload still fails.
 - **FR-010**: The command MUST default to 100 keys per upload batch.
-- **FR-011**: The command MUST validate authentication before scanning the repo and fail fast if auth is missing.
+- **FR-011**: The command MUST validate authentication before scanning the repo when the chosen auth source provides local expiration metadata, and MUST renew or fail fast when that metadata shows the token is expired.
 - **FR-012**: The command MUST default the API host to https://curlydots.com when not explicitly provided.
 - **FR-013**: The command MUST scan all supported extensions by default unless --extensions is provided.
 - **FR-014**: The command MUST handle API failures with a non-zero exit and actionable error message.
+- **FR-015**: The command MAY discover server-side token invalidation only when it makes the authenticated backend request after scanning, and that delayed failure is acceptable when local validation could not detect the invalidation.
 
 ### Key Entities *(include if feature involves data)*
 

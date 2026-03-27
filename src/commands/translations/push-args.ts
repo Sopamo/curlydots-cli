@@ -10,7 +10,7 @@ export interface PushArgs {
   parser: string;
   parserFile?: string;
   extensions: string[];
-  apiHost: string;
+  apiHost?: string;
   apiToken?: string;
   batchSize: number;
   help: boolean;
@@ -29,7 +29,7 @@ export function parsePushArgs(args: string[]): PushArgs {
     parser: 'node-module',
     parserFile: undefined,
     extensions: [...includeExtensions],
-    apiHost: 'https://curlydots.com',
+    apiHost: undefined,
     apiToken: undefined,
     batchSize: 100,
     help: false,
@@ -136,7 +136,7 @@ OPTIONS:
   -p, --parser <name>            Parser that matches how translations are stored, e.g. node-module [default: node-module]
   --parser-file <path>           Load parser module from file (.js/.ts)
   -e, --extensions <list>        File extensions to search [default: all files]
-  --api-host <url>               API host [default: https://curlydots.com]
+  --api-host <url>               API host override (otherwise uses configured apiEndpoint)
   --api-token <token>            API token override
   --batch-size <n>               Upload batch size [default: 100]
   -h, --help                     Show this help message

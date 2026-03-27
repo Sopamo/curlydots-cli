@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { join } from 'node:path';
+import type { CliAuthConfig } from '../../src/config/auth-config';
 import * as tokenManagerModule from '../../src/services/auth/token-manager';
 import * as authConfigModule from '../../src/config/auth-config';
 
@@ -24,7 +25,7 @@ const runTranslationsPushMock = async () => {
 };
 
 const loadAuthTokenMock = mock(async () => null);
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,
