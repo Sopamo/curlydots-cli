@@ -1,7 +1,7 @@
 import { runBrowserLogin } from '../../services/auth/browser-login';
 import { isTokenExpired, loadAuthToken, persistAuthToken } from '../../services/auth/token-manager';
+import { getExplicitAccessToken } from '../../services/auth/service';
 import { globalLogger } from '../../utils/logger';
-import { loadCliAuthConfig } from '../../config/auth-config';
 
 const loginState = { inProgress: false };
 
@@ -12,13 +12,13 @@ export async function authLoginCommand(_args: string[]): Promise<void> {
     return;
   }
 
-  if (process.env.CURLYDOTS_TOKEN) {
+  const explicitToken = getExplicitAccessToken();
+  if (explicitToken?.source === 'environment_token') {
     globalLogger.warn('CURLYDOTS_TOKEN is set. Unset it to use browser login, or keep using the environment token.');
     return;
   }
 
-  const authConfig = loadCliAuthConfig();
-  if (authConfig.token) {
+  if (explicitToken?.source === 'api_key') {
     globalLogger.warn('A token is configured in .curlydots/auth.json. Remove it to use browser login.');
     return;
   }

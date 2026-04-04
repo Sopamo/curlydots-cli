@@ -26,7 +26,7 @@ description: "Task list for CLI Authentication and Translation Push"
 
 - [X] T001 Ensure Bun/TypeScript project metadata references new CLI feature in `package.json` and `bun.lockb`
 - [X] T002 [P] Add required dependencies (keytar/libsecret helpers, open browser utility) in `package.json`
-- [X] T003 [P] Configure `.env.example` and documentation for `CURLYDOTS_TOKEN` in `README.md`
+- [X] T003 [P] Configure token-based auth and documentation for `CURLYDOTS_TOKEN` in `README.md`
 - [X] T004 [P] Create feature-specific directories `src/cli/auth/` and `src/cli/translations/`
 - [X] T005 Configure lint/test scripts for CLI feature in `package.json` (`bun run lint`, `bun test`)
 
@@ -178,4 +178,3 @@ Status presenter (T030) and CLI commands (T031-T033) can be split among contribu
 - **By Story**: US1 (8 tasks), US2 (8 tasks), US3 (6 tasks)  
 - **Parallel Opportunities**: Tasks marked [P] within each phase/story  
 - **Independent Tests**: Documented per story above
-

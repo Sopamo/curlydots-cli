@@ -62,7 +62,7 @@ describe('services/http/client', () => {
     await expect(client.get('health')).rejects.toEqual(
       expect.objectContaining({
         name: 'HttpClientError',
-        meta: expect.objectContaining({ category: 'system' }),
+        meta: expect.objectContaining({ category: 'transient' }),
       }),
     );
 
@@ -97,7 +97,7 @@ describe('services/http/client', () => {
       fetcher,
     });
 
-    const response = await client.get('health') as { ok: boolean };
+    const response = (await client.get('health')) as { ok: boolean };
 
     expect(response.ok).toBe(true);
     expect(calls).toBe(2);
@@ -131,13 +131,48 @@ describe('services/http/client', () => {
     expect(calls).toBe(1);
   });
 
-  it('does not retry on 429 responses', async () => {
+  it('retries on 429 responses and honors Retry-After when provided', async () => {
     const HttpClient = await loadHttpClient();
     let calls = 0;
     const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
       calls += 1;
       return new Response(JSON.stringify({ message: 'Too many requests' }), {
         status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '0' },
+      });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 1,
+      fetcher,
+    });
+
+    await expect(client.get('health')).rejects.toEqual(
+      expect.objectContaining({
+        name: 'HttpClientError',
+        meta: expect.objectContaining({ category: 'transient', status: 429 }),
+      }),
+    );
+
+    expect(calls).toBe(2);
+  });
+
+  it('retries on 408 responses', async () => {
+    const HttpClient = await loadHttpClient();
+    let calls = 0;
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ message: 'Request timeout' }), {
+          status: 408,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
     }) as unknown as typeof fetch;
@@ -145,41 +180,41 @@ describe('services/http/client', () => {
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
       timeout: 1000,
-      retries: 3,
+      retries: 1,
       fetcher,
     });
 
-    await expect(client.get('health')).rejects.toEqual(
-      expect.objectContaining({
-        name: 'HttpClientError',
-        meta: expect.objectContaining({ category: 'permanent', status: 429 }),
-      }),
-    );
+    const response = (await client.get('health')) as { ok: boolean };
 
-    expect(calls).toBe(1);
+    expect(response.ok).toBe(true);
+    expect(calls).toBe(2);
   });
 
-  it('does not retry on system errors from fetch', async () => {
+  it('retries on system errors from fetch', async () => {
     const HttpClient = await loadHttpClient();
     let calls = 0;
     const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
       calls += 1;
-      throw new Error('Network down');
+      if (calls === 1) {
+        throw new Error('Network down');
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }) as unknown as typeof fetch;
 
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
       timeout: 1000,
-      retries: 3,
+      retries: 1,
       fetcher,
     });
 
-    await expect(client.get('health')).rejects.toMatchObject({
-      name: 'HttpClientError',
-      message: 'System error communicating with backend',
-      meta: expect.objectContaining({ category: 'system' }),
-    });
+    const response = (await client.get('health')) as { ok: boolean };
 
-    expect(calls).toBe(1);
+    expect(response.ok).toBe(true);
+    expect(calls).toBe(2);
   });
 });

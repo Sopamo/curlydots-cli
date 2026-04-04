@@ -16,22 +16,15 @@ export interface UploadResult {
 
 export async function resolveAuthToken(options: TranslationKeysClientOptions): Promise<string | null> {
   if (options.token) return options.token;
-  const { loadCliAuthConfig } = await import('../../config/auth-config');
-  const configuredToken = loadCliAuthConfig(options.baseDir).token;
-  if (configuredToken) return configuredToken;
   if (options.loadToken) {
+    const { loadCliAuthConfig } = await import('../../config/auth-config');
+    const configuredToken = loadCliAuthConfig(options.baseDir).token;
+    if (configuredToken) return configuredToken;
     const stored = await options.loadToken();
     return stored?.accessToken ?? null;
   }
-  const { getValidToken, isTokenExpired, loadAuthToken } = await import('../auth/token-manager');
-  const storedToken = await loadAuthToken();
-  if (!storedToken) {
-    return null;
-  }
-  if (!isTokenExpired(storedToken)) {
-    return storedToken.accessToken;
-  }
-  return getValidToken();
+  const { getCliAccessToken } = await import('../auth/service');
+  return getCliAccessToken(options.baseDir);
 }
 
 export async function fetchExistingTranslationKeys(

@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authStatusCommand } from '../../../src/commands/auth/status';
-import type { CliAuthConfig } from '../../../src/config/auth-config';
-import type { AuthStatus } from '../../../src/services/auth/status-presenter';
-import * as statusPresenterModule from '../../../src/services/auth/status-presenter';
-import * as authConfigModule from '../../../src/config/auth-config';
+import type { AuthStatus } from '../../../src/services/auth/service';
+import * as authServiceModule from '../../../src/services/auth/service';
 import * as loggerModule from '../../../src/utils/logger';
 
 const logs = {
@@ -15,15 +13,10 @@ const getAuthStatusMock = mock<() => Promise<AuthStatus>>(async () => ({
   authenticated: false,
   expired: false,
   storage: 'keychain' as const,
-}));
-const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
-  authMethod: 'browser' as const,
-  tokenStorage: 'keychain' as const,
-  token: undefined as string | undefined,
+  source: null,
 }));
 
-const originalStatusPresenter = { ...statusPresenterModule };
-const originalAuthConfig = { ...authConfigModule };
+const originalAuthService = { ...authServiceModule };
 const originalLogger = { ...loggerModule };
 
 describe('unit/cli/auth-status', () => {
@@ -32,12 +25,13 @@ describe('unit/cli/auth-status', () => {
     logs.warn.length = 0;
     getAuthStatusMock.mockClear();
 
-    mock.module('../../../src/services/auth/status-presenter', () => ({
+    mock.module('../../../src/services/auth/service', () => ({
       getAuthStatus: getAuthStatusMock,
-    }));
-
-    mock.module('../../../src/config/auth-config', () => ({
-      loadCliAuthConfig: loadCliAuthConfigMock,
+      formatAuthSourceLabel: (source: string | null, _storage: string) => {
+        if (source === 'environment_token') return 'environment token (CURLYDOTS_TOKEN)';
+        if (source === 'api_key') return 'API token from auth.json';
+        return 'browser session (keychain)';
+      },
     }));
 
     mock.module('../../../src/utils/logger', () => ({
@@ -56,8 +50,7 @@ describe('unit/cli/auth-status', () => {
     mock.clearAllMocks();
     mock.restore();
     // Workaround for https://github.com/oven-sh/bun/issues/7823 due to ESM caching.
-    mock.module('../../../src/services/auth/status-presenter', () => ({ ...originalStatusPresenter }));
-    mock.module('../../../src/config/auth-config', () => ({ ...originalAuthConfig }));
+    mock.module('../../../src/services/auth/service', () => ({ ...originalAuthService }));
     mock.module('../../../src/utils/logger', () => ({ ...originalLogger }));
   });
 
@@ -66,6 +59,7 @@ describe('unit/cli/auth-status', () => {
       authenticated: false,
       expired: false,
       storage: 'keychain' as const,
+      source: null,
     });
 
     await authStatusCommand([]);
@@ -80,6 +74,7 @@ describe('unit/cli/auth-status', () => {
       expired: true,
       expiresAt,
       storage: 'environment' as const,
+      source: 'environment_token' as const,
     });
 
     await authStatusCommand([]);
@@ -95,11 +90,7 @@ describe('unit/cli/auth-status', () => {
       authenticated: true,
       expired: false,
       storage: 'file' as const,
-    });
-    loadCliAuthConfigMock.mockReturnValueOnce({
-      authMethod: 'api_key',
-      tokenStorage: 'file',
-      token: 'sk-example-token',
+      source: 'api_key' as const,
     });
 
     await authStatusCommand([]);

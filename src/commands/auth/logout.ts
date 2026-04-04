@@ -1,15 +1,15 @@
 import { clearAuthToken } from '../../services/auth/token-manager';
+import { getExplicitAccessToken } from '../../services/auth/service';
 import { globalLogger } from '../../utils/logger';
-import { loadCliAuthConfig } from '../../config/auth-config';
 
 export async function authLogoutCommand(_args: string[]): Promise<void> {
   try {
     await clearAuthToken();
     globalLogger.success('Logged out locally. Stored credentials have been removed.');
-    const authConfig = loadCliAuthConfig();
-    if (process.env.CURLYDOTS_TOKEN) {
+    const explicitToken = getExplicitAccessToken();
+    if (explicitToken?.source === 'environment_token') {
       globalLogger.warn('API tokens provided via CURLYDOTS_TOKEN are not revoked by this command.');
-    } else if (authConfig.token) {
+    } else if (explicitToken?.source === 'api_key') {
       globalLogger.warn('API tokens provided via .curlydots/auth.json are not revoked by this command.');
     }
   } catch (error) {

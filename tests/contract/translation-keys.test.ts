@@ -3,13 +3,16 @@ import type { CliAuthConfig } from '../../src/config/auth-config';
 import { HttpClient } from '../../src/services/http/client';
 import type { TranslationKeyPayload } from '../../src/types/translation-keys';
 import * as authConfigModule from '../../src/config/auth-config';
+import * as authServiceModule from '../../src/services/auth/service';
 
 const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,
 }));
+const getCliAccessTokenMock = mock(async () => 'browser-token');
 const originalAuthConfig = { ...authConfigModule };
+const originalAuthService = { ...authServiceModule };
 
 class FakeClient extends HttpClient {
   public getCalls: Array<{ path: string; token?: string }> = [];
@@ -33,9 +36,14 @@ class FakeClient extends HttpClient {
 describe('contract/translation-keys', () => {
   beforeEach(() => {
     loadCliAuthConfigMock.mockClear();
+    getCliAccessTokenMock.mockClear();
     mock.module('../../src/config/auth-config', () => ({
       ...originalAuthConfig,
       loadCliAuthConfig: loadCliAuthConfigMock,
+    }));
+    mock.module('../../src/services/auth/service', () => ({
+      ...originalAuthService,
+      getCliAccessToken: getCliAccessTokenMock,
     }));
   });
 
@@ -43,6 +51,7 @@ describe('contract/translation-keys', () => {
     mock.clearAllMocks();
     mock.restore();
     mock.module('../../src/config/auth-config', () => ({ ...originalAuthConfig }));
+    mock.module('../../src/services/auth/service', () => ({ ...originalAuthService }));
   });
 
   it('fetches existing keys using project endpoint + auth token', async () => {
@@ -138,5 +147,18 @@ describe('contract/translation-keys', () => {
     expect(configured).toBe('config-token');
     expect(stored).toBe('stored-token');
     expect(override).toBe('override');
+  });
+
+  it('delegates to the shared CLI access token resolver for real command auth', async () => {
+    const { resolveAuthToken } = await import('../../src/services/api/translation-keys');
+    getCliAccessTokenMock.mockResolvedValueOnce('shared-token');
+
+    const token = await resolveAuthToken({
+      baseDir: '/tmp/project',
+      client: new FakeClient(),
+    });
+
+    expect(token).toBe('shared-token');
+    expect(getCliAccessTokenMock).toHaveBeenCalledWith('/tmp/project');
   });
 });
