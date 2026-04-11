@@ -35,6 +35,9 @@ export class HttpClientError extends Error {
   }
 }
 
+// Retry only failures where repeating the same request is expected to be safe:
+// timeout, rate limit, or server-side/transient outage. Auth and 4xx validation
+// errors need user/config changes, so retrying them would just hide the real issue.
 const isRetryableStatus = (status: number): boolean =>
   status === 408 || status === 429 || status >= 500;
 
@@ -43,6 +46,8 @@ function parseRetryAfterMs(value: string | null): number | undefined {
     return undefined;
   }
 
+  // Rate limits are controlled by the server, so prefer its Retry-After window
+  // over local backoff when it provides either seconds or an HTTP date.
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) {
     return seconds * 1000;

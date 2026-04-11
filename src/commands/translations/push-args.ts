@@ -89,6 +89,7 @@ export function validatePushArgs(args: PushArgs): string[] {
   }
 
   if (args.translationsDirs.length === 0) {
+    // The user is using --translation-dir which is repeatable, hence the difference in pluralization.
     errors.push('Missing required option: --translations-dir');
   } else if (args.repoPath) {
     for (const dir of args.translationsDirs) {

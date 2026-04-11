@@ -1,5 +1,5 @@
-import { HttpClient } from '../http/client';
 import type { ExistingKeysResponse, TranslationKeyPayload } from '../../types/translation-keys';
+import type { HttpClient } from '../http/client';
 
 export interface TranslationKeysClientOptions {
   baseDir?: string;
@@ -14,7 +14,9 @@ export interface UploadResult {
   batches: number;
 }
 
-export async function resolveAuthToken(options: TranslationKeysClientOptions): Promise<string | null> {
+export async function resolveAuthToken(
+  options: TranslationKeysClientOptions,
+): Promise<string | null> {
   if (options.token) return options.token;
   if (options.loadToken) {
     const { loadCliAuthConfig } = await import('../../config/auth-config');
@@ -32,16 +34,26 @@ export async function fetchExistingTranslationKeys(
   projectUuid: string,
   token: string,
 ): Promise<ExistingKeysResponse> {
-  return client.get<ExistingKeysResponse>(`/api/projects/${projectUuid}/translation-keys`, { token });
+  return client.get<ExistingKeysResponse>(`/api/projects/${projectUuid}/translation-keys`, {
+    token,
+  });
 }
 
-export type UploadProgressCallback = (info: { batch: number; totalBatches: number; uploaded: number; total: number }) => void;
+export type UploadProgressCallback = (info: {
+  batch: number;
+  totalBatches: number;
+  uploaded: number;
+  total: number;
+}) => void;
 
-function deduplicatePayloadsByTranslationKey(keys: TranslationKeyPayload[]): TranslationKeyPayload[] {
+function deduplicatePayloadsByTranslationKey(
+  keys: TranslationKeyPayload[],
+): TranslationKeyPayload[] {
   const seenKeys = new Set<string>();
   const uniquePayloads: TranslationKeyPayload[] = [];
 
   for (const key of keys) {
+    // Multiple translation directories can produce the same final translationKey; the server stores keys at project level.
     if (seenKeys.has(key.translationKey)) {
       continue;
     }
@@ -76,7 +88,12 @@ export async function uploadTranslationKeys(
     );
     uploaded += batch.length;
     batches += 1;
-    onProgress?.({ batch: currentBatch, totalBatches: totalBatch, uploaded, total: uniqueKeys.length });
+    onProgress?.({
+      batch: currentBatch,
+      totalBatches: totalBatch,
+      uploaded,
+      total: uniqueKeys.length,
+    });
   }
 
   return { uploaded, batches };

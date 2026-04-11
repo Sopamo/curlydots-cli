@@ -27,4 +27,21 @@ describe('translation-keys payload-builder', () => {
       },
     ]);
   });
+
+  it('keeps entries with the same leaf name when their full translation keys differ', () => {
+    const payloads = buildTranslationKeyPayloads(
+      [
+        { key: 'users.name', sourceValue: 'Name', contexts: [] },
+        { key: 'products.name', sourceValue: 'Name', contexts: [] },
+        { key: 'admin.products.name', sourceValue: 'Name', contexts: [] },
+      ],
+      'en',
+    );
+
+    expect(payloads.map((payload) => payload.translationKey)).toEqual([
+      'users.name',
+      'products.name',
+      'admin.products.name',
+    ]);
+  });
 });

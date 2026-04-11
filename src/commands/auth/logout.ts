@@ -1,12 +1,19 @@
-import { clearAuthToken } from '../../services/auth/token-manager';
+import { clearAuthToken, loadAuthToken } from '../../services/auth/token-manager';
 import { getExplicitAccessToken } from '../../services/auth/service';
 import { globalLogger } from '../../utils/logger';
 
 export async function authLogoutCommand(_args: string[]): Promise<void> {
   try {
-    await clearAuthToken();
-    globalLogger.success('Logged out locally. Stored credentials have been removed.');
+    const storedToken = await loadAuthToken();
     const explicitToken = getExplicitAccessToken();
+    await clearAuthToken();
+
+    if (storedToken) {
+      globalLogger.success('Logged out from stored browser session. Stored credentials have been removed.');
+    } else {
+      globalLogger.info('No stored browser session found.');
+    }
+
     if (explicitToken?.source === 'environment_token') {
       globalLogger.warn('API tokens provided via CURLYDOTS_TOKEN are not revoked by this command.');
     } else if (explicitToken?.source === 'api_key') {

@@ -4,6 +4,12 @@ import { globalLogger } from '../../utils/logger';
 export async function authStatusCommand(_args: string[]): Promise<void> {
   const status = await getAuthStatus();
 
+  if (status.expired) {
+    const expiryLabel = status.expiresAt ? ` (expired ${status.expiresAt})` : ' (expired)';
+    globalLogger.warn(`Authentication expired${expiryLabel}. Run \`curlydots auth login\` to authenticate again.`);
+    return;
+  }
+
   if (!status.authenticated) {
     globalLogger.warn('Not authenticated. Run `curlydots auth login` to authenticate.');
     return;

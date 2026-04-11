@@ -1,23 +1,24 @@
 import { resolve } from 'node:path';
 import { Glob } from 'bun';
 import chalk from 'chalk';
+import { loadCliConfig } from '../../config/cli-config';
 import { findCommonAncestorDirectory } from '../../config/config-paths';
+import { getCurrentProject } from '../../config/project-config';
 import { getParser } from '../../parsers';
 import { loadParserFromFile } from '../../parsers/parser-file-loader';
-import { findContextForKeys } from '../../services/context-finder';
-import { loadLanguageKeysFromTranslationsDir } from '../../services/translation-directory';
 import {
   fetchExistingTranslationKeys,
   resolveAuthToken,
   uploadTranslationKeys,
 } from '../../services/api/translation-keys';
+import { findContextForKeys } from '../../services/context-finder';
+import { HttpClient, HttpClientError } from '../../services/http/client';
+import { loadLanguageKeysFromTranslationsDir } from '../../services/translation-directory';
 import { buildTranslationKeyPayloads } from '../../services/translation-keys/payload-builder';
 import { configStore } from '../../stores';
-import { globalLogger } from '../../utils/logger';
 import { formatPushSummary } from '../../ui/output';
-import { HttpClient, HttpClientError } from '../../services/http/client';
-import { loadCliConfig } from '../../config/cli-config';
-import { getCurrentProject } from '../../config/project-config';
+import { globalLogger } from '../../utils/logger';
+import { plural } from '../../utils/plural';
 import { parsePushArgs, printPushHelp, validatePushArgs } from './push-args';
 
 function renderProgressBar(current: number, total: number, width = 30): string {
@@ -141,7 +142,9 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
 
   try {
     // Step 2: Parse source translation keys from all directories
-    globalLogger.info(`Parsing ${chalk.cyan(parsedArgs.source)} translation keys using ${chalk.cyan(parser.name)} parser from ${chalk.bold(resolvedTranslationDirs.length)} location${resolvedTranslationDirs.length === 1 ? '' : 's'}...`);
+    globalLogger.info(
+      `Parsing ${chalk.cyan(parsedArgs.source)} translation keys using ${chalk.cyan(parser.name)} parser from ${chalk.bold(resolvedTranslationDirs.length)} ${plural(resolvedTranslationDirs.length, 'location')}...`,
+    );
     const sourceKeys = new Map<string, string>();
     let parsedDirsCount = 0;
     let failedDirsCount = 0;
@@ -155,7 +158,7 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
           parsedArgs.source,
         );
         const dirLabel = chalk.dim(dir);
-        globalLogger.info(`  ${dirLabel} → ${keys.size} keys`);
+        globalLogger.info(`  ${dirLabel} → ${keys.size} ${plural(keys.size, 'key')}`);
         if (keys.size === 0) {
           globalLogger.warn(`  ${dirLabel} → no translations found for source language ${chalk.cyan(parsedArgs.source)}`);
         }
@@ -183,9 +186,13 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     const entries = allEntries.filter((e) => e.sourceValue.trim() !== '');
     const emptyCount = allEntries.length - entries.length;
     if (emptyCount > 0) {
-      globalLogger.warn(`Skipping ${chalk.yellow(String(emptyCount))} keys with empty source values`);
+      globalLogger.warn(
+        `Skipping ${chalk.yellow(String(emptyCount))} ${plural(emptyCount, 'key')} with empty source values`,
+      );
     }
-    globalLogger.success(`Found ${chalk.bold(entries.length)} translation keys total`);
+    globalLogger.success(
+      `Found ${chalk.bold(entries.length)} translation ${plural(entries.length, 'key')} total`,
+    );
 
     if (entries.length === 0) {
       globalLogger.info('No translation keys found to upload');
@@ -198,7 +205,9 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     globalLogger.info(`Fetching existing keys from project ${chalk.cyan(projectUuid.slice(0, 8))}...`);
     const existing = await fetchExistingTranslationKeys(client, projectUuid, token);
     const existingCount = existing.data?.keys?.length ?? 0;
-    globalLogger.success(`Server has ${chalk.bold(existingCount)} existing keys`);
+    globalLogger.success(
+      `Server has ${chalk.bold(existingCount)} existing ${plural(existingCount, 'key')}`,
+    );
 
     // Step 4: Filter out keys that already exist on server
     const existingSet = new Set(existing.data?.keys ?? []);
@@ -206,7 +215,9 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     const skipped = entries.length - newEntries.length;
 
     if (skipped > 0) {
-      globalLogger.info(`Skipping ${chalk.yellow(String(skipped))} keys that already exist`);
+      globalLogger.info(
+        `Skipping ${chalk.yellow(String(skipped))} ${plural(skipped, 'key')} that already exist`,
+      );
     }
 
     if (newEntries.length === 0) {
@@ -217,21 +228,27 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     }
 
     // Step 5: Collect code context (only for new keys)
-    globalLogger.info(`Collecting code context for ${chalk.bold(newEntries.length)} new keys...`);
+    globalLogger.info(
+      `Collecting code context for ${chalk.bold(newEntries.length)} new ${plural(newEntries.length, 'key')}...`,
+    );
     const withContext = await findContextForKeys(newEntries, resolvedPath, ({ current, total }) => {
       const progress = renderProgressBar(current, total);
       process.stdout.write(`  ${progress}\r`);
     });
     process.stdout.write('\n');
     const keysWithContext = withContext.filter((e) => e.contexts && e.contexts.length > 0).length;
-    globalLogger.success(`Collected context for ${chalk.bold(keysWithContext)}/${newEntries.length} keys`);
+    globalLogger.success(
+      `Collected context for ${chalk.bold(keysWithContext)}/${newEntries.length} ${plural(newEntries.length, 'key')}`,
+    );
 
     // Step 6: Build payloads
     const newPayloads = buildTranslationKeyPayloads(withContext, parsedArgs.source);
 
     // Step 7: Upload new keys with progress bar
     const totalBatches = Math.ceil(newPayloads.length / parsedArgs.batchSize);
-    globalLogger.info(`Uploading ${chalk.bold(newPayloads.length)} new keys in ${chalk.bold(totalBatches)} batch${totalBatches === 1 ? '' : 'es'}...`);
+    globalLogger.info(
+      `Uploading ${chalk.bold(newPayloads.length)} new ${plural(newPayloads.length, 'key')} in ${chalk.bold(totalBatches)} ${plural(totalBatches, 'batch')}...`,
+    );
 
     const result = await uploadTranslationKeys(
       client,
@@ -247,7 +264,9 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
 
     // Clear the progress line and print completion
     process.stdout.write('\n');
-    globalLogger.success(`Uploaded ${chalk.bold(result.uploaded)} keys successfully`);
+    globalLogger.success(
+      `Uploaded ${chalk.bold(result.uploaded)} ${plural(result.uploaded, 'key')} successfully`,
+    );
 
     console.log('');
     console.log(formatPushSummary({

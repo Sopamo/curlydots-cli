@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clearParsers, getParser, registerParser } from '../../../src/parsers';
@@ -51,6 +51,28 @@ describe('nodeModuleParser', () => {
       expect(keys.get('generic.settings.notifications')).toBe('Notifications');
       expect(keys.get('generic.errors.notFound')).toBe('Not found');
       expect(keys.get('generic.errors.serverError')).toBe('Server error');
+    });
+
+    it('should keep same leaf keys from different files as different translation keys', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'node-module-same-leaf-'));
+
+      try {
+        const langDir = join(tempDir, 'translations', 'en');
+        await mkdir(langDir, { recursive: true });
+        await writeFile(join(langDir, 'users.js'), 'module.exports = { name: "Name" };\n', 'utf8');
+        await writeFile(
+          join(langDir, 'products.js'),
+          'module.exports = { name: "Name" };\n',
+          'utf8',
+        );
+
+        const keys = await nodeModuleParser.export(langDir);
+
+        expect(keys.get('users.name')).toBe('Name');
+        expect(keys.get('products.name')).toBe('Name');
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
     });
 
     it('should export German translations', async () => {

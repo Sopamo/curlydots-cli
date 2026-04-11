@@ -1,16 +1,19 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clearParsers, registerParser } from '../../../src/parsers';
 import { nodeModuleParser } from '../../../src/parsers/node-module';
-import { compareTranslationSets, findMissingTranslations } from '../../../src/services/analyzer';
+import {
+  compareTranslationSets,
+  findMissingTranslations,
+} from '../../../src/services/missing-translations';
 import { configStore } from '../../../src/stores';
 import type { MissingTranslation } from '../../../src/types';
 
 const FIXTURES_PATH = join(import.meta.dir, '../../fixtures/sample-repo');
 
-describe('analyzer', () => {
+describe('missing-translations', () => {
   beforeEach(() => {
     clearParsers();
     registerParser(nodeModuleParser);
@@ -185,7 +188,9 @@ describe('analyzer', () => {
         parser: 'node-module',
       });
 
-      await expect(findMissingTranslations()).rejects.toThrow('No translation directories configured');
+      await expect(findMissingTranslations()).rejects.toThrow(
+        'No translation directories configured',
+      );
     });
   });
 });

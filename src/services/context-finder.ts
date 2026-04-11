@@ -17,8 +17,11 @@ const CONTEXT_LINES = 15;
 /** Maximum snippet length in characters to avoid DB overflow */
 const MAX_SNIPPET_LENGTH = 5000;
 
-/** Average line length threshold to detect minified files */
-const MINIFIED_AVG_LINE_LENGTH = 500;
+/**
+ * Heuristic for generated/minified bundles: useful code context almost always
+ * comes from source files, while one-line bundles are noisy and expensive to scan.
+ */
+const GENERATED_FILE_AVG_LINE_LENGTH_THRESHOLD = 500;
 
 /**
  * Check if a file is likely binary
@@ -26,6 +29,10 @@ const MINIFIED_AVG_LINE_LENGTH = 500;
 function isBinaryFile(content: string): boolean {
   // Check for null bytes which indicate binary content
   return content.includes('\0');
+}
+
+function isLikelyGeneratedBundle(contentLength: number, lineCount: number): boolean {
+  return lineCount > 0 && contentLength / lineCount > GENERATED_FILE_AVG_LINE_LENGTH_THRESHOLD;
 }
 
 /**
@@ -42,7 +49,7 @@ export function extractContext(lines: string[], matchLine: number, filePath: str
 
   let snippet = snippetLines.join('\n');
   if (snippet.length > MAX_SNIPPET_LENGTH) {
-    snippet = snippet.slice(0, MAX_SNIPPET_LENGTH) + '\n... (truncated)';
+    snippet = `${snippet.slice(0, MAX_SNIPPET_LENGTH)}\n... (truncated)`;
   }
 
   return {
@@ -68,10 +75,7 @@ function findKeyInContent(content: string, key: string): number[] {
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   // Match patterns: 'key', "key", or key (unquoted in certain contexts)
-  const patterns = [
-    new RegExp(`['"]${escapedKey}['"]`),
-    new RegExp(`\\b${escapedKey}\\b`),
-  ];
+  const patterns = [new RegExp(`['"]${escapedKey}['"]`), new RegExp(`\\b${escapedKey}\\b`)];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -126,10 +130,9 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
       const file = Bun.file(filePath);
       const content = await file.text();
 
-      // Skip binary or minified files
       if (isBinaryFile(content)) continue;
       const lines = content.split('\n');
-      if (lines.length > 0 && content.length / lines.length > MINIFIED_AVG_LINE_LENGTH) continue;
+      if (isLikelyGeneratedBundle(content.length, lines.length)) continue;
       const matchLines = findKeyInContent(content, key);
 
       for (const matchLine of matchLines) {
@@ -150,7 +153,11 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
  * @param searchDir - Directory to search in
  * @returns Array with contexts added to each key
  */
-export type ContextProgressCallback = (info: { current: number; total: number; key: string }) => void;
+export type ContextProgressCallback = (info: {
+  current: number;
+  total: number;
+  key: string;
+}) => void;
 
 const DEFAULT_CONCURRENCY = 10;
 
@@ -161,7 +168,9 @@ export async function findContextForKeys(
   concurrency = DEFAULT_CONCURRENCY,
 ): Promise<Array<{ key: string; sourceValue: string; contexts: UsageContext[] }>> {
   const analysis = analysisStore.getState();
-  const results: Array<{ key: string; sourceValue: string; contexts: UsageContext[] }> = new Array(missingKeys.length);
+  const results: Array<{ key: string; sourceValue: string; contexts: UsageContext[] }> = new Array(
+    missingKeys.length,
+  );
   let completed = 0;
 
   async function processKey(index: number): Promise<void> {

@@ -67,11 +67,29 @@ describe('unit/cli/auth-status', () => {
     expect(logs.warn.some((message) => message.includes('Not authenticated'))).toBe(true);
   });
 
+  it('warns with expiry details when authentication is expired', async () => {
+    const expiresAt = '2026-04-11T12:00:00.000Z';
+    getAuthStatusMock.mockResolvedValueOnce({
+      authenticated: false,
+      expired: true,
+      expiresAt,
+      storage: 'keychain' as const,
+      source: 'browser_session' as const,
+    });
+
+    await authStatusCommand([]);
+
+    const message = logs.warn.join('\n');
+    expect(message).toContain('Authentication expired');
+    expect(message).toContain(expiresAt);
+    expect(message).toContain('authenticate again');
+  });
+
   it('shows success with expiry details when authenticated', async () => {
     const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
     getAuthStatusMock.mockResolvedValueOnce({
       authenticated: true,
-      expired: true,
+      expired: false,
       expiresAt,
       storage: 'environment' as const,
       source: 'environment_token' as const,
@@ -82,7 +100,6 @@ describe('unit/cli/auth-status', () => {
     const message = logs.success.join('\n');
     expect(message).toContain('Authenticated via environment token (CURLYDOTS_TOKEN)');
     expect(message).toContain('expires');
-    expect(message).toContain('expired');
   });
 
   it('shows API token source when authenticated with auth.json token', async () => {

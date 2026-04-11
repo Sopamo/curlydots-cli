@@ -10,9 +10,9 @@ import { join, resolve } from 'node:path';
 import { render } from 'ink';
 import * as React from 'react';
 import { getAvailableParsers, getParser } from '../parsers';
-import { findMissingTranslations } from '../services/analyzer';
 import { findContextForKeys } from '../services/context-finder';
 import { writeCsv } from '../services/csv-writer';
+import { findMissingTranslations } from '../services/missing-translations';
 import { analysisStore, configStore } from '../stores';
 import { App } from '../ui';
 
@@ -131,6 +131,7 @@ export function validateExtractArgs(args: ExtractArgs): string[] {
   }
 
   if (args.translationsDirs.length === 0) {
+    // The user is using --translation-dir which is repeatable, hence the difference in pluralization.
     errors.push('Missing required option: --translations-dir');
   } else if (args.repoPath) {
     for (const translationsDir of args.translationsDirs) {

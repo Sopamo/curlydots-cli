@@ -520,7 +520,7 @@ export interface ParserImportResult {
  * Parser interface - all parsers must implement this
  *
  * Parsers are responsible for:
- * - Reading translation files and returning key-value pairs (export)
+ * - Reading translation files and returning full lookup key-value pairs (export)
  * - Writing key-value pairs to translation files (import)
  *
  * Parsers are NOT responsible for:
@@ -535,10 +535,13 @@ export interface Parser {
    * Export translations from files (read operation)
    *
    * Reads all translation files in the given language directory
-   * and returns a flattened map of key paths to values.
+   * and returns a flattened map of full lookup key paths to values.
+   * Keys must include enough namespace/path context to match code usage and
+   * remain unique per project, e.g. users.name and products.name must not both
+   * be returned as name.
    *
    * @param langDir - Absolute path to language directory (e.g., "/project/translations/en")
-   * @returns Map of dot-notation key paths to translation values
+   * @returns Map of dot-notation full lookup key paths to translation values
    *
    * @example
    * // Given file: translations/en/generic.js with { welcome: "Hello" }

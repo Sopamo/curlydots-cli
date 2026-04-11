@@ -333,6 +333,8 @@ curlydots translations push --project <uuid> --repo <path> --translations-dir <p
 
 `--translations-dir` is the folder inside that repo where your translation files live. For example, if your files are in `/Users/you/my-app/src/locales/en`, then use `--repo /Users/you/my-app --translations-dir src/locales` and `--source en`.
 
+Config caveat: `translations push` resolves project, config, and auth files from the common ancestor of all resolved `--translations-dir` paths. With one directory, a repo-root `.curlydots` folder is still found because lookup walks upward. With multiple directories, put shared `.curlydots/current-project.json`, `.curlydots/config.json`, or `.curlydots/auth.json` at their common parent, or any parent above it, so one project/config applies to the whole push.
+
 ### Options
 
 | Option | Description |
@@ -405,6 +407,8 @@ bun run lint
 
 ## Adding a Parser
 
+Parsers must return full lookup keys, not leaf keys. For example, values used in code as `i18n.get('users.name')`, `i18n.get('products.name')`, and `i18n.get('admin.products.name')` must be returned as three distinct keys. Do not collapse them to `name`, because Curlydots de-duplicates uploads by the final `translationKey` string.
+
 1. Create `src/parsers/my-parser.ts`:
 
 ```typescript
@@ -412,9 +416,16 @@ import type { Parser } from '../types';
 
 export const myParser: Parser = {
   name: 'my-parser',
-  async parse(langDir: string): Promise<Map<string, string>> {
-    // Parse your format and return key-value map
-    return new Map();
+  async export(langDir: string): Promise<Map<string, string>> {
+    // Parse your format and return full lookup key-value pairs.
+    return new Map([
+      ['users.name', 'Name'],
+      ['products.name', 'Name'],
+    ]);
+  },
+  async import(langDir: string, translations: Map<string, string>) {
+    // Write full lookup keys back to your format.
+    return { filesCreated: 0, filesModified: 0, keysWritten: translations.size };
   },
 };
 ```

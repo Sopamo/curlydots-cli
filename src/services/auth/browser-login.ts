@@ -211,7 +211,7 @@ async function pollForResult(
         },
       });
     } catch (error) {
-      globalLogger.error(`Failed to create pairing session: ${describeHttpError(error)}`);
+      globalLogger.error(`Failed to poll pairing session: ${describeHttpError(error)}`);
       throw error;
     }
 

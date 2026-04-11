@@ -1,5 +1,5 @@
 /**
- * Translation Analyzer Service
+ * Missing Translations Service
  *
  * Compares source and target language translation files to find missing keys.
  */
@@ -7,8 +7,8 @@
 import { getParser } from '../parsers';
 import { analysisStore, configStore } from '../stores';
 import type { MissingTranslation } from '../types';
-import { loadTranslationDirectoryKeys } from './translation-directory';
 import { findTranslationContextForKey } from './translation-context';
+import { loadTranslationDirectoryKeys } from './translation-directory';
 
 /**
  * Result of translation analysis
@@ -85,17 +85,18 @@ export async function findMissingTranslations(): Promise<AnalysisResult> {
   const sourceKeys = new Map<string, string>();
   const targetKeys = new Map<string, string>();
   const directoryResults = await Promise.all(
-    config.translationsDirs.map((translationsDir) => loadTranslationDirectoryKeys(
-      parser,
-      config.repoPath,
-      translationsDir,
-      config.sourceLanguage,
-      config.targetLanguage,
-    )),
+    config.translationsDirs.map((translationsDir) =>
+      loadTranslationDirectoryKeys(
+        parser,
+        config.repoPath,
+        translationsDir,
+        config.sourceLanguage,
+        config.targetLanguage,
+      ),
+    ),
   );
 
   for (const directoryKeys of directoryResults) {
-
     for (const [key, value] of directoryKeys.sourceKeys) {
       sourceKeys.set(key, value);
     }
