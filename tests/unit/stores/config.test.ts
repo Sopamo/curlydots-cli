@@ -12,8 +12,8 @@ describe('configStore', () => {
       expect(configStore.getState().repoPath).toBe('');
     });
 
-    it('should have empty translationsDir', () => {
-      expect(configStore.getState().translationsDir).toBe('');
+    it('should have empty translationsDirs', () => {
+      expect(configStore.getState().translationsDirs).toEqual([]);
     });
 
     it('should have empty sourceLanguage', () => {
@@ -50,12 +50,14 @@ describe('configStore', () => {
     it('should update multiple fields at once', () => {
       configStore.getState().setConfig({
         repoPath: '/test/repo',
+        translationsDirs: ['locales', 'modules/*/locales'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
       });
 
       const state = configStore.getState();
       expect(state.repoPath).toBe('/test/repo');
+      expect(state.translationsDirs).toEqual(['locales', 'modules/*/locales']);
       expect(state.sourceLanguage).toBe('en');
       expect(state.targetLanguage).toBe('de');
     });
@@ -74,6 +76,7 @@ describe('configStore', () => {
     it('should reset all fields to defaults', () => {
       configStore.getState().setConfig({
         repoPath: '/test/repo',
+        translationsDirs: ['locales', 'modules/*/locales'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
         parser: 'custom-parser',
@@ -83,6 +86,7 @@ describe('configStore', () => {
 
       const state = configStore.getState();
       expect(state.repoPath).toBe('');
+      expect(state.translationsDirs).toEqual([]);
       expect(state.sourceLanguage).toBe('');
       expect(state.targetLanguage).toBe('');
       expect(state.parser).toBe('node-module');

@@ -16,7 +16,8 @@
   - `sourceLanguage`: string, required (default language)
   - `codeContext`: array of UsageContext, required (may be empty)
 - **Constraints**:
-  - `translationKey` must be unique within the upload batch
+  - `translationKey` must be unique across the full CLI upload set (before batching)
+  - A `translationKey` must not appear in more than one batch
   - `codeContext` is capped to 10 items
 
 ### UsageContext
@@ -32,6 +33,6 @@
 ## State/Workflow
 
 1. CLI validates auth and inputs.
-2. CLI scans repo and builds `TranslationKeyPayload` for each missing key.
-3. CLI fetches existing keys for the project and filters out known keys.
-4. CLI uploads remaining keys in batches (default 100).
+2. CLI scans repo and builds `TranslationKeyPayload` for each key.
+3. CLI fetches existing keys from the backend and filters out known keys.
+4. CLI uploads only new keys in batches (default 100).

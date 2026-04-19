@@ -15,6 +15,7 @@ export interface HttpClientOptions {
 export interface HttpErrorMeta {
   status?: number;
   category: 'transient' | 'authentication' | 'permanent' | 'system';
+  retryAfterMs?: number;
 }
 
 export interface HttpRequestOptions {
@@ -34,14 +35,42 @@ export class HttpClientError extends Error {
   }
 }
 
-const isRetryableStatus = (status: number): boolean => status >= 500 && status < 600;
+// Retry only failures where repeating the same request is expected to be safe:
+// timeout, rate limit, or server-side/transient outage. Auth and 4xx validation
+// errors need user/config changes, so retrying them would just hide the real issue.
+const isRetryableStatus = (status: number): boolean =>
+  status === 408 || status === 429 || status >= 500;
+
+function parseRetryAfterMs(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  // Rate limits are controlled by the server, so prefer its Retry-After window
+  // over local backoff when it provides either seconds or an HTTP date.
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1000;
+  }
+
+  const retryDate = Date.parse(value);
+  if (Number.isNaN(retryDate)) {
+    return undefined;
+  }
+
+  return Math.max(0, retryDate - Date.now());
+}
 
 async function requestWithTimeout<T>(
   request: (signal: AbortSignal) => Promise<T>,
   ms: number,
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ms);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, ms);
 
   try {
     const response = await request(controller.signal);
@@ -49,6 +78,9 @@ async function requestWithTimeout<T>(
     return response;
   } catch (error) {
     clearTimeout(timeout);
+    if (timedOut) {
+      throw new HttpClientError('Request timed out', { category: 'transient' });
+    }
     throw error;
   }
 }
@@ -98,6 +130,7 @@ export class HttpClient {
     const url = new URL(path, baseUrl).toString();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      Accept: 'application/json',
       'X-Curlydots-Cli-Version': cliVersion,
     };
 
@@ -114,12 +147,19 @@ export class HttpClient {
     }
 
     const attemptRequest = async (signal: AbortSignal): Promise<T> => {
-      const response = await this.fetcher(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-        signal,
-      });
+      let response: Response;
+      try {
+        response = await this.fetcher(url, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal,
+        });
+      } catch {
+        throw new HttpClientError('System error communicating with backend', {
+          category: 'transient',
+        });
+      }
 
       options.onResponse?.(response);
 
@@ -172,8 +212,12 @@ export class HttpClient {
           throw error;
         }
         attempt += 1;
-        await delay(delayMs);
-        delayMs = Math.min(delayMs * 2, maxDelayMs);
+        const waitMs = error.meta.retryAfterMs ?? delayMs;
+        await delay(waitMs);
+        delayMs = Math.min(
+          error.meta.retryAfterMs ? Math.max(waitMs * 2, delayMs) : delayMs * 2,
+          maxDelayMs,
+        );
       }
     }
   }
@@ -189,6 +233,9 @@ export class HttpClient {
       // ignore
     }
 
+    // Always include the URL in error messages for debugging
+    errorMessage = `${errorMessage} (${response.url})`;
+
     if (response.status === 401 || response.status === 403) {
       throw new HttpClientError(errorMessage, {
         status: response.status,
@@ -197,9 +244,14 @@ export class HttpClient {
     }
 
     if (isRetryableStatus(response.status)) {
+      const retryAfterMs =
+        response.status === 429
+          ? (parseRetryAfterMs(response.headers.get('Retry-After')) ?? 10_000)
+          : undefined;
       throw new HttpClientError(errorMessage, {
         status: response.status,
         category: 'transient',
+        retryAfterMs,
       });
     }
 

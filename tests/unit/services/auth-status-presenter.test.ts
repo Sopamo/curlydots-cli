@@ -22,6 +22,7 @@ const mockLoadCliAuthConfig = mock(
 
 const mockLoadAuthToken = mock<() => Promise<unknown>>(async () => null);
 const mockIsTokenExpired = mock(() => false);
+const mockGetValidToken = mock(async () => 'stored-token');
 const mockHttpClientGet = mock(async () => ({
   authenticated: true,
   expires_at: '2026-01-01T00:00:00Z',
@@ -31,13 +32,14 @@ const mockFromConfig = mock(() => ({
 }));
 const originalHttpClientFromConfig = HttpClient.fromConfig;
 
-describe('services/auth/status-presenter', () => {
+describe('services/auth/service getAuthStatus', () => {
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
     process.env.CURLYDOTS_TOKEN = undefined;
     mockHttpClientGet.mockClear();
     mockLoadAuthToken.mockClear();
     mockIsTokenExpired.mockClear();
+    mockGetValidToken.mockClear();
     mockFromConfig.mockClear();
     mockLoadCliAuthConfig.mockClear();
 
@@ -50,8 +52,9 @@ describe('services/auth/status-presenter', () => {
     }));
 
     mock.module('../../../src/services/auth/token-manager', () => ({
-      loadAuthToken: mockLoadAuthToken,
+      getValidToken: mockGetValidToken,
       isTokenExpired: mockIsTokenExpired,
+      loadAuthToken: mockLoadAuthToken,
     }));
 
     HttpClient.fromConfig = mockFromConfig as unknown as typeof HttpClient.fromConfig;
@@ -67,7 +70,7 @@ describe('services/auth/status-presenter', () => {
   it('reports authenticated when env token is valid', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token';
 
-    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const { getAuthStatus } = await import('../../../src/services/auth/service');
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(true);
@@ -80,7 +83,7 @@ describe('services/auth/status-presenter', () => {
       new HttpClientError('Token deactivated', { category: 'authentication' }),
     );
 
-    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const { getAuthStatus } = await import('../../../src/services/auth/service');
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(false);
@@ -93,7 +96,7 @@ describe('services/auth/status-presenter', () => {
       new HttpClientError('Network error', { category: 'system' }),
     );
 
-    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const { getAuthStatus } = await import('../../../src/services/auth/service');
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(false);
@@ -107,7 +110,7 @@ describe('services/auth/status-presenter', () => {
       token: 'config-token',
     });
 
-    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const { getAuthStatus } = await import('../../../src/services/auth/service');
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(true);
@@ -120,7 +123,7 @@ describe('services/auth/status-presenter', () => {
       expiresAt: '2026-01-01T00:00:00Z',
     });
 
-    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const { getAuthStatus } = await import('../../../src/services/auth/service');
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(true);
@@ -136,7 +139,7 @@ describe('services/auth/status-presenter', () => {
       new HttpClientError('Network error', { category: 'system' }),
     );
 
-    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const { getAuthStatus } = await import('../../../src/services/auth/service');
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(false);

@@ -329,15 +329,21 @@ Upload new translation keys to the backend, including code context and default l
 curlydots translations push --project <uuid> --repo <path> --translations-dir <path> --source <lang> --parser <name>
 ```
 
+`--repo` means the root folder of the app you want to scan. For example, if your project lives in `/Users/you/my-app`, then `--repo /Users/you/my-app`.
+
+`--translations-dir` is the folder inside that repo where your translation files live. For example, if your files are in `/Users/you/my-app/src/locales/en`, then use `--repo /Users/you/my-app --translations-dir src/locales` and `--source en`.
+
+Config caveat: `translations push` resolves project, config, and auth files from the common ancestor of all resolved `--translations-dir` paths. With one directory, a repo-root `.curlydots` folder is still found because lookup walks upward. With multiple directories, put shared `.curlydots/current-project.json`, `.curlydots/config.json`, or `.curlydots/auth.json` at their common parent, or any parent above it, so one project/config applies to the whole push.
+
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--project <uuid>` | Project UUID (required) |
-| `--repo <path>` | Repository path (required) |
-| `--translations-dir <path>` | Translations directory (required) |
-| `--source <lang>` | Source language code (required) |
-| `--parser <name>` | Parser to use (default: node-module) |
+| `--project <uuid>` | Project UUID (optional if a project is already selected) |
+| `--repo <path>` | Path to the root of the app/repository to scan for code usage and translation folders (required) |
+| `--translations-dir <path>` | Path inside `--repo` where translation files live; repeatable and can use globs (required) |
+| `--source <lang>` | Source language folder/code inside each translations directory, for example `en` (required) |
+| `--parser <name>` | Parser that matches how your translations are stored, for example `node-module` (default: node-module) |
 | `--api-host <url>` | API host (default: https://curlydots.com) |
 | `--api-token <token>` | API token override (optional if logged in) |
 | `--extensions <list>` | Comma-separated extensions to scan (default: all files) |
@@ -401,6 +407,8 @@ bun run lint
 
 ## Adding a Parser
 
+Parsers must return full lookup keys, not leaf keys. For example, values used in code as `i18n.get('users.name')`, `i18n.get('products.name')`, and `i18n.get('admin.products.name')` must be returned as three distinct keys. Do not collapse them to `name`, because Curlydots de-duplicates uploads by the final `translationKey` string.
+
 1. Create `src/parsers/my-parser.ts`:
 
 ```typescript
@@ -408,9 +416,16 @@ import type { Parser } from '../types';
 
 export const myParser: Parser = {
   name: 'my-parser',
-  async parse(langDir: string): Promise<Map<string, string>> {
-    // Parse your format and return key-value map
-    return new Map();
+  async export(langDir: string): Promise<Map<string, string>> {
+    // Parse your format and return full lookup key-value pairs.
+    return new Map([
+      ['users.name', 'Name'],
+      ['products.name', 'Name'],
+    ]);
+  },
+  async import(langDir: string, translations: Map<string, string>) {
+    // Write full lookup keys back to your format.
+    return { filesCreated: 0, filesModified: 0, keysWritten: translations.size };
   },
 };
 ```

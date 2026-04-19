@@ -1,10 +1,21 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findContextForKeys, findKeyUsages } from '../../../src/services/context-finder';
 import { configStore } from '../../../src/stores';
 import type { UsageContext } from '../../../src/types';
 
 const FIXTURES_PATH = join(import.meta.dir, '../../fixtures/sample-repo');
+
+function initGitRepo(repoPath: string): void {
+  execFileSync('git', ['init'], { cwd: repoPath, stdio: 'ignore' });
+}
+
+function addFileToGit(repoPath: string, filePath: string): void {
+  execFileSync('git', ['add', filePath], { cwd: repoPath, stdio: 'ignore' });
+}
 
 describe('context-finder', () => {
   beforeEach(() => {
@@ -29,10 +40,137 @@ describe('context-finder', () => {
       expect(usages.length).toBeGreaterThan(0);
     });
 
+    it('should find repeated key usages across multiple lines in the same file', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'context-finder-'));
+
+      try {
+        await mkdir(join(tempDir, 'src'), { recursive: true });
+        initGitRepo(tempDir);
+        await writeFile(
+          join(tempDir, 'src', 'repeat.ts'),
+          [
+            "const a = t('common.save');",
+            "const b = t('common.save');",
+            "const c = 'common.save';",
+          ].join('\n'),
+          'utf8',
+        );
+
+        configStore.getState().setConfig({
+          repoPath: tempDir,
+          extensions: ['.ts'],
+        });
+
+        const usages = await findKeyUsages('common.save', tempDir);
+
+        expect(usages).toHaveLength(3);
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should ignore files excluded by .gitignore', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'context-finder-ignore-'));
+
+      try {
+        await mkdir(join(tempDir, 'src'), { recursive: true });
+        initGitRepo(tempDir);
+        await writeFile(join(tempDir, '.gitignore'), 'src/ignored.ts\n', 'utf8');
+        await writeFile(
+          join(tempDir, 'src', 'tracked.ts'),
+          "const tracked = t('common.save');\n",
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'src', 'ignored.ts'),
+          "const ignored = t('common.save');\n",
+          'utf8',
+        );
+
+        configStore.getState().setConfig({
+          repoPath: tempDir,
+          extensions: ['.ts'],
+        });
+
+        const usages = await findKeyUsages('common.save', tempDir);
+
+        expect(usages).toHaveLength(1);
+        expect(usages[0]?.filePath).toContain('tracked.ts');
+        expect(usages.some((usage) => usage.filePath.includes('ignored.ts'))).toBe(false);
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should ignore tracked files that match .gitignore', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'context-finder-tracked-ignore-'));
+
+      try {
+        await mkdir(join(tempDir, 'src'), { recursive: true });
+        initGitRepo(tempDir);
+        await writeFile(
+          join(tempDir, 'src', 'tracked.ts'),
+          "const tracked = t('common.save');\n",
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'src', 'visible.ts'),
+          "const visible = t('common.save');\n",
+          'utf8',
+        );
+        addFileToGit(tempDir, 'src/tracked.ts');
+        await writeFile(join(tempDir, '.gitignore'), 'src/tracked.ts\n', 'utf8');
+
+        configStore.getState().setConfig({
+          repoPath: tempDir,
+          extensions: ['.ts'],
+        });
+
+        const usages = await findKeyUsages('common.save', tempDir);
+
+        expect(usages).toHaveLength(1);
+        expect(usages[0]?.filePath).toContain('visible.ts');
+        expect(usages.some((usage) => usage.filePath.includes('tracked.ts'))).toBe(false);
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
     it('should return empty array for unused key', async () => {
       const usages = await findKeyUsages('nonexistent.key.that.does.not.exist', FIXTURES_PATH);
 
       expect(usages.length).toBe(0);
+    });
+
+    it('should skip generated bundle-shaped files during context search', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'context-finder-generated-'));
+
+      try {
+        await mkdir(join(tempDir, 'src'), { recursive: true });
+        initGitRepo(tempDir);
+        await writeFile(
+          join(tempDir, 'src', 'page.js'),
+          "const label = t('common.save');\n",
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'src', 'bundle.js'),
+          `const bundle='${'x'.repeat(600)}';const label=t('common.save');`,
+          'utf8',
+        );
+
+        configStore.getState().setConfig({
+          repoPath: tempDir,
+          extensions: ['.js'],
+        });
+
+        const usages = await findKeyUsages('common.save', tempDir);
+
+        expect(usages).toHaveLength(1);
+        expect(usages[0]?.filePath).toContain('page.js');
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
     });
 
     it('should limit results to 10 usages', async () => {

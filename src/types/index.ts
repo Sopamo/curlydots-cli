@@ -13,8 +13,8 @@ export interface Config {
   /** Absolute path to the repository root */
   repoPath: string;
 
-  /** Path to translations directory relative to repoPath */
-  translationsDir: string;
+  /** Paths to translation directories relative to repoPath */
+  translationsDirs: string[];
 
   /** Source language code (e.g., "en") */
   sourceLanguage: string;
@@ -41,8 +41,7 @@ export interface Config {
  */
 export type AnalysisStatus =
   | 'idle'
-  | 'parsing_source'
-  | 'parsing_target'
+  | 'parsing_translations'
   | 'comparing'
   | 'searching_context'
   | 'searching_translation_context'
@@ -59,8 +58,7 @@ export type AnalysisStatus =
  * Tasks are displayed and completed in this order
  */
 export type TaskId =
-  | 'find_source_keys'
-  | 'find_target_keys'
+  | 'find_translation_keys'
   | 'find_missing'
   | 'find_code_context'
   | 'find_translation_context'
@@ -522,7 +520,7 @@ export interface ParserImportResult {
  * Parser interface - all parsers must implement this
  *
  * Parsers are responsible for:
- * - Reading translation files and returning key-value pairs (export)
+ * - Reading translation files and returning full lookup key-value pairs (export)
  * - Writing key-value pairs to translation files (import)
  *
  * Parsers are NOT responsible for:
@@ -537,10 +535,13 @@ export interface Parser {
    * Export translations from files (read operation)
    *
    * Reads all translation files in the given language directory
-   * and returns a flattened map of key paths to values.
+   * and returns a flattened map of full lookup key paths to values.
+   * Keys must include enough namespace/path context to match code usage and
+   * remain unique per project, e.g. users.name and products.name must not both
+   * be returned as name.
    *
    * @param langDir - Absolute path to language directory (e.g., "/project/translations/en")
-   * @returns Map of dot-notation key paths to translation values
+   * @returns Map of dot-notation full lookup key paths to translation values
    *
    * @example
    * // Given file: translations/en/generic.js with { welcome: "Hello" }

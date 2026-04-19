@@ -4,10 +4,9 @@
  * Searches for translation key usages in code and extracts surrounding context.
  */
 
-import { join } from 'node:path';
-import { Glob } from 'bun';
 import { analysisStore, configStore } from '../stores';
 import type { UsageContext } from '../types';
+import { listFilesRespectingGitIgnore } from '../utils/git-aware-files';
 
 /** Maximum number of context snippets per key */
 const MAX_CONTEXTS_PER_KEY = 10;
@@ -15,12 +14,25 @@ const MAX_CONTEXTS_PER_KEY = 10;
 /** Number of lines to extract around each match */
 const CONTEXT_LINES = 15;
 
+/** Maximum snippet length in characters to avoid DB overflow */
+const MAX_SNIPPET_LENGTH = 5000;
+
+/**
+ * Heuristic for generated/minified bundles: useful code context almost always
+ * comes from source files, while one-line bundles are noisy and expensive to scan.
+ */
+const GENERATED_FILE_AVG_LINE_LENGTH_THRESHOLD = 500;
+
 /**
  * Check if a file is likely binary
  */
 function isBinaryFile(content: string): boolean {
   // Check for null bytes which indicate binary content
   return content.includes('\0');
+}
+
+function isLikelyGeneratedBundle(contentLength: number, lineCount: number): boolean {
+  return lineCount > 0 && contentLength / lineCount > GENERATED_FILE_AVG_LINE_LENGTH_THRESHOLD;
 }
 
 /**
@@ -35,10 +47,15 @@ export function extractContext(lines: string[], matchLine: number, filePath: str
 
   const snippetLines = lines.slice(startLine, endLine + 1);
 
+  let snippet = snippetLines.join('\n');
+  if (snippet.length > MAX_SNIPPET_LENGTH) {
+    snippet = `${snippet.slice(0, MAX_SNIPPET_LENGTH)}\n... (truncated)`;
+  }
+
   return {
     filePath,
     lineNumber: matchLine + 1, // 1-indexed
-    snippet: snippetLines.join('\n'),
+    snippet,
     snippetStartLine: startLine + 1, // 1-indexed
     snippetEndLine: endLine + 1, // 1-indexed
   };
@@ -58,10 +75,7 @@ function findKeyInContent(content: string, key: string): number[] {
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   // Match patterns: 'key', "key", or key (unquoted in certain contexts)
-  const patterns = [
-    new RegExp(`['"]${escapedKey}['"]`, 'g'), // Quoted
-    new RegExp(`\\b${escapedKey}\\b`, 'g'), // Unquoted word boundary
-  ];
+  const patterns = [new RegExp(`['"]${escapedKey}['"]`), new RegExp(`\\b${escapedKey}\\b`)];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -88,48 +102,46 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
   const config = configStore.getState();
   const contexts: UsageContext[] = [];
 
-  // Build glob pattern from extensions
-  const extensions =
-    config.extensions.length > 0 ? config.extensions.map((ext) => `**/*${ext}`) : ['**/*'];
+  const searchableFiles = await listFilesRespectingGitIgnore(searchDir, (relativePath) => {
+    if (
+      relativePath.includes('node_modules/') ||
+      relativePath.includes('/node_modules/') ||
+      relativePath.includes('/.git/') ||
+      relativePath.startsWith('.git/') ||
+      relativePath.includes('/dist/') ||
+      relativePath.startsWith('dist/') ||
+      relativePath.includes('/build/') ||
+      relativePath.startsWith('build/')
+    ) {
+      return false;
+    }
 
-  for (const pattern of extensions) {
+    if (config.extensions.length === 0) {
+      return true;
+    }
+
+    return config.extensions.some((extension) => relativePath.endsWith(extension));
+  });
+
+  for (const filePath of searchableFiles) {
     if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
 
-    const glob = new Glob(pattern);
+    try {
+      const file = Bun.file(filePath);
+      const content = await file.text();
 
-    for await (const relativePath of glob.scan({ cwd: searchDir, absolute: false })) {
-      if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
+      if (isBinaryFile(content)) continue;
+      const lines = content.split('\n');
+      if (isLikelyGeneratedBundle(content.length, lines.length)) continue;
+      const matchLines = findKeyInContent(content, key);
 
-      // Skip node_modules and other common non-source directories
-      if (
-        relativePath.includes('node_modules') ||
-        relativePath.includes('.git') ||
-        relativePath.includes('dist') ||
-        relativePath.includes('build')
-      ) {
-        continue;
+      for (const matchLine of matchLines) {
+        if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
+
+        const context = extractContext(lines, matchLine, filePath);
+        contexts.push(context);
       }
-
-      const filePath = join(searchDir, relativePath);
-
-      try {
-        const file = Bun.file(filePath);
-        const content = await file.text();
-
-        // Skip binary files
-        if (isBinaryFile(content)) continue;
-
-        const lines = content.split('\n');
-        const matchLines = findKeyInContent(content, key);
-
-        for (const matchLine of matchLines) {
-          if (contexts.length >= MAX_CONTEXTS_PER_KEY) break;
-
-          const context = extractContext(lines, matchLine, filePath);
-          contexts.push(context);
-        }
-      } catch {}
-    }
+    } catch {}
   }
 
   return contexts;
@@ -141,29 +153,52 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
  * @param searchDir - Directory to search in
  * @returns Array with contexts added to each key
  */
+export type ContextProgressCallback = (info: {
+  current: number;
+  total: number;
+  key: string;
+}) => void;
+
+const DEFAULT_CONCURRENCY = 10;
+
 export async function findContextForKeys(
   missingKeys: Array<{ key: string; sourceValue: string }>,
   searchDir: string,
+  onProgress?: ContextProgressCallback,
+  concurrency = DEFAULT_CONCURRENCY,
 ): Promise<Array<{ key: string; sourceValue: string; contexts: UsageContext[] }>> {
   const analysis = analysisStore.getState();
-  const results: Array<{ key: string; sourceValue: string; contexts: UsageContext[] }> = [];
+  const results: Array<{ key: string; sourceValue: string; contexts: UsageContext[] }> = new Array(
+    missingKeys.length,
+  );
+  let completed = 0;
 
-  for (let i = 0; i < missingKeys.length; i++) {
-    const item = missingKeys[i];
-    if (!item) continue;
-
-    analysis.setCurrentKey(item.key);
-    analysis.setProgress(i + 1, missingKeys.length);
-    analysis.setTaskProgress('find_code_context', i + 1, missingKeys.length);
+  async function processKey(index: number): Promise<void> {
+    const item = missingKeys[index];
+    if (!item) return;
 
     const contexts = await findKeyUsages(item.key, searchDir);
+    results[index] = { key: item.key, sourceValue: item.sourceValue, contexts };
 
-    results.push({
-      key: item.key,
-      sourceValue: item.sourceValue,
-      contexts,
-    });
+    completed += 1;
+    analysis.setCurrentKey(item.key);
+    analysis.setProgress(completed, missingKeys.length);
+    analysis.setTaskProgress('find_code_context', completed, missingKeys.length);
+    onProgress?.({ current: completed, total: missingKeys.length, key: item.key });
   }
 
-  return results;
+  // Process keys in parallel with concurrency limit
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < missingKeys.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      await processKey(index);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, missingKeys.length) }, () => worker());
+  await Promise.all(workers);
+
+  return results.filter(Boolean);
 }

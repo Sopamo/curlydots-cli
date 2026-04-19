@@ -8,12 +8,11 @@ describe('ChecklistView', () => {
     analysisStore.getState().reset();
   });
 
-  it('should render all 6 tasks', () => {
+  it('should render all 5 tasks', () => {
     const { lastFrame } = render(<ChecklistView />);
     const output = lastFrame() ?? '';
 
-    expect(output).toContain('Find source translation keys');
-    expect(output).toContain('Find target translation keys');
+    expect(output).toContain('Find translation keys');
     expect(output).toContain('Find missing translations');
     expect(output).toContain('Find code usage context');
     expect(output).toContain('Find existing translation context');
@@ -29,8 +28,8 @@ describe('ChecklistView', () => {
   });
 
   it('should show checkmark for completed tasks', () => {
-    analysisStore.getState().startTask('find_source_keys');
-    analysisStore.getState().completeTask('find_source_keys');
+    analysisStore.getState().startTask('find_translation_keys');
+    analysisStore.getState().completeTask('find_translation_keys');
 
     const { lastFrame } = render(<ChecklistView />);
     const output = lastFrame() ?? '';
@@ -40,22 +39,22 @@ describe('ChecklistView', () => {
   });
 
   it('should show in-progress indicator for active task', () => {
-    analysisStore.getState().startTask('find_source_keys');
+    analysisStore.getState().startTask('find_translation_keys');
 
     const { lastFrame } = render(<ChecklistView />);
     const output = lastFrame() ?? '';
 
     // Should have some indicator for in-progress (spinner or arrow)
     // The exact character depends on implementation
-    expect(output).toContain('Find source translation keys');
+    expect(output).toContain('Find translation keys');
   });
 
   it('should show multiple completed tasks', () => {
-    analysisStore.getState().startTask('find_source_keys');
-    analysisStore.getState().completeTask('find_source_keys');
-    analysisStore.getState().startTask('find_target_keys');
-    analysisStore.getState().completeTask('find_target_keys');
+    analysisStore.getState().startTask('find_translation_keys');
+    analysisStore.getState().completeTask('find_translation_keys');
     analysisStore.getState().startTask('find_missing');
+    analysisStore.getState().completeTask('find_missing');
+    analysisStore.getState().startTask('find_code_context');
 
     const { lastFrame } = render(<ChecklistView />);
     const output = lastFrame() ?? '';

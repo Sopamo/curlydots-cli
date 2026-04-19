@@ -1,13 +1,12 @@
 import * as readline from 'node:readline';
 import chalk from 'chalk';
-import { loadCliAuthConfig } from '../config/auth-config.js';
 import { loadCliConfig } from '../config/cli-config.js';
 import {
   clearCurrentProject,
   getCurrentProject,
   setCurrentProject,
 } from '../config/project-config.js';
-import { loadAuthToken } from '../services/auth/token-manager.js';
+import { getCliAccessToken, getExplicitAccessToken } from '../services/auth/service.js';
 import { HttpClient, HttpClientError } from '../services/http/client.js';
 import { globalLogger } from '../utils/logger.js';
 
@@ -70,8 +69,8 @@ async function promptForSelection(projects: Project[]): Promise<Project | null> 
 
 export async function projectsCommand(_args: string[]): Promise<void> {
   try {
-    const token = await loadAuthToken();
-    if (!token) {
+    const accessToken = await getCliAccessToken();
+    if (!accessToken) {
       globalLogger.error('Not authenticated. Run "curlydots auth login" first.');
       process.exitCode = 1;
       return;
@@ -81,7 +80,7 @@ export async function projectsCommand(_args: string[]): Promise<void> {
     const client = HttpClient.fromConfig(config);
 
     const response = await client.get<ProjectsResponse>('cli/projects', {
-      token: token.accessToken,
+      token: accessToken,
     });
 
     if (!response.data || response.data.length === 0) {
@@ -90,8 +89,7 @@ export async function projectsCommand(_args: string[]): Promise<void> {
     }
 
     const storedProject = getCurrentProject();
-    const authConfig = loadCliAuthConfig();
-    const hasApiKey = !!authConfig.token;
+    const hasApiKey = !!getExplicitAccessToken();
     const projectIds = new Set(response.data.map((project) => project.id));
     let currentProject = storedProject;
 

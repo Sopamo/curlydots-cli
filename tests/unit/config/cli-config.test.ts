@@ -53,6 +53,16 @@ function mockConfigPathsModule(options: {
 
       return undefined;
     },
+    findNearestCurlydotsFilePathFrom: (fileName: string, startDir: string) => {
+      if (fileName !== 'config.json' || !projectConfigPath) {
+        return undefined;
+      }
+
+      return projectConfigPath.startsWith(`${startDir}/`) ||
+        projectConfigPath === `${startDir}/.curlydots/config.json`
+        ? projectConfigPath
+        : undefined;
+    },
     getGlobalCurlydotsFilePath: (fileName: string) => `/home/test/.curlydots/${fileName}`,
     parseJsonObjectFile: (filePath: string) => {
       if (!existsSyncMock(filePath)) {
@@ -248,6 +258,55 @@ describe('config/cli-config', () => {
     expect(config.sources.apiEndpoint).toEqual({ source: 'project', path: projectConfigPath });
     expect(config.sources.frontendUrl).toEqual({ source: 'project', path: projectConfigPath });
     expect(config.sources.debug).toEqual({ source: 'project', path: projectConfigPath });
+  });
+
+  it('uses the explicit base directory to find project config overrides', async () => {
+    const globalConfigPath = '/home/test/.curlydots/config.json';
+    const globalAuthPath = '/home/test/.curlydots/auth.json';
+    const explicitBaseDir = '/workspace/shared';
+    const projectConfigPath = join(explicitBaseDir, '.curlydots/config.json');
+
+    const existsSyncMock = mock(
+      (filePath: string) =>
+        filePath === globalConfigPath ||
+        filePath === globalAuthPath ||
+        filePath === projectConfigPath,
+    );
+    const readFileSyncMock = mock((filePath: string) => {
+      if (filePath === globalConfigPath) {
+        return JSON.stringify({
+          schemaVersion: 1,
+          apiEndpoint: 'https://from-global.example/api',
+          frontendUrl: 'https://frontend-global.example',
+          debug: false,
+        });
+      }
+      if (filePath === projectConfigPath) {
+        return JSON.stringify({
+          schemaVersion: 1,
+          apiEndpoint: 'https://from-explicit.example/api',
+          frontendUrl: 'https://frontend-explicit.example',
+          debug: true,
+        });
+      }
+      throw new Error(`Unexpected read: ${filePath}`);
+    });
+
+    mockConfigPathsModule({
+      globalConfigPath,
+      projectConfigPath,
+      globalAuthPath,
+      readFileSyncMock,
+      existsSyncMock,
+    });
+
+    const { loadCliConfig } = await importFreshCliConfigModule();
+    const config = loadCliConfig(explicitBaseDir);
+
+    expect(config.apiEndpoint).toBe('https://from-explicit.example/api');
+    expect(config.frontendUrl).toBe('https://frontend-explicit.example');
+    expect(config.debug).toBe(true);
+    expect(config.sources.apiEndpoint).toEqual({ source: 'project', path: projectConfigPath });
   });
 
   it('reports project and global config sources for resolved values', async () => {

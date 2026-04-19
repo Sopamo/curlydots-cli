@@ -1,0 +1,11 @@
+{
+  binList: {
+    buttonLabels: {
+      deleteSelected: "Ausgewählte löschen",
+    },
+    moduleTitle: "Papierkorb",
+  },
+  categories: {
+    categorySelectLabelPlural: "Kategorien",
+  },
+}

@@ -30,6 +30,16 @@ function mockConfigPathsModule(options: {
     ensureGlobalCurlydotsConfigFiles: () => undefined,
     findNearestProjectCurlydotsFilePath: (fileName: string) =>
       fileName === 'auth.json' ? projectAuthPath : undefined,
+    findNearestCurlydotsFilePathFrom: (fileName: string, startDir: string) => {
+      if (fileName !== 'auth.json' || !projectAuthPath) {
+        return undefined;
+      }
+
+      return projectAuthPath.startsWith(`${startDir}/`) ||
+        projectAuthPath === `${startDir}/.curlydots/auth.json`
+        ? projectAuthPath
+        : undefined;
+    },
     getGlobalCurlydotsFilePath: (fileName: string) =>
       fileName === 'auth.json' ? globalAuthPath : `/home/test/.curlydots/${fileName}`,
     parseJsonObjectFile: (filePath: string) =>
@@ -130,6 +140,45 @@ describe('config/auth-config', () => {
 
     expect(config.token).toBe('env-token');
     expect(config.tokenStorage).toBe('keychain');
+  });
+
+  it('uses the explicit base directory to find project auth overrides', async () => {
+    const globalAuthPath = '/home/test/.curlydots/auth.json';
+    const explicitBaseDir = '/workspace/shared';
+    const projectAuthPath = `${explicitBaseDir}/.curlydots/auth.json`;
+
+    const readFileSyncMock = mock((filePath: string) => {
+      if (filePath === globalAuthPath) {
+        return JSON.stringify({
+          schemaVersion: 1,
+          authMethod: 'browser',
+          tokenStorage: 'keychain',
+          token: 'global-token',
+        });
+      }
+      if (filePath === projectAuthPath) {
+        return JSON.stringify({
+          schemaVersion: 1,
+          authMethod: 'api_key',
+          tokenStorage: 'file',
+          token: 'explicit-token',
+        });
+      }
+      throw new Error(`Unexpected read: ${filePath}`);
+    });
+
+    mockConfigPathsModule({
+      globalAuthPath,
+      projectAuthPath,
+      readFileSyncMock,
+    });
+
+    const { loadCliAuthConfig } = await importFreshAuthConfigModule();
+    const config = loadCliAuthConfig(explicitBaseDir);
+
+    expect(config.authMethod).toBe('api_key');
+    expect(config.tokenStorage).toBe('file');
+    expect(config.token).toBe('explicit-token');
   });
 
   it('warns when auth schema version is newer than supported', async () => {

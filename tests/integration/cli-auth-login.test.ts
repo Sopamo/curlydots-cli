@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import type { CliAuthConfig } from '../../src/config/auth-config';
-import * as authConfigModule from '../../src/config/auth-config';
 import type { AuthToken } from '../../src/services/auth/browser-login';
 import * as browserLoginModule from '../../src/services/auth/browser-login';
+import * as authServiceModule from '../../src/services/auth/service';
 import * as tokenManagerModule from '../../src/services/auth/token-manager';
 import * as loggerModule from '../../src/utils/logger';
 
@@ -15,18 +14,18 @@ const token: AuthToken = {
 
 const runBrowserLoginMock = mock(async () => token);
 const persistAuthTokenMock = mock(async () => {});
-const loadCliAuthConfigMock = mock(
-  (): CliAuthConfig => ({
-    authMethod: 'browser' as const,
-    tokenStorage: 'keychain' as const,
-    token: undefined as string | undefined,
-  }),
-);
+const getExplicitAccessTokenMock = mock<
+  () => {
+    source: 'environment_token' | 'api_key';
+    storage: 'environment' | 'file';
+    token: string;
+  } | null
+>(() => null);
 const getSecureTokenMock = mock(async () => null);
 const saveSecureTokenMock = mock(async () => {});
 const originalBrowserLogin = { ...browserLoginModule };
 const originalTokenManager = { ...tokenManagerModule };
-const originalAuthConfig = { ...authConfigModule };
+const originalAuthService = { ...authServiceModule };
 const originalLogger = { ...loggerModule };
 
 const logs = {
@@ -38,7 +37,7 @@ describe('[module-mock] integration/cli-auth-login', () => {
   beforeEach(() => {
     runBrowserLoginMock.mockClear();
     persistAuthTokenMock.mockClear();
-    loadCliAuthConfigMock.mockClear();
+    getExplicitAccessTokenMock.mockClear();
     logs.warn.length = 0;
     logs.success.length = 0;
     process.exitCode = undefined;
@@ -54,8 +53,9 @@ describe('[module-mock] integration/cli-auth-login', () => {
       saveSecureToken: saveSecureTokenMock,
       clearSecureToken: async () => {},
     }));
-    mock.module('../../src/config/auth-config', () => ({
-      loadCliAuthConfig: loadCliAuthConfigMock,
+    mock.module('../../src/services/auth/service', () => ({
+      ...originalAuthService,
+      getExplicitAccessToken: getExplicitAccessTokenMock,
     }));
     mock.module('../../src/utils/logger', () => ({
       ...originalLogger,
@@ -75,7 +75,7 @@ describe('[module-mock] integration/cli-auth-login', () => {
     // Workaround for https://github.com/oven-sh/bun/issues/7823 due to ESM caching.
     mock.module('../../src/services/auth/browser-login', () => ({ ...originalBrowserLogin }));
     mock.module('../../src/services/auth/token-manager', () => ({ ...originalTokenManager }));
-    mock.module('../../src/config/auth-config', () => ({ ...originalAuthConfig }));
+    mock.module('../../src/services/auth/service', () => ({ ...originalAuthService }));
     mock.module('../../src/utils/logger', () => ({ ...originalLogger }));
   });
 
@@ -107,6 +107,11 @@ describe('[module-mock] integration/cli-auth-login', () => {
 
   it('skips browser login when CURLYDOTS_TOKEN is set', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token';
+    getExplicitAccessTokenMock.mockReturnValueOnce({
+      source: 'environment_token',
+      storage: 'environment',
+      token: 'env-token',
+    });
 
     const { runCli } = await import('../../src/cli');
 
@@ -118,9 +123,9 @@ describe('[module-mock] integration/cli-auth-login', () => {
   });
 
   it('skips browser login when auth.json token is configured', async () => {
-    loadCliAuthConfigMock.mockReturnValueOnce({
-      authMethod: 'api_key',
-      tokenStorage: 'file',
+    getExplicitAccessTokenMock.mockReturnValueOnce({
+      source: 'api_key',
+      storage: 'file',
       token: 'file-token',
     });
 

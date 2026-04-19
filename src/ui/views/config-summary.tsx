@@ -16,6 +16,8 @@ interface ConfigSummaryProps {
  * Config summary showing repository and analysis settings
  */
 export function ConfigSummaryView({ config }: ConfigSummaryProps): React.ReactElement {
+  const translationsLabel = config.translationsDirs.join(', ');
+
   return (
     <Box flexDirection="column" marginBottom={1} borderStyle="single" paddingX={1}>
       <Text bold color="cyan">
@@ -28,7 +30,7 @@ export function ConfigSummaryView({ config }: ConfigSummaryProps): React.ReactEl
         </Text>
         <Text>
           <Text color="gray">Translations: </Text>
-          <Text>{config.translationsDir}</Text>
+          <Text>{translationsLabel}</Text>
         </Text>
         <Text>
           <Text color="gray">Languages: </Text>

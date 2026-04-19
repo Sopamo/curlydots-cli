@@ -3,14 +3,14 @@ import { join, resolve } from 'node:path';
 import { getAvailableParsers, getParser } from '../../parsers';
 
 export interface PushArgs {
-  projectUuid: string;
+  projectUuid?: string;
   repoPath: string;
-  translationsDir: string;
+  translationsDirs: string[];
   source: string;
   parser: string;
   parserFile?: string;
   extensions: string[];
-  apiHost: string;
+  apiHost?: string;
   apiToken?: string;
   batchSize: number;
   help: boolean;
@@ -23,12 +23,12 @@ export function parsePushArgs(args: string[]): PushArgs {
   const result: PushArgs = {
     projectUuid: '',
     repoPath: '',
-    translationsDir: '',
+    translationsDirs: [],
     source: '',
     parser: 'node-module',
     parserFile: undefined,
     extensions: [...includeExtensions],
-    apiHost: 'https://curlydots.com',
+    apiHost: undefined,
     apiToken: undefined,
     batchSize: 100,
     help: false,
@@ -45,7 +45,8 @@ export function parsePushArgs(args: string[]): PushArgs {
     } else if (arg === '--repo') {
       result.repoPath = args[++i] || '';
     } else if (arg === '-d' || arg === '--translations-dir') {
-      result.translationsDir = args[++i] || '';
+      const val = args[++i] || '';
+      if (val) result.translationsDirs.push(val);
     } else if (arg === '-s' || arg === '--source') {
       result.source = args[++i] || '';
     } else if (arg === '-p' || arg === '--parser') {
@@ -76,10 +77,6 @@ export function parsePushArgs(args: string[]): PushArgs {
 export function validatePushArgs(args: PushArgs): string[] {
   const errors: string[] = [];
 
-  if (!args.projectUuid) {
-    errors.push('Missing required option: --project');
-  }
-
   if (!args.repoPath) {
     errors.push('Missing required option: --repo');
   } else {
@@ -93,12 +90,17 @@ export function validatePushArgs(args: PushArgs): string[] {
     errors.push('Missing required option: --source');
   }
 
-  if (!args.translationsDir) {
+  if (args.translationsDirs.length === 0) {
+    // The user is using --translation-dir which is repeatable, hence the difference in pluralization.
     errors.push('Missing required option: --translations-dir');
   } else if (args.repoPath) {
-    const translationsPath = join(resolve(args.repoPath), args.translationsDir);
-    if (!existsSync(translationsPath)) {
-      errors.push(`Translations directory not found: ${translationsPath}`);
+    for (const dir of args.translationsDirs) {
+      // Skip glob patterns — they'll be resolved at runtime
+      if (dir.includes('*')) continue;
+      const translationsPath = join(resolve(args.repoPath), dir);
+      if (!existsSync(translationsPath)) {
+        errors.push(`Translations directory not found: ${translationsPath}`);
+      }
     }
   }
 
@@ -130,14 +132,14 @@ USAGE:
   curlydots translations push [options]
 
 OPTIONS:
-  --project <uuid>               Project UUID (required)
-  --repo <path>                  Repository path (required)
-  -d, --translations-dir <path>  Translations directory (required)
-  -s, --source <lang>            Source language code (required)
-  -p, --parser <name>            Parser to use [default: node-module]
+  --project <uuid>               Project UUID (optional, falls back to selected project)
+  --repo <path>                  Path to the root of the app/repository to scan (required)
+  -d, --translations-dir <path>  Path inside --repo where translation files live (required, repeatable, supports globs)
+  -s, --source <lang>            Source language folder/code inside each translations dir, e.g. en (required)
+  -p, --parser <name>            Parser that matches how translations are stored, e.g. node-module [default: node-module]
   --parser-file <path>           Load parser module from file (.js/.ts)
   -e, --extensions <list>        File extensions to search [default: all files]
-  --api-host <url>               API host [default: https://curlydots.com]
+  --api-host <url>               API host override (otherwise uses configured apiEndpoint)
   --api-token <token>            API token override
   --batch-size <n>               Upload batch size [default: 100]
   -h, --help                     Show this help message

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ensureGlobalCurlydotsConfigFiles,
+  findNearestCurlydotsFilePathFrom,
   findNearestProjectCurlydotsFilePath,
   getGlobalCurlydotsFilePath,
   parseJsonObjectFile,
@@ -80,14 +81,16 @@ function normalizeVersionedAuthConfig(
   return normalized;
 }
 
-export function loadCliAuthConfig(): CliAuthConfig {
+export function loadCliAuthConfig(baseDir?: string): CliAuthConfig {
   ensureGlobalCurlydotsConfigFiles();
 
   const globalAuthConfig = normalizeVersionedAuthConfig(
     AUTH_CONFIG_PATH,
     parseJsonObjectFile(AUTH_CONFIG_PATH),
   );
-  const projectAuthConfigPath = findNearestProjectCurlydotsFilePath('auth.json');
+  const projectAuthConfigPath = baseDir
+    ? findNearestCurlydotsFilePathFrom('auth.json', baseDir)
+    : findNearestProjectCurlydotsFilePath('auth.json');
   const projectAuthConfig =
     projectAuthConfigPath && projectAuthConfigPath !== AUTH_CONFIG_PATH
       ? normalizeVersionedAuthConfig(

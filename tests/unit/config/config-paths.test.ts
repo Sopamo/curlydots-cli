@@ -81,6 +81,43 @@ describe('config/config-paths', () => {
     expect(result).toBeUndefined();
   });
 
+  it('can search upward from an explicit base directory without a git boundary', async () => {
+    const workspaceDir = '/tmp/config-paths/workspace';
+    const nestedDir = join(workspaceDir, 'apps', 'web', 'translations');
+    const workspaceConfigDir = join(workspaceDir, '.curlydots');
+
+    existingPaths.add(join(workspaceConfigDir, 'config.json'));
+
+    const { findNearestCurlydotsFilePathFrom } = await importFreshConfigPathsModule();
+    const result = findNearestCurlydotsFilePathFrom('config.json', nestedDir);
+    expect(result).toBe(join(workspaceConfigDir, 'config.json'));
+  });
+
+  it('computes the common ancestor directory for translation paths', async () => {
+    const { findCommonAncestorDirectory } = await importFreshConfigPathsModule();
+
+    const result = findCommonAncestorDirectory([
+      '/home/user/me/projects/project-1/modules/app/translations',
+      '/home/user/me/projects/project-1/modules/users/translations',
+      '/home/user/me/projects/project-1/lang/translations',
+    ]);
+
+    expect(result).toBe('/home/user/me/projects/project-1');
+  });
+
+  it('widens the common ancestor when translation paths span multiple projects', async () => {
+    const { findCommonAncestorDirectory } = await importFreshConfigPathsModule();
+
+    const result = findCommonAncestorDirectory([
+      '/home/user/me/projects/project-1/modules/app/translations',
+      '/home/user/me/projects/project-1/modules/users/translations',
+      '/home/user/me/projects/project-1/lang/translations',
+      '/home/user/me/projects/project-2/translations',
+    ]);
+
+    expect(result).toBe('/home/user/me/projects');
+  });
+
   it('creates global config and auth templates with frontendUrl when missing', async () => {
     const { ensureGlobalCurlydotsConfigFiles } = await importFreshConfigPathsModule();
 

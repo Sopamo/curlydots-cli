@@ -84,7 +84,7 @@ class FakeClient extends HttpClient {
 
 const AUTH_BROWSER_URL = process.env.CURLYDOTS_AUTH_BROWSER_URL ?? 'https://curlydots.com/cli';
 const API_ENDPOINT = 'https://curlydots.com/api';
-const FRONTEND_PAIR_URL = 'https://curlydots.com/cli/pair?code=ABCD';
+const FRONTEND_PAIR_URL = 'https://curlydots.com/cli/pair?code=ABCD1234WXYZ';
 
 const baseConfig: CliConfig = {
   apiEndpoint: API_ENDPOINT,
@@ -104,7 +104,7 @@ describe('contract/auth-login', () => {
   it('completes browser login flow with polling', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
-      code: 'ABCD',
+      code: 'ABCD1234WXYZ',
       verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
@@ -145,8 +145,8 @@ describe('contract/auth-login', () => {
   it('uses the configured frontend URL to build the pairing URL', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
-      code: 'ABCD',
-      verification_url: 'https://backend.curlydots.test/cli/pair?code=ABCD',
+      code: 'ABCD1234WXYZ',
+      verification_url: 'https://backend.curlydots.test/cli/pair?code=ABCD1234WXYZ',
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
     };
@@ -177,13 +177,13 @@ describe('contract/auth-login', () => {
       logger: noopLogger,
     });
 
-    expect(opened).toEqual(['http://localhost:5173/cli/pair?code=ABCD']);
+    expect(opened).toEqual(['http://localhost:5173/cli/pair?code=ABCD1234WXYZ']);
   });
 
   it('fails when polling returns failure', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
-      code: 'ABCD',
+      code: 'ABCD1234WXYZ',
       verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
@@ -208,7 +208,7 @@ describe('contract/auth-login', () => {
   it('reuses conditional headers and skips JSON parsing on 304', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
-      code: 'ABCD',
+      code: 'ABCD1234WXYZ',
       verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
@@ -263,7 +263,7 @@ describe('contract/auth-login', () => {
   it('notifies backend when authentication is cancelled', async () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
-      code: 'ABCDEFGH',
+      code: 'ABCDEFGH1234',
       verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
@@ -292,7 +292,7 @@ describe('contract/auth-login', () => {
 
     expect(fakeClient.cancelCalls).toHaveLength(1);
     expect(fakeClient.cancelCalls[0]).toEqual({
-      path: 'cli/pairings/ABCDEFGH/cancel',
+      path: 'cli/pairings/ABCDEFGH1234/cancel',
       body: { poll_token: 'poll-token' },
     });
   });

@@ -7,10 +7,14 @@ const logs = {
   warn: [] as string[],
 };
 
-const loadAuthTokenMock = mock(async () => ({
-  accessToken: 'token',
-  expiresAt: new Date(Date.now() + 60_000).toISOString(),
-}));
+const getCliAccessTokenMock = mock(async () => 'token');
+const getExplicitAccessTokenMock = mock<
+  () => {
+    source: 'environment_token' | 'api_key';
+    storage: 'environment' | 'file';
+    token: string;
+  } | null
+>(() => null);
 
 const loadCliConfigMock = mock<() => CliConfig>(() => ({
   apiEndpoint: 'http://curlydots.com/api',
@@ -19,11 +23,6 @@ const loadCliConfigMock = mock<() => CliConfig>(() => ({
   retries: 0,
   debug: false,
   defaultLocale: undefined,
-}));
-const loadCliAuthConfigMock = mock(() => ({
-  authMethod: 'browser' as const,
-  tokenStorage: 'keychain' as const,
-  token: undefined as string | undefined,
 }));
 
 const clearCurrentProjectMock = mock(() => {});
@@ -47,9 +46,8 @@ const httpClientGetMock = mock(async () => ({
 }));
 
 const originalLogger = await import('../../../src/utils/logger');
-const originalAuthModule = await import('../../../src/services/auth/token-manager');
 const originalConfigModule = await import('../../../src/config/cli-config');
-const originalAuthConfigModule = await import('../../../src/config/auth-config');
+const originalAuthServiceModule = await import('../../../src/services/auth/service');
 const originalProjectConfigModule = await import('../../../src/config/project-config');
 const originalReadlineModule = await import('node:readline');
 
@@ -59,9 +57,9 @@ const originalHttpClientFromConfig = HttpClient.fromConfig;
 describe('unit/cli/projects', () => {
   beforeEach(() => {
     logs.warn.length = 0;
-    loadAuthTokenMock.mockClear();
+    getCliAccessTokenMock.mockClear();
+    getExplicitAccessTokenMock.mockClear();
     loadCliConfigMock.mockClear();
-    loadCliAuthConfigMock.mockClear();
     clearCurrentProjectMock.mockClear();
     getCurrentProjectMock.mockClear();
     setCurrentProjectMock.mockClear();
@@ -69,16 +67,13 @@ describe('unit/cli/projects', () => {
 
     console.log = () => {};
 
-    mock.module('../../../src/services/auth/token-manager', () => ({
-      loadAuthToken: loadAuthTokenMock,
+    mock.module('../../../src/services/auth/service', () => ({
+      getCliAccessToken: getCliAccessTokenMock,
+      getExplicitAccessToken: getExplicitAccessTokenMock,
     }));
 
     mock.module('../../../src/config/cli-config', () => ({
       loadCliConfig: loadCliConfigMock,
-    }));
-
-    mock.module('../../../src/config/auth-config', () => ({
-      loadCliAuthConfig: loadCliAuthConfigMock,
     }));
 
     mock.module('../../../src/config/project-config', () => ({
@@ -114,9 +109,8 @@ describe('unit/cli/projects', () => {
     console.log = originalConsoleLog;
     mock.clearAllMocks();
     mock.restore();
-    mock.module('../../../src/services/auth/token-manager', () => ({ ...originalAuthModule }));
+    mock.module('../../../src/services/auth/service', () => ({ ...originalAuthServiceModule }));
     mock.module('../../../src/config/cli-config', () => ({ ...originalConfigModule }));
-    mock.module('../../../src/config/auth-config', () => ({ ...originalAuthConfigModule }));
     mock.module('../../../src/config/project-config', () => ({ ...originalProjectConfigModule }));
     HttpClient.fromConfig = originalHttpClientFromConfig;
     mock.module('node:readline', () => ({ ...originalReadlineModule }));
@@ -128,5 +122,32 @@ describe('unit/cli/projects', () => {
 
     expect(clearCurrentProjectMock).toHaveBeenCalledTimes(1);
     expect(logs.warn.some((message) => message.includes('no longer available'))).toBe(true);
+  });
+
+  it('uses the shared CLI access token when loading projects', async () => {
+    getCliAccessTokenMock.mockResolvedValueOnce('renewed-token');
+
+    await projectsCommand([]);
+
+    expect(getCliAccessTokenMock).toHaveBeenCalledTimes(1);
+    expect(httpClientGetMock).toHaveBeenCalledWith('cli/projects', {
+      token: 'renewed-token',
+    });
+  });
+
+  it('supports configured API tokens when loading projects', async () => {
+    getCliAccessTokenMock.mockResolvedValueOnce('config-token');
+    getExplicitAccessTokenMock.mockReturnValueOnce({
+      source: 'api_key',
+      storage: 'file',
+      token: 'config-token',
+    });
+
+    await projectsCommand([]);
+
+    expect(getCliAccessTokenMock).toHaveBeenCalledTimes(1);
+    expect(httpClientGetMock).toHaveBeenCalledWith('cli/projects', {
+      token: 'config-token',
+    });
   });
 });

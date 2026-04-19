@@ -2,6 +2,7 @@ import type { ExistingKeysResponse, TranslationKeyPayload } from '../../types/tr
 import type { HttpClient } from '../http/client';
 
 export interface TranslationKeysClientOptions {
+  baseDir?: string;
   client: HttpClient;
   token?: string;
   batchSize?: number;
@@ -17,16 +18,15 @@ export async function resolveAuthToken(
   options: TranslationKeysClientOptions,
 ): Promise<string | null> {
   if (options.token) return options.token;
-  const { loadCliAuthConfig } = await import('../../config/auth-config');
-  const configuredToken = loadCliAuthConfig().token;
-  if (configuredToken) return configuredToken;
   if (options.loadToken) {
+    const { loadCliAuthConfig } = await import('../../config/auth-config');
+    const configuredToken = loadCliAuthConfig(options.baseDir).token;
+    if (configuredToken) return configuredToken;
     const stored = await options.loadToken();
     return stored?.accessToken ?? null;
   }
-  const { loadAuthToken } = await import('../auth/token-manager');
-  const stored = await loadAuthToken();
-  return stored?.accessToken ?? null;
+  const { getCliAccessToken } = await import('../auth/service');
+  return getCliAccessToken(options.baseDir);
 }
 
 export async function fetchExistingTranslationKeys(
@@ -39,27 +39,61 @@ export async function fetchExistingTranslationKeys(
   });
 }
 
+export type UploadProgressCallback = (info: {
+  batch: number;
+  totalBatches: number;
+  uploaded: number;
+  total: number;
+}) => void;
+
+function deduplicatePayloadsByTranslationKey(
+  keys: TranslationKeyPayload[],
+): TranslationKeyPayload[] {
+  const seenKeys = new Set<string>();
+  const uniquePayloads: TranslationKeyPayload[] = [];
+
+  for (const key of keys) {
+    // Multiple translation directories can produce the same final translationKey; the server stores keys at project level.
+    if (seenKeys.has(key.translationKey)) {
+      continue;
+    }
+
+    seenKeys.add(key.translationKey);
+    uniquePayloads.push(key);
+  }
+
+  return uniquePayloads;
+}
+
 export async function uploadTranslationKeys(
   client: HttpClient,
   projectUuid: string,
   token: string,
   keys: TranslationKeyPayload[],
   batchSize = 100,
+  onProgress?: UploadProgressCallback,
 ): Promise<UploadResult> {
+  const uniqueKeys = deduplicatePayloadsByTranslationKey(keys);
   let uploaded = 0;
   let batches = 0;
-  const totalBatch = keys.length === 0 ? 0 : Math.ceil(keys.length / batchSize);
+  const totalBatch = uniqueKeys.length === 0 ? 0 : Math.ceil(uniqueKeys.length / batchSize);
 
-  for (let i = 0; i < keys.length; i += batchSize) {
-    const batch = keys.slice(i, i + batchSize);
+  for (let i = 0; i < uniqueKeys.length; i += batchSize) {
+    const batch = uniqueKeys.slice(i, i + batchSize);
     const currentBatch = batches + 1;
     await client.post(
       `/api/projects/${projectUuid}/translation-keys`,
-      { keys: batch, current_batch: currentBatch, total_batch: totalBatch },
+      { entries: batch, current_batch: currentBatch, total_batch: totalBatch },
       token,
     );
     uploaded += batch.length;
     batches += 1;
+    onProgress?.({
+      batch: currentBatch,
+      totalBatches: totalBatch,
+      uploaded,
+      total: uniqueKeys.length,
+    });
   }
 
   return { uploaded, batches };

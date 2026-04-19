@@ -1,4 +1,5 @@
 import { dirname, join } from 'node:path';
+import { findNearestCurlydotsFilePathFrom } from './config-paths';
 import { platform } from './node-platform';
 
 const CONFIG_DIR_NAME = '.curlydots';
@@ -29,7 +30,11 @@ function findProjectRoot(startDir: string): string | null {
   }
 }
 
-function getLocalProjectConfigPath(): string | null {
+function getLocalProjectConfigPath(startDir?: string): string | null {
+  if (startDir) {
+    return findNearestCurlydotsFilePathFrom(PROJECT_CONFIG_FILE_NAME, startDir) ?? null;
+  }
+
   const projectRoot = findProjectRoot(process.cwd());
   if (!projectRoot) {
     return null;
@@ -67,8 +72,8 @@ function readProjectConfigFromPath(filePath: string): ProjectConfig | null {
   }
 }
 
-function resolveReadPath(): string {
-  const localPath = getLocalProjectConfigPath();
+function resolveReadPath(startDir?: string): string {
+  const localPath = getLocalProjectConfigPath(startDir);
 
   if (localPath && platform.existsSync(localPath)) {
     return localPath;
@@ -84,16 +89,11 @@ function resolveWritePath(): string {
     return GLOBAL_PROJECT_CONFIG_PATH;
   }
 
-  const localDir = dirname(localPath);
-  if (platform.existsSync(localPath) || platform.existsSync(localDir)) {
-    return localPath;
-  }
-
-  return GLOBAL_PROJECT_CONFIG_PATH;
+  return localPath;
 }
 
-export function getCurrentProject(): ProjectConfig | null {
-  const configPath = resolveReadPath();
+export function getCurrentProject(startDir?: string): ProjectConfig | null {
+  const configPath = resolveReadPath(startDir);
   if (!platform.existsSync(configPath)) {
     return null;
   }

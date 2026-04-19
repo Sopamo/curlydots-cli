@@ -10,9 +10,9 @@ import { join, resolve } from 'node:path';
 import { render } from 'ink';
 import * as React from 'react';
 import { getAvailableParsers, getParser } from '../parsers';
-import { findMissingTranslations } from '../services/analyzer';
 import { findContextForKeys } from '../services/context-finder';
 import { writeCsv } from '../services/csv-writer';
+import { findMissingTranslations } from '../services/missing-translations';
 import { analysisStore, configStore } from '../stores';
 import { App } from '../ui';
 
@@ -23,7 +23,7 @@ export interface ExtractArgs {
   repoPath: string;
   source: string;
   target: string;
-  translationsDir: string;
+  translationsDirs: string[];
   parser: string;
   extensions: string[];
   output: string;
@@ -38,7 +38,7 @@ export function parseExtractArgs(args: string[]): ExtractArgs {
     repoPath: '',
     source: '',
     target: '',
-    translationsDir: '',
+    translationsDirs: [],
     parser: 'node-module',
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.vue', '.svelte', '.html'],
     output: 'missing-translations.csv',
@@ -56,7 +56,10 @@ export function parseExtractArgs(args: string[]): ExtractArgs {
     } else if (arg === '-t' || arg === '--target') {
       result.target = args[++i] || '';
     } else if (arg === '-d' || arg === '--translations-dir') {
-      result.translationsDir = args[++i] || '';
+      const translationsDir = args[++i] || '';
+      if (translationsDir) {
+        result.translationsDirs.push(translationsDir);
+      }
     } else if (arg === '-p' || arg === '--parser') {
       result.parser = args[++i] || 'node-module';
     } else if (arg === '-e' || arg === '--extensions') {
@@ -89,7 +92,7 @@ ARGUMENTS:
 OPTIONS:
   -s, --source <lang>           Source language code (required)
   -t, --target <lang>           Target language code (required)
-  -d, --translations-dir <path> Translations directory relative to repo (required)
+  -d, --translations-dir <path> Translations directory relative to repo (required, repeatable)
   -p, --parser <name>           Parser to use [default: node-module]
   -e, --extensions <list>       File extensions to search [default: .js,.ts,.jsx,.tsx,.vue,.svelte,.html]
   -o, --output <path>           Output CSV path [default: missing-translations.csv]
@@ -97,7 +100,7 @@ OPTIONS:
 
 EXAMPLES:
   aitranslate extract ./my-app -s en -t de -d src/translations
-  aitranslate extract /path/to/repo --source en --target fr --translations-dir locales --output report.csv
+  aitranslate extract /path/to/repo --source en --target fr --translations-dir locales --translations-dir modules/shared/locales --output report.csv
 
 PARSERS:
   ${getAvailableParsers().join(', ') || 'node-module'}
@@ -127,12 +130,15 @@ export function validateExtractArgs(args: ExtractArgs): string[] {
     errors.push('Missing required option: --target');
   }
 
-  if (!args.translationsDir) {
+  if (args.translationsDirs.length === 0) {
+    // The user is using --translation-dir which is repeatable, hence the difference in pluralization.
     errors.push('Missing required option: --translations-dir');
   } else if (args.repoPath) {
-    const translationsPath = join(resolve(args.repoPath), args.translationsDir);
-    if (!existsSync(translationsPath)) {
-      errors.push(`Translations directory not found: ${translationsPath}`);
+    for (const translationsDir of args.translationsDirs) {
+      const translationsPath = join(resolve(args.repoPath), translationsDir);
+      if (!existsSync(translationsPath)) {
+        errors.push(`Translations directory not found: ${translationsPath}`);
+      }
     }
   }
 
@@ -206,7 +212,7 @@ async function runWithTui(args: ExtractArgs): Promise<void> {
     React.createElement(App, {
       config: {
         repoPath: resolvedPath,
-        translationsDir: args.translationsDir,
+        translationsDirs: args.translationsDirs,
         sourceLanguage: args.source,
         targetLanguage: args.target,
         parser: args.parser,
@@ -255,7 +261,7 @@ export async function runExtract(args: string[]): Promise<void> {
   const resolvedPath = resolve(parsedArgs.repoPath);
   configStore.getState().setConfig({
     repoPath: resolvedPath,
-    translationsDir: parsedArgs.translationsDir,
+    translationsDirs: parsedArgs.translationsDirs,
     sourceLanguage: parsedArgs.source,
     targetLanguage: parsedArgs.target,
     parser: parsedArgs.parser,
