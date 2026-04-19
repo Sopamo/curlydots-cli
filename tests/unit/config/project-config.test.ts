@@ -20,9 +20,10 @@ describe('config/project-config', () => {
     const localPath = join(cwd, '.curlydots', 'current-project.json');
     const globalPath = '/home/test/.curlydots/current-project.json';
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === projectGitMarker || filePath === localPath || filePath === globalPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) =>
+        filePath === projectGitMarker || filePath === localPath || filePath === globalPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === localPath) {
         return JSON.stringify({
@@ -43,15 +44,14 @@ describe('config/project-config', () => {
       throw new Error(`Unexpected read: ${filePath}`);
     });
 
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
-
-    mock.module('node:fs', () => ({
-      existsSync: existsSyncMock,
-      readFileSync: readFileSyncMock,
-      writeFileSync: () => undefined,
-      mkdirSync: () => undefined,
+    mock.module('../../../src/config/node-platform', () => ({
+      platform: {
+        homedir: () => '/home/test',
+        existsSync: existsSyncMock,
+        readFileSync: readFileSyncMock,
+        writeFileSync: () => undefined,
+        mkdirSync: () => undefined,
+      },
     }));
 
     const { getCurrentProject } = await importFreshProjectConfigModule();
@@ -68,9 +68,9 @@ describe('config/project-config', () => {
     const localPath = join(cwd, '.curlydots', 'current-project.json');
     const globalPath = '/home/test/.curlydots/current-project.json';
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === projectGitMarker || filePath === globalPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === projectGitMarker || filePath === globalPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalPath) {
         return JSON.stringify({
@@ -83,15 +83,14 @@ describe('config/project-config', () => {
       throw new Error(`Unexpected read: ${filePath}`);
     });
 
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
-
-    mock.module('node:fs', () => ({
-      existsSync: existsSyncMock,
-      readFileSync: readFileSyncMock,
-      writeFileSync: () => undefined,
-      mkdirSync: () => undefined,
+    mock.module('../../../src/config/node-platform', () => ({
+      platform: {
+        homedir: () => '/home/test',
+        existsSync: existsSyncMock,
+        readFileSync: readFileSyncMock,
+        writeFileSync: () => undefined,
+        mkdirSync: () => undefined,
+      },
     }));
 
     const { getCurrentProject } = await importFreshProjectConfigModule();
@@ -109,19 +108,18 @@ describe('config/project-config', () => {
     const localPath = join(localDir, 'current-project.json');
     const writeFileSyncMock = mock(() => undefined);
     const mkdirSyncMock = mock(() => undefined);
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === projectGitMarker || filePath === localDir
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === projectGitMarker || filePath === localDir,
+    );
 
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
-
-    mock.module('node:fs', () => ({
-      existsSync: existsSyncMock,
-      readFileSync: () => '{}',
-      writeFileSync: writeFileSyncMock,
-      mkdirSync: mkdirSyncMock,
+    mock.module('../../../src/config/node-platform', () => ({
+      platform: {
+        homedir: () => '/home/test',
+        existsSync: existsSyncMock,
+        readFileSync: () => '{}',
+        writeFileSync: writeFileSyncMock,
+        mkdirSync: mkdirSyncMock,
+      },
     }));
 
     const { setCurrentProject } = await importFreshProjectConfigModule();
@@ -130,11 +128,15 @@ describe('config/project-config', () => {
     expect(mkdirSyncMock).toHaveBeenCalledWith(localDir, { recursive: true });
     expect(writeFileSyncMock).toHaveBeenCalledWith(
       localPath,
-      JSON.stringify({
-        projectId: 'project-1',
-        projectName: 'Project One',
-        teamName: 'Team One',
-      }, null, 2),
+      JSON.stringify(
+        {
+          projectId: 'project-1',
+          projectName: 'Project One',
+          teamName: 'Team One',
+        },
+        null,
+        2,
+      ),
       'utf8',
     );
   });
@@ -148,15 +150,14 @@ describe('config/project-config', () => {
     const mkdirSyncMock = mock(() => undefined);
     const existsSyncMock = mock((filePath: string) => filePath === projectGitMarker);
 
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
-
-    mock.module('node:fs', () => ({
-      existsSync: existsSyncMock,
-      readFileSync: () => '{}',
-      writeFileSync: writeFileSyncMock,
-      mkdirSync: mkdirSyncMock,
+    mock.module('../../../src/config/node-platform', () => ({
+      platform: {
+        homedir: () => '/home/test',
+        existsSync: existsSyncMock,
+        readFileSync: () => '{}',
+        writeFileSync: writeFileSyncMock,
+        mkdirSync: mkdirSyncMock,
+      },
     }));
 
     const { setCurrentProject } = await importFreshProjectConfigModule();
@@ -165,11 +166,15 @@ describe('config/project-config', () => {
     expect(mkdirSyncMock).toHaveBeenCalledWith(globalDir, { recursive: true });
     expect(writeFileSyncMock).toHaveBeenCalledWith(
       globalPath,
-      JSON.stringify({
-        projectId: 'project-2',
-        projectName: 'Project Two',
-        teamName: 'Team Two',
-      }, null, 2),
+      JSON.stringify(
+        {
+          projectId: 'project-2',
+          projectName: 'Project Two',
+          teamName: 'Team Two',
+        },
+        null,
+        2,
+      ),
       'utf8',
     );
   });
@@ -179,19 +184,18 @@ describe('config/project-config', () => {
     const projectGitMarker = join(cwd, '.git');
     const localPath = join(cwd, '.curlydots', 'current-project.json');
     const writeFileSyncMock = mock(() => undefined);
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === projectGitMarker || filePath === localPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === projectGitMarker || filePath === localPath,
+    );
 
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
-
-    mock.module('node:fs', () => ({
-      existsSync: existsSyncMock,
-      readFileSync: () => '{}',
-      writeFileSync: writeFileSyncMock,
-      mkdirSync: () => undefined,
+    mock.module('../../../src/config/node-platform', () => ({
+      platform: {
+        homedir: () => '/home/test',
+        existsSync: existsSyncMock,
+        readFileSync: () => '{}',
+        writeFileSync: writeFileSyncMock,
+        mkdirSync: () => undefined,
+      },
     }));
 
     const { clearCurrentProject } = await importFreshProjectConfigModule();

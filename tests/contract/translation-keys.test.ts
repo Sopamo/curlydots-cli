@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CliAuthConfig } from '../../src/config/auth-config';
+import * as authConfigModule from '../../src/config/auth-config';
 import { HttpClient } from '../../src/services/http/client';
 import type { TranslationKeyPayload } from '../../src/types/translation-keys';
-import * as authConfigModule from '../../src/config/auth-config';
 
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,
@@ -45,7 +46,9 @@ describe('contract/translation-keys', () => {
   });
 
   it('fetches existing keys using project endpoint + auth token', async () => {
-    const { fetchExistingTranslationKeys } = await import('../../src/services/api/translation-keys');
+    const { fetchExistingTranslationKeys } = await import(
+      '../../src/services/api/translation-keys'
+    );
     const client = new FakeClient();
 
     const response = await fetchExistingTranslationKeys(client, 'project-123', 'token-abc');

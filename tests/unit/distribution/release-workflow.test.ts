@@ -1,33 +1,36 @@
-import { describe, expect, it } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { describe, expect, it, mock } from 'bun:test';
 import path from 'node:path';
 
-function loadReleaseWorkflow() {
-  const workflowPath = path.resolve(process.cwd(), '.github/workflows/release.yml');
-  return readFileSync(workflowPath, 'utf8');
+const CLI_ROOT = path.resolve(import.meta.dir, '../../..');
+
+async function loadReleaseWorkflow() {
+  mock.restore();
+  const workflowPath = path.resolve(CLI_ROOT, '.github/workflows/release.yml');
+  return Bun.file(workflowPath).text();
 }
 
-function loadReleaseWorkflowBackup() {
-  const workflowPath = path.resolve(process.cwd(), '.github/workflows/release.yml.bak');
-  return readFileSync(workflowPath, 'utf8');
+async function loadReleaseWorkflowBackup() {
+  mock.restore();
+  const workflowPath = path.resolve(CLI_ROOT, '.github/workflows/release.yml.bak');
+  return Bun.file(workflowPath).text();
 }
 
 describe('distribution/release-workflow', () => {
-  it('keeps a backup of the previous release workflow', () => {
-    const workflow = loadReleaseWorkflowBackup();
+  it('keeps a backup of the previous release workflow', async () => {
+    const workflow = await loadReleaseWorkflowBackup();
 
     expect(workflow).toContain('name: Build ${{ matrix.target_triple }}');
     expect(workflow).toContain('name: Stage npm package');
   });
 
-  it('grants workflow-level OIDC permissions required for trusted npm publishing', () => {
-    const workflow = loadReleaseWorkflow();
+  it('grants workflow-level OIDC permissions required for trusted npm publishing', async () => {
+    const workflow = await loadReleaseWorkflow();
 
     expect(workflow).toMatch(/\npermissions:\n {2}contents: read\n {2}id-token: write\n/);
   });
 
-  it('uses the full release pipeline with build, staging, release, smoke, and npm publish jobs', () => {
-    const workflow = loadReleaseWorkflow();
+  it('uses the full release pipeline with build, staging, release, smoke, and npm publish jobs', async () => {
+    const workflow = await loadReleaseWorkflow();
 
     expect(workflow).toContain('jobs:');
     expect(workflow).toContain('build:');

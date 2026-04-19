@@ -21,15 +21,14 @@ describe('config/config-paths', () => {
     mkdirSyncMock = mock(() => undefined);
     writeFileSyncMock = mock(() => undefined);
 
-    mock.module('node:fs', () => ({
-      existsSync: (filePath: string) => existingPaths.has(filePath),
-      mkdirSync: mkdirSyncMock,
-      readFileSync: () => '',
-      writeFileSync: writeFileSyncMock,
-    }));
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
+    mock.module('../../../src/config/node-platform', () => ({
+      platform: {
+        homedir: () => '/home/test',
+        existsSync: (filePath: string) => existingPaths.has(filePath),
+        mkdirSync: mkdirSyncMock,
+        readFileSync: () => '',
+        writeFileSync: writeFileSyncMock,
+      },
     }));
 
     process.cwd = (() => mockedCwd) as typeof process.cwd;
@@ -90,21 +89,29 @@ describe('config/config-paths', () => {
     expect(mkdirSyncMock).toHaveBeenCalledWith('/home/test/.curlydots', { recursive: true });
     expect(writeFileSyncMock).toHaveBeenCalledWith(
       '/home/test/.curlydots/config.json',
-      `${JSON.stringify({
-        schemaVersion: 1,
-        apiEndpoint: 'https://curlydots.com/api',
-        frontendUrl: 'https://curlydots.com',
-        debug: false,
-      }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          apiEndpoint: 'https://curlydots.com/api',
+          frontendUrl: 'https://curlydots.com',
+          debug: false,
+        },
+        null,
+        2,
+      )}\n`,
       'utf8',
     );
     expect(writeFileSyncMock).toHaveBeenCalledWith(
       '/home/test/.curlydots/auth.json',
-      `${JSON.stringify({
-        schemaVersion: 1,
-        authMethod: 'browser',
-        tokenStorage: 'keychain',
-      }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          authMethod: 'browser',
+          tokenStorage: 'keychain',
+        },
+        null,
+        2,
+      )}\n`,
       'utf8',
     );
   });

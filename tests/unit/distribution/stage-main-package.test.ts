@@ -1,21 +1,25 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import * as os from 'node:os';
 import path from 'node:path';
 
-import {
-  readTgzEntries,
-  readTgzPackageJson,
-} from '../../../scripts/distribution/release-check.mjs';
-import {
-  buildMainPackageManifest,
-  normalizePlatformMetadata,
-  stageMainPackage,
-} from '../../../scripts/distribution/stage-main-package.mjs';
 import { PLATFORM_PACKAGE_NAMES } from '../../../scripts/distribution/targets.mjs';
 
+const CLI_ROOT = path.resolve(import.meta.dir, '../../..');
+let moduleNonce = 0;
+
+async function loadStageMainPackageModule() {
+  moduleNonce += 1;
+  return import(`../../../scripts/distribution/stage-main-package.mjs?test=${moduleNonce}`);
+}
+
+async function loadReleaseCheckModule() {
+  moduleNonce += 1;
+  return import(`../../../scripts/distribution/release-check.mjs?test=${moduleNonce}`);
+}
+
 describe('distribution/stage-main-package', () => {
-  it('builds main package manifest with optionalDependencies for all platform packages', () => {
+  it('builds main package manifest with optionalDependencies for all platform packages', async () => {
+    const { buildMainPackageManifest } = await loadStageMainPackageModule();
     const manifest = buildMainPackageManifest(
       {
         description: 'CurlyDots CLI',
@@ -36,7 +40,8 @@ describe('distribution/stage-main-package', () => {
     }
   });
 
-  it('rejects platform metadata with missing package names', () => {
+  it('rejects platform metadata with missing package names', async () => {
+    const { normalizePlatformMetadata } = await loadStageMainPackageModule();
     expect(() =>
       normalizePlatformMetadata({
         packages: [{ name: '@curlydots/cli-linux-x64' }],
@@ -44,7 +49,10 @@ describe('distribution/stage-main-package', () => {
     ).toThrow('Invalid platform metadata');
   });
 
-  it('stages main package tarball with binary placeholder and installer script', () => {
+  it('stages main package tarball with binary placeholder and installer script', async () => {
+    const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
+    const { readTgzEntries, readTgzPackageJson } = await loadReleaseCheckModule();
+    const { stageMainPackage } = await loadStageMainPackageModule();
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'curlydots-stage-main-test-'));
 
     try {
@@ -66,7 +74,7 @@ describe('distribution/stage-main-package', () => {
       const metadata = stageMainPackage({
         version: '5.6.7',
         outputDir,
-        packageRoot: process.cwd(),
+        packageRoot: CLI_ROOT,
         stagingDir,
         platformMetadataPath,
       });

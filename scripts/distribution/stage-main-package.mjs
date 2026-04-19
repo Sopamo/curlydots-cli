@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -176,6 +184,7 @@ export function stageMainPackage({
   );
   const rawPlatformMetadata = JSON.parse(readFileSync(resolvedPlatformMetadataPath, 'utf8'));
   const platformPackages = normalizePlatformMetadata(rawPlatformMetadata);
+  const npmCacheDir = path.join(stagingDir, '.npm-cache');
 
   copyFileSync(
     path.join(resolvedPackageRoot, 'scripts', 'distribution', 'install-native-binary.cjs'),
@@ -192,15 +201,22 @@ export function stageMainPackage({
     path.join(stagingDir, 'package.json'),
     `${JSON.stringify(publishManifest, null, 2)}\n`,
   );
+  mkdirSync(npmCacheDir, { recursive: true });
+  const tarballsBeforePack = new Set(
+    readdirSync(resolvedOutputDir).filter((fileName) => fileName.endsWith('.tgz')),
+  );
 
-  const packOutput = run('npm', ['pack', '--pack-destination', resolvedOutputDir], {
+  run('npm', ['pack', '--pack-destination', resolvedOutputDir], {
     cwd: stagingDir,
+    env: {
+      ...process.env,
+      npm_config_cache: npmCacheDir,
+    },
   });
-  const tarballFile = packOutput
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .at(-1);
+  const tarballFile =
+    readdirSync(resolvedOutputDir).find(
+      (fileName) => fileName.endsWith('.tgz') && !tarballsBeforePack.has(fileName),
+    ) ?? null;
 
   if (!tarballFile) {
     throw new Error('npm pack did not emit main package tarball name');

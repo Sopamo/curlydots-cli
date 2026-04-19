@@ -1,11 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { platform } from './node-platform';
 
 const CONFIG_DIR_NAME = '.curlydots';
 
 export function getGlobalCurlydotsFilePath(fileName: string): string {
-  return join(homedir(), CONFIG_DIR_NAME, fileName);
+  return join(platform.homedir(), CONFIG_DIR_NAME, fileName);
 }
 
 function findProjectSearchBoundary(startDir: string): string {
@@ -13,7 +12,7 @@ function findProjectSearchBoundary(startDir: string): string {
 
   while (true) {
     // Support both .git directories and .git files (worktrees/submodules).
-    if (existsSync(join(currentDir, '.git'))) {
+    if (platform.existsSync(join(currentDir, '.git'))) {
       return currentDir;
     }
 
@@ -33,7 +32,7 @@ export function findNearestProjectCurlydotsFilePath(fileName: string): string | 
 
   while (true) {
     const candidate = join(currentDir, CONFIG_DIR_NAME, fileName);
-    if (existsSync(candidate)) {
+    if (platform.existsSync(candidate)) {
       return candidate;
     }
 
@@ -51,7 +50,7 @@ export function findNearestProjectCurlydotsFilePath(fileName: string): string | 
 
 export function parseJsonObjectFile(filePath: string): Record<string, unknown> {
   try {
-    const content = readFileSync(filePath, 'utf8');
+    const content = platform.readFileSync(filePath, 'utf8');
     const data = JSON.parse(content);
     if (typeof data === 'object' && data !== null) {
       return data as Record<string, unknown>;
@@ -64,8 +63,8 @@ export function parseJsonObjectFile(filePath: string): Record<string, unknown> {
 
 export function writeJsonObjectFile(filePath: string, value: Record<string, unknown>): void {
   try {
-    mkdirSync(dirname(filePath), { recursive: true });
-    writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    platform.mkdirSync(dirname(filePath), { recursive: true });
+    platform.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
   } catch {
     // Ignore file write failures and continue with defaults/in-memory config.
   }
@@ -85,7 +84,7 @@ export function readSchemaVersion(config: Record<string, unknown>): number {
 }
 
 function writeJsonTemplateIfMissing(filePath: string, template: Record<string, unknown>): void {
-  if (existsSync(filePath)) {
+  if (platform.existsSync(filePath)) {
     return;
   }
 
@@ -93,22 +92,16 @@ function writeJsonTemplateIfMissing(filePath: string, template: Record<string, u
 }
 
 export function ensureGlobalCurlydotsConfigFiles(): void {
-  writeJsonTemplateIfMissing(
-    getGlobalCurlydotsFilePath('config.json'),
-    {
-      schemaVersion: 1,
-      apiEndpoint: 'https://curlydots.com/api',
-      frontendUrl: 'https://curlydots.com',
-      debug: false,
-    },
-  );
+  writeJsonTemplateIfMissing(getGlobalCurlydotsFilePath('config.json'), {
+    schemaVersion: 1,
+    apiEndpoint: 'https://curlydots.com/api',
+    frontendUrl: 'https://curlydots.com',
+    debug: false,
+  });
 
-  writeJsonTemplateIfMissing(
-    getGlobalCurlydotsFilePath('auth.json'),
-    {
-      schemaVersion: 1,
-      authMethod: 'browser',
-      tokenStorage: 'keychain',
-    },
-  );
+  writeJsonTemplateIfMissing(getGlobalCurlydotsFilePath('auth.json'), {
+    schemaVersion: 1,
+    authMethod: 'browser',
+    tokenStorage: 'keychain',
+  });
 }

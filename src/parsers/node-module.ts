@@ -63,14 +63,22 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: strin
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i]!;
+    const part = parts[i];
+    if (part === undefined) {
+      continue;
+    }
+
     if (!(part in current) || typeof current[part] !== 'object') {
       current[part] = {};
     }
     current = current[part] as Record<string, unknown>;
   }
 
-  const lastPart = parts[parts.length - 1]!;
+  const lastPart = parts.at(-1);
+  if (lastPart === undefined) {
+    return;
+  }
+
   current[lastPart] = value;
 }
 
@@ -191,7 +199,7 @@ export const nodeModuleParser: Parser = {
       if (!fileGroups.has(fileName)) {
         fileGroups.set(fileName, new Map());
       }
-      fileGroups.get(fileName)!.set(nestedKey, value);
+      fileGroups.get(fileName)?.set(nestedKey, value);
     }
 
     // Write each file

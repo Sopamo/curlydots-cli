@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import * as os from 'node:os';
 import path from 'node:path';
 
-import {
-  readTgzEntries,
-  readTgzPackageJson,
-} from '../../../scripts/distribution/release-check.mjs';
-import {
-  buildPlatformPackageManifest,
-  stagePlatformPackages,
-} from '../../../scripts/distribution/stage-platform-packages.mjs';
 import { PLATFORM_PACKAGE_TARGETS } from '../../../scripts/distribution/targets.mjs';
+
+const CLI_ROOT = path.resolve(import.meta.dir, '../../..');
+let moduleNonce = 0;
+type StagePlatformMetadata = {
+  version: string;
+  packages: Array<{
+    name: string;
+    tarballPath: string;
+  }>;
+};
+
+async function loadStagePlatformPackagesModule() {
+  moduleNonce += 1;
+  return import(`../../../scripts/distribution/stage-platform-packages.mjs?test=${moduleNonce}`);
+}
+
+async function loadReleaseCheckModule() {
+  moduleNonce += 1;
+  return import(`../../../scripts/distribution/release-check.mjs?test=${moduleNonce}`);
+}
 
 function run(command: string, args: string[]) {
   const result = spawnSync(command, args, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
@@ -27,11 +38,12 @@ function run(command: string, args: string[]) {
   }
 }
 
-function createArtifact(
+async function createArtifact(
   target: (typeof PLATFORM_PACKAGE_TARGETS)[number],
   artifactPath: string,
   tempDir: string,
 ) {
+  const { mkdirSync, writeFileSync } = await import('node:fs');
   const binaryDir = path.join(tempDir, target.targetTriple);
   const binaryPath = path.join(binaryDir, target.binaryName);
   mkdirSync(binaryDir, { recursive: true });
@@ -51,7 +63,8 @@ function createArtifact(
 }
 
 describe('distribution/stage-platform-packages', () => {
-  it('builds platform package manifests with os/cpu constraints', () => {
+  it('builds platform package manifests with os/cpu constraints', async () => {
+    const { buildPlatformPackageManifest } = await loadStagePlatformPackagesModule();
     const manifest = buildPlatformPackageManifest(
       {
         description: 'CurlyDots CLI',
@@ -68,7 +81,10 @@ describe('distribution/stage-platform-packages', () => {
     expect(manifest.publishConfig?.access).toBe('public');
   });
 
-  it('stages five platform tarballs with a single native binary each', () => {
+  it('stages five platform tarballs with a single native binary each', async () => {
+    const { existsSync, mkdirSync, mkdtempSync, rmSync } = await import('node:fs');
+    const { readTgzEntries, readTgzPackageJson } = await loadReleaseCheckModule();
+    const { stagePlatformPackages } = await loadStagePlatformPackagesModule();
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'curlydots-stage-platform-test-'));
 
     try {
@@ -78,16 +94,16 @@ describe('distribution/stage-platform-packages', () => {
       mkdirSync(artifactsDir, { recursive: true });
 
       for (const target of PLATFORM_PACKAGE_TARGETS) {
-        createArtifact(target, path.join(artifactsDir, target.artifact), tempDir);
+        await createArtifact(target, path.join(artifactsDir, target.artifact), tempDir);
       }
 
       const metadata = stagePlatformPackages({
         version: '9.9.9',
         artifactsDir,
         outputDir,
-        packageRoot: process.cwd(),
+        packageRoot: CLI_ROOT,
         stagingDir,
-      });
+      }) as StagePlatformMetadata;
 
       expect(metadata.version).toBe('9.9.9');
       expect(metadata.packages).toHaveLength(5);

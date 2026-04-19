@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authLogoutCommand } from '../../../src/commands/auth/logout';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
+import * as authConfigModule from '../../../src/config/auth-config';
 import * as tokenManagerModule from '../../../src/services/auth/token-manager';
 import * as loggerModule from '../../../src/utils/logger';
-import * as authConfigModule from '../../../src/config/auth-config';
 
 const logs = {
   success: [] as string[],
@@ -11,7 +12,7 @@ const logs = {
 };
 
 const clearAuthTokenMock = mock(async () => {});
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,
@@ -28,7 +29,7 @@ describe('unit/cli/auth-logout', () => {
     clearAuthTokenMock.mockClear();
     loadCliAuthConfigMock.mockClear();
     process.exitCode = 0;
-    delete process.env.CURLYDOTS_TOKEN;
+    process.env.CURLYDOTS_TOKEN = undefined;
 
     mock.module('../../../src/services/auth/token-manager', () => ({
       clearAuthToken: clearAuthTokenMock,

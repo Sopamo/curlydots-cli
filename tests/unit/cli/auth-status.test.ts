@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authStatusCommand } from '../../../src/commands/auth/status';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
+import * as authConfigModule from '../../../src/config/auth-config';
 import type { AuthStatus } from '../../../src/services/auth/status-presenter';
 import * as statusPresenterModule from '../../../src/services/auth/status-presenter';
-import * as authConfigModule from '../../../src/config/auth-config';
 import * as loggerModule from '../../../src/utils/logger';
 
 const logs = {
@@ -15,7 +16,7 @@ const getAuthStatusMock = mock<() => Promise<AuthStatus>>(async () => ({
   expired: false,
   storage: 'keychain' as const,
 }));
-const loadCliAuthConfigMock = mock(() => ({
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
   authMethod: 'browser' as const,
   tokenStorage: 'keychain' as const,
   token: undefined as string | undefined,
@@ -55,7 +56,9 @@ describe('unit/cli/auth-status', () => {
     mock.clearAllMocks();
     mock.restore();
     // Workaround for https://github.com/oven-sh/bun/issues/7823 due to ESM caching.
-    mock.module('../../../src/services/auth/status-presenter', () => ({ ...originalStatusPresenter }));
+    mock.module('../../../src/services/auth/status-presenter', () => ({
+      ...originalStatusPresenter,
+    }));
     mock.module('../../../src/config/auth-config', () => ({ ...originalAuthConfig }));
     mock.module('../../../src/utils/logger', () => ({ ...originalLogger }));
   });
