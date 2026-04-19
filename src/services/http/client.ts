@@ -25,15 +25,21 @@ export interface HttpRequestOptions {
 }
 
 export class HttpClientError extends Error {
-  constructor(message: string, public readonly meta: HttpErrorMeta) {
+  constructor(
+    message: string,
+    public readonly meta: HttpErrorMeta,
+  ) {
     super(message);
     this.name = 'HttpClientError';
   }
 }
 
-const retryableStatus = new Set([408, 429, 500, 502, 503, 504]);
+const isRetryableStatus = (status: number): boolean => status >= 500 && status < 600;
 
-async function requestWithTimeout<T>(request: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
+async function requestWithTimeout<T>(
+  request: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ms);
 
@@ -88,9 +94,7 @@ export class HttpClient {
     options: HttpRequestOptions = {},
   ): Promise<T> {
     const cliVersion = this.cliVersion ?? process.env.npm_package_version ?? '0.1.0';
-    const baseUrl = this.baseUrl.endsWith('/')
-      ? this.baseUrl
-      : `${this.baseUrl}/`;
+    const baseUrl = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
     const url = new URL(path, baseUrl).toString();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -136,20 +140,17 @@ export class HttpClient {
       return (await response.json()) as T;
     };
 
-    return this.retry(async (attempt) => {
+    return this.retry(async () => {
       try {
         return await requestWithTimeout((signal) => attemptRequest(signal), this.timeout);
       } catch (error) {
         if (error instanceof HttpClientError) {
-          if (error.meta.category === 'transient' && attempt < this.retries) {
-            throw error;
-          }
           throw error;
         }
-        if (attempt >= this.retries) {
-          throw new HttpClientError('System error communicating with backend', { category: 'system' });
-        }
-        throw error;
+
+        throw new HttpClientError('System error communicating with backend', {
+          category: 'system',
+        });
       }
     });
   }
@@ -159,20 +160,22 @@ export class HttpClient {
     let delayMs = 1000;
     const maxDelayMs = 5000;
 
-    while (attempt <= this.retries) {
+    while (true) {
       try {
         return await fn(attempt);
       } catch (error) {
-        attempt += 1;
-        if (attempt > this.retries) {
+        if (
+          !(error instanceof HttpClientError) ||
+          error.meta.category !== 'transient' ||
+          attempt >= this.retries
+        ) {
           throw error;
         }
+        attempt += 1;
         await delay(delayMs);
         delayMs = Math.min(delayMs * 2, maxDelayMs);
       }
     }
-
-    throw new Error('Retry failed');
   }
 
   private async handleError(response: Response): Promise<never> {
@@ -193,7 +196,7 @@ export class HttpClient {
       });
     }
 
-    if (retryableStatus.has(response.status)) {
+    if (isRetryableStatus(response.status)) {
       throw new HttpClientError(errorMessage, {
         status: response.status,
         category: 'transient',

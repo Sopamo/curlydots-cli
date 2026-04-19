@@ -1,21 +1,36 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { join } from 'node:path';
-import { clearParsers, getParser, registerParser } from '../../../src/parsers';
-import { nodeModuleParser } from '../../../src/parsers/node-module';
 
 const FIXTURES_PATH = join(import.meta.dir, '../../fixtures/sample-repo/translations');
+let moduleNonce = 0;
+
+async function loadParserModules() {
+  moduleNonce += 1;
+  const parsers = await import(`../../../src/parsers/index.ts?test=${moduleNonce}`);
+  const nodeModule = await import(`../../../src/parsers/node-module.ts?test=${moduleNonce}`);
+  return {
+    clearParsers: parsers.clearParsers,
+    getParser: parsers.getParser,
+    registerParser: parsers.registerParser,
+    nodeModuleParser: nodeModule.nodeModuleParser,
+  };
+}
 
 describe('nodeModuleParser', () => {
   beforeEach(() => {
-    clearParsers();
+    mock.restore();
   });
 
   describe('parser registration', () => {
-    it('should have name "node-module"', () => {
+    it('should have name "node-module"', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       expect(nodeModuleParser.name).toBe('node-module');
     });
 
-    it('should be registerable', () => {
+    it('should be registerable', async () => {
+      const { clearParsers, getParser, nodeModuleParser, registerParser } =
+        await loadParserModules();
+      clearParsers();
       registerParser(nodeModuleParser);
       expect(getParser('node-module')).toBe(nodeModuleParser);
     });
@@ -23,6 +38,7 @@ describe('nodeModuleParser', () => {
 
   describe('export', () => {
     it('should export English translations', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'en');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -33,6 +49,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should flatten nested objects with dot notation', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'en');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -43,6 +60,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should export German translations', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'de');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -52,6 +70,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should return Map with correct size for English', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'en');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -60,6 +79,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should return Map with correct size for German (missing keys)', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'de');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -68,6 +88,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should throw error for non-existent directory', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'nonexistent');
 
       await expect(nodeModuleParser.export(langDir)).rejects.toThrow();
@@ -89,6 +110,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create new file with translations', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.welcome', 'Willkommen'],
@@ -108,6 +130,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create nested key structure', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['auth.login.button', 'Anmelden'],
@@ -124,6 +147,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should merge with existing file content', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
 
       // First import
@@ -148,6 +172,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should update existing keys', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
 
       // First import
@@ -163,6 +188,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create multiple files for different prefixes', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.welcome', 'Willkommen'],
@@ -182,6 +208,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create language directory if it does not exist', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'fr', 'nested');
       const translations = new Map([['generic.hello', 'Bonjour']]);
 
@@ -193,6 +220,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle empty translations map', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
       const translations = new Map<string, string>();
 
@@ -204,6 +232,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should skip keys without file prefix and log warning', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.hello', 'Hallo'], // valid
@@ -221,6 +250,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle deeply nested keys', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['settings.account.profile.name', 'Name'],
@@ -237,6 +267,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle special characters in values', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(TEMP_PATH, 'de');
       const translations = new Map([
         ['generic.quote', "It's a test"],

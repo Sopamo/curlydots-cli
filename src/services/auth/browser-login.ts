@@ -1,9 +1,9 @@
 import crypto from 'node:crypto';
 import os from 'node:os';
 import open from 'open';
-import { loadCliConfig, type CliConfig } from '../../config/cli-config';
-import { HttpClient, HttpClientError } from '../http/client';
+import { type CliConfig, loadCliConfig } from '../../config/cli-config';
 import { globalLogger } from '../../utils/logger';
+import { HttpClient, HttpClientError } from '../http/client';
 
 export interface DeviceInfo {
   platform: NodeJS.Platform;
@@ -49,12 +49,11 @@ const defaultWait = (ms: number) => new Promise<void>((resolve) => setTimeout(re
 
 function describeHttpError(error: unknown): string {
   if (error instanceof HttpClientError) {
-    const prefix = error.meta.category === 'authentication'
-      ? 'Authentication error'
-      : error.meta.category === 'transient'
-        ? 'Temporary network error'
-        : error.meta.category === 'system'
-          ? 'System error'
+    const prefix =
+      error.meta.category === 'authentication'
+        ? 'Authentication error'
+        : error.meta.category === 'transient'
+          ? 'Temporary network error'
           : 'Request error';
     return `${prefix}: ${error.message}`;
   }
@@ -78,8 +77,16 @@ function createDeviceLabel(deviceInfo: DeviceInfo): string {
 function createFingerprintHash(deviceInfo: DeviceInfo): string {
   return crypto
     .createHash('sha256')
-    .update(`${deviceInfo.hostname}:${deviceInfo.platform}:${deviceInfo.arch}:${deviceInfo.release}`)
+    .update(
+      `${deviceInfo.hostname}:${deviceInfo.platform}:${deviceInfo.arch}:${deviceInfo.release}`,
+    )
     .digest('hex');
+}
+
+function createBrowserPairingUrl(frontendUrl: string, pairingCode: string): string {
+  const browserUrl = new URL('/cli/pair', frontendUrl);
+  browserUrl.searchParams.set('code', pairingCode);
+  return browserUrl.toString();
 }
 
 export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promise<AuthToken> {
@@ -99,18 +106,20 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
     const cliVersion = process.env.npm_package_version ?? '0.1.0';
     const deviceLabel = createDeviceLabel(deviceInfo);
     const fingerprintHash = createFingerprintHash(deviceInfo);
-    
-    const response = await client.post<{ code: string; verification_url: string; expires_at: string; poll_token: string }>(
-      'cli/pairings',
-      {
-        device_label: deviceLabel,
-        fingerprint_hash: fingerprintHash,
-        cli_version: cliVersion,
-      },
-    );
+
+    const response = await client.post<{
+      code: string;
+      verification_url: string;
+      expires_at: string;
+      poll_token: string;
+    }>('cli/pairings', {
+      device_label: deviceLabel,
+      fingerprint_hash: fingerprintHash,
+      cli_version: cliVersion,
+    });
 
     loginResponse = {
-      browserUrl: response.verification_url,
+      browserUrl: createBrowserPairingUrl(config.frontendUrl, response.code),
       pollingUrl: `cli/pairings/${response.code}`,
       cancelUrl: `cli/pairings/${response.code}/cancel`,
       pairingCode: response.code,

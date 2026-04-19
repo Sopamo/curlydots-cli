@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -7,13 +7,11 @@ type FetchArgs = Parameters<typeof fetch>;
 
 mock.module('../../src/config/cli-config', () => ({
   loadCliConfig: () => ({
-    apiEndpoint: 'https://curlydots.com',
-    authMethod: 'browser',
-    tokenStorage: 'keychain',
+    apiEndpoint: 'https://curlydots.com/api',
+    frontendUrl: 'https://curlydots.com',
     timeout: 500,
     retries: 0,
     debug: false,
-    token: undefined,
     defaultLocale: undefined,
   }),
 }));

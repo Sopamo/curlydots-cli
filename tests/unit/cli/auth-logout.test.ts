@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authLogoutCommand } from '../../../src/commands/auth/logout';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
+import * as authConfigModule from '../../../src/config/auth-config';
 import * as tokenManagerModule from '../../../src/services/auth/token-manager';
 import * as loggerModule from '../../../src/utils/logger';
 
@@ -10,8 +12,14 @@ const logs = {
 };
 
 const clearAuthTokenMock = mock(async () => {});
+const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
+  authMethod: 'browser' as const,
+  tokenStorage: 'keychain' as const,
+  token: undefined as string | undefined,
+}));
 const originalTokenManager = { ...tokenManagerModule };
 const originalLogger = { ...loggerModule };
+const originalAuthConfig = { ...authConfigModule };
 
 describe('unit/cli/auth-logout', () => {
   beforeEach(() => {
@@ -19,11 +27,16 @@ describe('unit/cli/auth-logout', () => {
     logs.warn.length = 0;
     logs.error.length = 0;
     clearAuthTokenMock.mockClear();
+    loadCliAuthConfigMock.mockClear();
     process.exitCode = 0;
-    delete process.env.CURLYDOTS_TOKEN;
+    process.env.CURLYDOTS_TOKEN = undefined;
 
     mock.module('../../../src/services/auth/token-manager', () => ({
       clearAuthToken: clearAuthTokenMock,
+    }));
+
+    mock.module('../../../src/config/auth-config', () => ({
+      loadCliAuthConfig: loadCliAuthConfigMock,
     }));
 
     mock.module('../../../src/utils/logger', () => ({
@@ -45,6 +58,7 @@ describe('unit/cli/auth-logout', () => {
     // Workaround for https://github.com/oven-sh/bun/issues/7823 due to ESM caching.
     mock.module('../../../src/services/auth/token-manager', () => ({ ...originalTokenManager }));
     mock.module('../../../src/utils/logger', () => ({ ...originalLogger }));
+    mock.module('../../../src/config/auth-config', () => ({ ...originalAuthConfig }));
   });
 
   it('clears local tokens without warning when no API token is set', async () => {
@@ -61,6 +75,18 @@ describe('unit/cli/auth-logout', () => {
     await authLogoutCommand([]);
 
     expect(logs.warn.some((message) => message.includes('CURLYDOTS_TOKEN'))).toBe(true);
+  });
+
+  it('warns about API tokens when auth.json token is set', async () => {
+    loadCliAuthConfigMock.mockReturnValueOnce({
+      authMethod: 'api_key',
+      tokenStorage: 'file',
+      token: 'api-token',
+    });
+
+    await authLogoutCommand([]);
+
+    expect(logs.warn.some((message) => message.includes('auth.json'))).toBe(true);
   });
 
   it('reports errors when logout fails', async () => {

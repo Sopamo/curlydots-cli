@@ -1,18 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CliAuthConfig } from '../../../src/config/auth-config';
 import { HttpClient, HttpClientError } from '../../../src/services/http/client';
 
 const ORIGINAL_ENV = { ...process.env };
 
 const mockLoadCliConfig = mock(() => ({
   apiEndpoint: 'http://curlydots.com/api',
-  authMethod: 'browser',
-  tokenStorage: 'keychain',
+  frontendUrl: 'http://curlydots.com',
   timeout: 1000,
   retries: 0,
   debug: false,
-  token: undefined,
   defaultLocale: undefined,
 }));
+const mockLoadCliAuthConfig = mock(
+  (): CliAuthConfig => ({
+    authMethod: 'browser' as const,
+    tokenStorage: 'keychain' as const,
+    token: undefined as string | undefined,
+  }),
+);
 
 const mockLoadAuthToken = mock<() => Promise<unknown>>(async () => null);
 const mockIsTokenExpired = mock(() => false);
@@ -28,14 +34,19 @@ const originalHttpClientFromConfig = HttpClient.fromConfig;
 describe('services/auth/status-presenter', () => {
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    delete process.env.CURLYDOTS_TOKEN;
+    process.env.CURLYDOTS_TOKEN = undefined;
     mockHttpClientGet.mockClear();
     mockLoadAuthToken.mockClear();
     mockIsTokenExpired.mockClear();
     mockFromConfig.mockClear();
+    mockLoadCliAuthConfig.mockClear();
 
     mock.module('../../../src/config/cli-config', () => ({
       loadCliConfig: mockLoadCliConfig,
+    }));
+
+    mock.module('../../../src/config/auth-config', () => ({
+      loadCliAuthConfig: mockLoadCliAuthConfig,
     }));
 
     mock.module('../../../src/services/auth/token-manager', () => ({
@@ -65,7 +76,9 @@ describe('services/auth/status-presenter', () => {
 
   it('reports unauthenticated when env token is rejected', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token';
-    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Token deactivated', { category: 'authentication' }));
+    mockHttpClientGet.mockRejectedValueOnce(
+      new HttpClientError('Token deactivated', { category: 'authentication' }),
+    );
 
     const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
     const status = await getAuthStatus();
@@ -76,13 +89,29 @@ describe('services/auth/status-presenter', () => {
 
   it('reports unauthenticated when env token cannot be validated', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token';
-    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Network error', { category: 'system' }));
+    mockHttpClientGet.mockRejectedValueOnce(
+      new HttpClientError('Network error', { category: 'system' }),
+    );
 
     const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
     const status = await getAuthStatus();
 
     expect(status.authenticated).toBe(false);
     expect(status.storage).toBe('environment');
+  });
+
+  it('reports authenticated when auth.json token is valid', async () => {
+    mockLoadCliAuthConfig.mockReturnValueOnce({
+      authMethod: 'api_key',
+      tokenStorage: 'file',
+      token: 'config-token',
+    });
+
+    const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
+    const status = await getAuthStatus();
+
+    expect(status.authenticated).toBe(true);
+    expect(status.storage).toBe('file');
   });
 
   it('reports authenticated when stored token is valid', async () => {
@@ -103,7 +132,9 @@ describe('services/auth/status-presenter', () => {
       accessToken: 'stored-token',
       expiresAt: '2026-01-01T00:00:00Z',
     });
-    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Network error', { category: 'system' }));
+    mockHttpClientGet.mockRejectedValueOnce(
+      new HttpClientError('Network error', { category: 'system' }),
+    );
 
     const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
     const status = await getAuthStatus();
