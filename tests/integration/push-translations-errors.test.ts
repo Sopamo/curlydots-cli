@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as authConfigModule from '../../src/config/auth-config';
@@ -143,7 +143,9 @@ describe('integration/push-translations-errors', () => {
     ]);
 
     expect(getValidTokenMock).toHaveBeenCalledTimes(1);
-    const authHeaders = fetchCalls.map((call) => (call.init?.headers as Record<string, string> | undefined)?.Authorization);
+    const authHeaders = fetchCalls.map(
+      (call) => (call.init?.headers as Record<string, string> | undefined)?.Authorization,
+    );
     expect(authHeaders.filter(Boolean)).toEqual(['Bearer renewed-token', 'Bearer renewed-token']);
     expect(process.exitCode).toBe(0);
   });

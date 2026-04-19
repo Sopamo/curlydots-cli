@@ -6,7 +6,9 @@ export async function authStatusCommand(_args: string[]): Promise<void> {
 
   if (status.expired) {
     const expiryLabel = status.expiresAt ? ` (expired ${status.expiresAt})` : ' (expired)';
-    globalLogger.warn(`Authentication expired${expiryLabel}. Run \`curlydots auth login\` to authenticate again.`);
+    globalLogger.warn(
+      `Authentication expired${expiryLabel}. Run \`curlydots auth login\` to authenticate again.`,
+    );
     return;
   }
 

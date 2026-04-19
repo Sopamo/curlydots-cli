@@ -1,7 +1,7 @@
+import { globalLogger } from '../../utils/logger';
 import { clearSecureToken, getSecureToken, saveSecureToken } from '../storage/secure-store';
 import type { AuthToken } from './browser-login';
 import { runBrowserLogin } from './browser-login';
-import { globalLogger } from '../../utils/logger';
 
 export type StoredAuthToken = AuthToken;
 
@@ -36,12 +36,12 @@ export function isTokenExpired(token: AuthToken): boolean {
   const expiresAt = new Date(token.expiresAt).getTime();
   const now = Date.now();
   const bufferMs = 5 * 60 * 1000;
-  return now >= (expiresAt - bufferMs);
+  return now >= expiresAt - bufferMs;
 }
 
 export async function getValidToken(): Promise<string> {
   let token = await loadAuthToken();
-  
+
   if (!token) {
     globalLogger.warn('No authentication token found. Please log in.');
     globalLogger.info('Starting authentication flow...');
@@ -54,6 +54,6 @@ export async function getValidToken(): Promise<string> {
     await persistAuthToken(token);
     globalLogger.success('Token renewed.');
   }
-  
+
   return token.accessToken;
 }

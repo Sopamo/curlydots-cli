@@ -63,14 +63,22 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: strin
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i]!;
+    const part = parts[i];
+    if (part === undefined) {
+      continue;
+    }
+
     if (!(part in current) || typeof current[part] !== 'object') {
       current[part] = {};
     }
     current = current[part] as Record<string, unknown>;
   }
 
-  const lastPart = parts[parts.length - 1]!;
+  const lastPart = parts.at(-1);
+  if (lastPart === undefined) {
+    return;
+  }
+
   current[lastPart] = value;
 }
 
@@ -126,13 +134,15 @@ export const nodeModuleParser: Parser = {
     if (!existsSync(langDir)) {
       throw new Error(`Language directory not found: ${langDir}`);
     }
-    
+
     // Find all .js files in the language directory
     // but skip index.js (it's usually the entry point)
     // also respect .gitignore files
-    const files = await listFilesRespectingGitIgnore(langDir, (relativePath) => (
-      relativePath.endsWith('.js') && relativePath !== 'index.js' && !relativePath.includes('/')
-    ));
+    const files = await listFilesRespectingGitIgnore(
+      langDir,
+      (relativePath) =>
+        relativePath.endsWith('.js') && relativePath !== 'index.js' && !relativePath.includes('/'),
+    );
 
     // Parse each file
     for (const filePath of files) {
@@ -186,7 +196,7 @@ export const nodeModuleParser: Parser = {
       if (!fileGroups.has(fileName)) {
         fileGroups.set(fileName, new Map());
       }
-      fileGroups.get(fileName)!.set(nestedKey, value);
+      fileGroups.get(fileName)?.set(nestedKey, value);
     }
 
     // Write each file

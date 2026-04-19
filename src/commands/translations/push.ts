@@ -30,7 +30,10 @@ function renderProgressBar(current: number, total: number, width = 30): string {
   return `${bar} ${pct}% (${current}/${total})`;
 }
 
-async function resolveTranslationDirectories(repoPath: string, translationsDirs: string[]): Promise<string[]> {
+async function resolveTranslationDirectories(
+  repoPath: string,
+  translationsDirs: string[],
+): Promise<string[]> {
   const resolvedDirs = new Set<string>();
 
   for (const dir of translationsDirs) {
@@ -91,7 +94,10 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     return;
   }
 
-  const resolvedTranslationDirs = await resolveTranslationDirectories(resolvedPath, parsedArgs.translationsDirs);
+  const resolvedTranslationDirs = await resolveTranslationDirectories(
+    resolvedPath,
+    parsedArgs.translationsDirs,
+  );
 
   if (resolvedTranslationDirs.length === 0) {
     globalLogger.error('No translation directories found after resolving glob patterns');
@@ -99,16 +105,18 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     return;
   }
 
-  const configBaseDir = findCommonAncestorDirectory(
-    resolvedTranslationDirs.map((dir) => resolve(resolvedPath, dir)),
-  ) ?? resolvedPath;
+  const configBaseDir =
+    findCommonAncestorDirectory(resolvedTranslationDirs.map((dir) => resolve(resolvedPath, dir))) ??
+    resolvedPath;
 
   // Resolve project UUID from override or fallback to selected project
   let projectUuid = parsedArgs.projectUuid;
   if (!projectUuid) {
     const currentProject = getCurrentProject(configBaseDir);
     if (!currentProject) {
-      globalLogger.error('No project specified. Use --project or run "curlydots projects select" to choose a project.');
+      globalLogger.error(
+        'No project specified. Use --project or run "curlydots projects select" to choose a project.',
+      );
       process.exitCode = 1;
       return;
     }
@@ -123,7 +131,11 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     debug: config.debug,
   });
 
-  const token = await resolveAuthToken({ baseDir: configBaseDir, client, token: parsedArgs.apiToken });
+  const token = await resolveAuthToken({
+    baseDir: configBaseDir,
+    client,
+    token: parsedArgs.apiToken,
+  });
   if (!token) {
     globalLogger.error('Missing API token. Run "curlydots auth login" or pass --api-token.');
     process.exitCode = 1;
@@ -160,7 +172,9 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
         const dirLabel = chalk.dim(dir);
         globalLogger.info(`  ${dirLabel} → ${keys.size} ${plural(keys.size, 'key')}`);
         if (keys.size === 0) {
-          globalLogger.warn(`  ${dirLabel} → no translations found for source language ${chalk.cyan(parsedArgs.source)}`);
+          globalLogger.warn(
+            `  ${dirLabel} → no translations found for source language ${chalk.cyan(parsedArgs.source)}`,
+          );
         }
         parsedDirsCount += 1;
         for (const [key, value] of keys) {
@@ -197,12 +211,16 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     if (entries.length === 0) {
       globalLogger.info('No translation keys found to upload');
       console.log('');
-      console.log(formatPushSummary({ scanned: 0, skipped: 0, uploaded: 0, failed: 0, batches: 0 }));
+      console.log(
+        formatPushSummary({ scanned: 0, skipped: 0, uploaded: 0, failed: 0, batches: 0 }),
+      );
       return;
     }
 
     // Step 3: Fetch existing keys from server (before context search to skip known keys)
-    globalLogger.info(`Fetching existing keys from project ${chalk.cyan(projectUuid.slice(0, 8))}...`);
+    globalLogger.info(
+      `Fetching existing keys from project ${chalk.cyan(projectUuid.slice(0, 8))}...`,
+    );
     const existing = await fetchExistingTranslationKeys(client, projectUuid, token);
     const existingCount = existing.data?.keys?.length ?? 0;
     globalLogger.success(
@@ -223,7 +241,9 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     if (newEntries.length === 0) {
       globalLogger.success('All keys already exist on server — nothing to upload');
       console.log('');
-      console.log(formatPushSummary({ scanned: entries.length, skipped, uploaded: 0, failed: 0, batches: 0 }));
+      console.log(
+        formatPushSummary({ scanned: entries.length, skipped, uploaded: 0, failed: 0, batches: 0 }),
+      );
       return;
     }
 
@@ -269,22 +289,25 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     );
 
     console.log('');
-    console.log(formatPushSummary({
-      scanned: entries.length,
-      skipped,
-      uploaded: result.uploaded,
-      failed: 0,
-      batches: result.batches,
-    }));
+    console.log(
+      formatPushSummary({
+        scanned: entries.length,
+        skipped,
+        uploaded: result.uploaded,
+        failed: 0,
+        batches: result.batches,
+      }),
+    );
   } catch (error) {
     if (error instanceof HttpClientError) {
-      const prefix = error.meta.category === 'authentication'
-        ? 'Authentication failed'
-        : error.meta.category === 'transient'
-          ? 'Temporary network error'
-          : error.meta.category === 'system'
-            ? 'System error'
-            : 'Request failed';
+      const prefix =
+        error.meta.category === 'authentication'
+          ? 'Authentication failed'
+          : error.meta.category === 'transient'
+            ? 'Temporary network error'
+            : error.meta.category === 'system'
+              ? 'System error'
+              : 'Request failed';
       globalLogger.error(`${prefix}: ${error.message}`);
       if (error.meta.category === 'authentication') {
         globalLogger.info('Run "curlydots auth login" or pass --api-token to authenticate.');

@@ -27,11 +27,19 @@ function mockConfigPathsModule(options: {
     ensureGlobalCurlydotsConfigFiles: () => {
       if (!existsSyncMock(globalConfigPath)) {
         mkdirSyncMock('/home/test/.curlydots', { recursive: true });
-        writeFileSyncMock(globalConfigPath, `${JSON.stringify({ schemaVersion: 1, apiEndpoint: 'https://curlydots.com/api', frontendUrl: 'https://curlydots.com', debug: false }, null, 2)}\n`, 'utf8');
+        writeFileSyncMock(
+          globalConfigPath,
+          `${JSON.stringify({ schemaVersion: 1, apiEndpoint: 'https://curlydots.com/api', frontendUrl: 'https://curlydots.com', debug: false }, null, 2)}\n`,
+          'utf8',
+        );
       }
       if (!existsSyncMock(globalAuthPath)) {
         mkdirSyncMock('/home/test/.curlydots', { recursive: true });
-        writeFileSyncMock(globalAuthPath, `${JSON.stringify({ schemaVersion: 1, authMethod: 'browser', tokenStorage: 'keychain' }, null, 2)}\n`, 'utf8');
+        writeFileSyncMock(
+          globalAuthPath,
+          `${JSON.stringify({ schemaVersion: 1, authMethod: 'browser', tokenStorage: 'keychain' }, null, 2)}\n`,
+          'utf8',
+        );
       }
     },
     findNearestProjectCurlydotsFilePath: (fileName: string) => {
@@ -50,7 +58,8 @@ function mockConfigPathsModule(options: {
         return undefined;
       }
 
-      return projectConfigPath.startsWith(`${startDir}/`) || projectConfigPath === `${startDir}/.curlydots/config.json`
+      return projectConfigPath.startsWith(`${startDir}/`) ||
+        projectConfigPath === `${startDir}/.curlydots/config.json`
         ? projectConfigPath
         : undefined;
     },
@@ -62,7 +71,8 @@ function mockConfigPathsModule(options: {
 
       return JSON.parse(readFileSyncMock(filePath)) as Record<string, unknown>;
     },
-    readSchemaVersion: (rawConfig: Record<string, unknown>) => typeof rawConfig.schemaVersion === 'number' ? rawConfig.schemaVersion : 0,
+    readSchemaVersion: (rawConfig: Record<string, unknown>) =>
+      typeof rawConfig.schemaVersion === 'number' ? rawConfig.schemaVersion : 0,
     writeJsonObjectFile: (filePath: string, value: Record<string, unknown>) => {
       mkdirSyncMock('/home/test/.curlydots', { recursive: true });
       writeFileSyncMock(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -112,10 +122,6 @@ describe('config/cli-config', () => {
     const mkdirSyncMock = mock(() => undefined);
     const writeFileSyncMock = mock(() => undefined);
 
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
-
     mockConfigPathsModule({
       globalConfigPath,
       globalAuthPath,
@@ -152,10 +158,9 @@ describe('config/cli-config', () => {
     const globalAuthPath = '/home/test/.curlydots/auth.json';
     const projectConfigPath = join(process.cwd(), '.curlydots/config.json');
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === globalConfigPath
-      || filePath === globalAuthPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === globalConfigPath || filePath === globalAuthPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
@@ -178,10 +183,6 @@ describe('config/cli-config', () => {
       }
       throw new Error(`Unexpected read: ${filePath}`);
     });
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
 
     mockConfigPathsModule({
       globalConfigPath,
@@ -210,11 +211,12 @@ describe('config/cli-config', () => {
     const globalAuthPath = '/home/test/.curlydots/auth.json';
     const projectConfigPath = join(process.cwd(), '.curlydots/config.json');
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === globalConfigPath
-      || filePath === globalAuthPath
-      || filePath === projectConfigPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) =>
+        filePath === globalConfigPath ||
+        filePath === globalAuthPath ||
+        filePath === projectConfigPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
@@ -236,10 +238,6 @@ describe('config/cli-config', () => {
       }
       throw new Error(`Unexpected read: ${filePath}`);
     });
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
 
     mockConfigPathsModule({
       globalConfigPath,
@@ -268,11 +266,12 @@ describe('config/cli-config', () => {
     const explicitBaseDir = '/workspace/shared';
     const projectConfigPath = join(explicitBaseDir, '.curlydots/config.json');
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === globalConfigPath
-      || filePath === globalAuthPath
-      || filePath === projectConfigPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) =>
+        filePath === globalConfigPath ||
+        filePath === globalAuthPath ||
+        filePath === projectConfigPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
@@ -292,10 +291,6 @@ describe('config/cli-config', () => {
       }
       throw new Error(`Unexpected read: ${filePath}`);
     });
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
 
     mockConfigPathsModule({
       globalConfigPath,
@@ -319,10 +314,9 @@ describe('config/cli-config', () => {
     const globalAuthPath = '/home/test/.curlydots/auth.json';
     const projectConfigPath = join(process.cwd(), '.curlydots/config.json');
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === globalConfigPath
-      || filePath === globalAuthPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === globalConfigPath || filePath === globalAuthPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
@@ -349,10 +343,6 @@ describe('config/cli-config', () => {
       throw new Error(`Unexpected read: ${filePath}`);
     });
 
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
-
     mockConfigPathsModule({
       globalConfigPath,
       projectConfigPath,
@@ -376,7 +366,9 @@ describe('config/cli-config', () => {
     const globalConfigPath = '/home/test/.curlydots/config.json';
     const globalAuthPath = '/home/test/.curlydots/auth.json';
 
-    const existsSyncMock = mock((filePath: string) => filePath === globalConfigPath || filePath === globalAuthPath);
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === globalConfigPath || filePath === globalAuthPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({ schemaVersion: 1 });
@@ -390,10 +382,6 @@ describe('config/cli-config', () => {
       }
       throw new Error(`Unexpected read: ${filePath}`);
     });
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
 
     mockConfigPathsModule({
       globalConfigPath,
@@ -418,9 +406,9 @@ describe('config/cli-config', () => {
     const globalAuthPath = '/home/test/.curlydots/auth.json';
     const warnSpy = mock(() => undefined);
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === globalConfigPath || filePath === globalAuthPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === globalConfigPath || filePath === globalAuthPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
@@ -439,10 +427,6 @@ describe('config/cli-config', () => {
       }
       throw new Error(`Unexpected read: ${filePath}`);
     });
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
 
     mockConfigPathsModule({
       globalConfigPath,
@@ -473,9 +457,9 @@ describe('config/cli-config', () => {
     const writeFileSyncMock = mock(() => undefined);
     const mkdirSyncMock = mock(() => undefined);
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === globalConfigPath || filePath === globalAuthPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === globalConfigPath || filePath === globalAuthPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
@@ -493,10 +477,6 @@ describe('config/cli-config', () => {
       }
       throw new Error(`Unexpected read: ${filePath}`);
     });
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
 
     mockConfigPathsModule({
       globalConfigPath,
@@ -525,9 +505,9 @@ describe('config/cli-config', () => {
     const writeFileSyncMock = mock(() => undefined);
     const mkdirSyncMock = mock(() => undefined);
 
-    const existsSyncMock = mock((filePath: string) => (
-      filePath === globalConfigPath || filePath === globalAuthPath
-    ));
+    const existsSyncMock = mock(
+      (filePath: string) => filePath === globalConfigPath || filePath === globalAuthPath,
+    );
     const readFileSyncMock = mock((filePath: string) => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
@@ -549,10 +529,6 @@ describe('config/cli-config', () => {
       }
       throw new Error(`Unexpected read: ${filePath}`);
     });
-
-    mock.module('node:os', () => ({
-      homedir: () => '/home/test',
-    }));
 
     mockConfigPathsModule({
       globalConfigPath,

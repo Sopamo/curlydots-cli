@@ -9,7 +9,11 @@ const logs = {
 
 const getCliAccessTokenMock = mock(async () => 'token');
 const getExplicitAccessTokenMock = mock<
-  () => { source: 'environment_token' | 'api_key'; storage: 'environment' | 'file'; token: string } | null
+  () => {
+    source: 'environment_token' | 'api_key';
+    storage: 'environment' | 'file';
+    token: string;
+  } | null
 >(() => null);
 
 const loadCliConfigMock = mock<() => CliConfig>(() => ({
@@ -78,9 +82,10 @@ describe('unit/cli/projects', () => {
       setCurrentProject: setCurrentProjectMock,
     }));
 
-    HttpClient.fromConfig = () => ({
-      get: httpClientGetMock,
-    }) as unknown as HttpClient;
+    HttpClient.fromConfig = () =>
+      ({
+        get: httpClientGetMock,
+      }) as unknown as HttpClient;
 
     mock.module('../../../src/utils/logger', () => ({
       ...originalLogger,

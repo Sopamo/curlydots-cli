@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as authConfigModule from '../../src/config/auth-config';
@@ -11,6 +11,25 @@ type FetchArgs = Parameters<typeof fetch>;
 const originalAuthConfig = { ...authConfigModule };
 const originalCliConfig = { ...cliConfigModule };
 const originalProjectConfig = { ...projectConfigModule };
+
+function stripAnsiCodes(value: string): string {
+  const escapeCharacter = String.fromCharCode(27);
+  let output = '';
+
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] === escapeCharacter && value[index + 1] === '[') {
+      index += 2;
+      while (index < value.length && value[index] !== 'm') {
+        index += 1;
+      }
+      continue;
+    }
+
+    output += value[index];
+  }
+
+  return output;
+}
 
 describe('integration/push-translations-project-override', () => {
   const originalFetch = globalThis.fetch;
@@ -59,7 +78,7 @@ describe('integration/push-translations-project-override', () => {
       projectName: 'Selected Project',
       teamName: 'Test Team',
     }));
-    
+
     mock.module('../../src/config/project-config', () => ({
       getCurrentProject: mockGetCurrentProject,
       setCurrentProject: mock(() => {}),
@@ -85,10 +104,10 @@ describe('integration/push-translations-project-override', () => {
 
     // Verify the API calls use the selected project UUID
     expect(fetchCalls.length).toBeGreaterThan(0);
-    
+
     const getCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') === 'GET');
     expect(getCall?.input).toContain('projects/selected-project-456/translation-keys');
-    
+
     const postCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') !== 'GET');
     expect(postCall?.input).toContain('projects/selected-project-456/translation-keys');
   });
@@ -96,7 +115,7 @@ describe('integration/push-translations-project-override', () => {
   it('errors when no project is selected and --project not provided', async () => {
     // Mock getCurrentProject to return null (no project selected)
     const mockGetCurrentProject = mock(() => null);
-    
+
     mock.module('../../src/config/project-config', () => ({
       getCurrentProject: mockGetCurrentProject,
       setCurrentProject: mock(() => {}),
@@ -131,11 +150,12 @@ describe('integration/push-translations-project-override', () => {
     console.error = originalConsoleError;
 
     // Verify error message (strip ANSI codes for comparison)
-    const cleanErrors = errorMessages.map(msg => msg.replace(/\x1b\[[0-9;]*m/g, ''));
-    expect(cleanErrors.some(msg => 
-      msg.includes('No project specified') && 
-      msg.includes('Use --project or run')
-    )).toBe(true);
+    const cleanErrors = errorMessages.map(stripAnsiCodes);
+    expect(
+      cleanErrors.some(
+        (msg) => msg.includes('No project specified') && msg.includes('Use --project or run'),
+      ),
+    ).toBe(true);
     expect(process.exitCode).toBe(1);
   });
 
@@ -146,7 +166,7 @@ describe('integration/push-translations-project-override', () => {
       projectName: 'Selected Project',
       teamName: 'Test Team',
     }));
-    
+
     mock.module('../../src/config/project-config', () => ({
       getCurrentProject: mockGetCurrentProject,
       setCurrentProject: mock(() => {}),
@@ -174,11 +194,11 @@ describe('integration/push-translations-project-override', () => {
 
     // Verify the API calls use the override project UUID, not the selected one
     expect(fetchCalls.length).toBeGreaterThan(0);
-    
+
     const getCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') === 'GET');
     expect(getCall?.input).toContain('projects/override-project-789/translation-keys');
     expect(getCall?.input).not.toContain('projects/selected-project-456/translation-keys');
-    
+
     const postCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') !== 'GET');
     expect(postCall?.input).toContain('projects/override-project-789/translation-keys');
     expect(postCall?.input).not.toContain('projects/selected-project-456/translation-keys');
@@ -195,9 +215,21 @@ describe('integration/push-translations-project-override', () => {
     await mkdir(usersTranslations, { recursive: true });
     await mkdir(langTranslations, { recursive: true });
 
-    await writeFile(join(appTranslations, 'common.js'), 'module.exports = { save: "Save" };\n', 'utf8');
-    await writeFile(join(usersTranslations, 'users.js'), 'module.exports = { invite: "Invite" };\n', 'utf8');
-    await writeFile(join(langTranslations, 'admin.js'), 'module.exports = { publish: "Publish" };\n', 'utf8');
+    await writeFile(
+      join(appTranslations, 'common.js'),
+      'module.exports = { save: "Save" };\n',
+      'utf8',
+    );
+    await writeFile(
+      join(usersTranslations, 'users.js'),
+      'module.exports = { invite: "Invite" };\n',
+      'utf8',
+    );
+    await writeFile(
+      join(langTranslations, 'admin.js'),
+      'module.exports = { publish: "Publish" };\n',
+      'utf8',
+    );
     await writeFile(
       join(projectRoot, 'usage.ts'),
       [
@@ -308,7 +340,9 @@ describe('integration/push-translations-project-override', () => {
 
     expect(mockLoadCliConfig).toHaveBeenCalled();
     const getCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') === 'GET');
-    expect(getCall?.input).toContain('https://staging.curlydots.test/api/projects/project-123/translation-keys');
+    expect(getCall?.input).toContain(
+      'https://staging.curlydots.test/api/projects/project-123/translation-keys',
+    );
   });
 
   it('prefers --api-host over configured apiEndpoint', async () => {
@@ -351,7 +385,11 @@ describe('integration/push-translations-project-override', () => {
 
     expect(mockLoadCliConfig).toHaveBeenCalled();
     const getCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') === 'GET');
-    expect(getCall?.input).toContain('https://override.curlydots.test/api/projects/project-123/translation-keys');
-    expect(getCall?.input).not.toContain('https://configured.curlydots.test/api/projects/project-123/translation-keys');
+    expect(getCall?.input).toContain(
+      'https://override.curlydots.test/api/projects/project-123/translation-keys',
+    );
+    expect(getCall?.input).not.toContain(
+      'https://configured.curlydots.test/api/projects/project-123/translation-keys',
+    );
   });
 });

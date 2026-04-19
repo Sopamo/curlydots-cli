@@ -1,17 +1,21 @@
-import { describe, expect, it } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { describe, expect, it, mock } from 'bun:test';
 import path from 'node:path';
 
-function loadInstallSmokeWorkflow() {
-  const workflowPath = path.resolve(process.cwd(), '.github/workflows/install-smoke.yml');
-  return readFileSync(workflowPath, 'utf8');
+const CLI_ROOT = path.resolve(import.meta.dir, '../../..');
+
+async function loadInstallSmokeWorkflow() {
+  mock.restore();
+  const workflowPath = path.resolve(CLI_ROOT, '.github/workflows/install-smoke.yml');
+  return Bun.file(workflowPath).text();
 }
 
 describe('distribution/install-smoke-workflow', () => {
-  it('uses pwsh for Windows install and verification steps', () => {
-    const workflow = loadInstallSmokeWorkflow();
+  it('uses pwsh for Windows install and verification steps', async () => {
+    const workflow = await loadInstallSmokeWorkflow();
 
-    expect(workflow).toContain('name: Install CurlyDots globally from npm registry (with retry, Windows)');
+    expect(workflow).toContain(
+      'name: Install CurlyDots globally from npm registry (with retry, Windows)',
+    );
     expect(workflow).toContain("if: runner.os == 'Windows'");
     expect(workflow).toContain('shell: pwsh');
     expect(workflow).toContain('for ($attempt = 1; $attempt -le 15; $attempt++)');
@@ -22,8 +26,8 @@ describe('distribution/install-smoke-workflow', () => {
     expect(workflow).toContain('& $nativeBin --help');
   });
 
-  it('keeps native binary checks on both Unix and Windows', () => {
-    const workflow = loadInstallSmokeWorkflow();
+  it('keeps native binary checks on both Unix and Windows', async () => {
+    const workflow = await loadInstallSmokeWorkflow();
 
     expect(workflow).toContain('name: Verify command resolves to native binary on Unix');
     expect(workflow).toContain('file -L "$BIN_PATH"');

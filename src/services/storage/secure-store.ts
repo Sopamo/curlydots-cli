@@ -1,7 +1,7 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, hostname, userInfo } from 'node:os';
 import { join } from 'node:path';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
 const getConfigDir = () => process.env.CURLYDOTS_HOME ?? join(homedir(), '.curlydots');
 const getTokenFile = () => join(getConfigDir(), 'tokens.json');
@@ -49,13 +49,11 @@ function deriveKey(): Buffer {
 
   const host = hostname();
   const homeDir = homedir();
-  
+
   // Note: This is NOT cryptographically secure key derivation.
   // It's only used as a fallback when keytar is unavailable.
   // The primary security mechanism is the system keychain via keytar.
-  return createHash('sha256')
-    .update(`${user}:${host}:${homeDir}:curlydots-cli-v1`)
-    .digest();
+  return createHash('sha256').update(`${user}:${host}:${homeDir}:curlydots-cli-v1`).digest();
 }
 
 function encrypt(value: string): EncryptedPayload {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authLogoutCommand } from '../../../src/commands/auth/logout';
-import * as tokenManagerModule from '../../../src/services/auth/token-manager';
 import * as authServiceModule from '../../../src/services/auth/service';
+import * as tokenManagerModule from '../../../src/services/auth/token-manager';
 import * as loggerModule from '../../../src/utils/logger';
 
 const logs = {
@@ -14,7 +14,11 @@ const logs = {
 const clearAuthTokenMock = mock(async () => {});
 const loadAuthTokenMock = mock(async () => null);
 const getExplicitAccessTokenMock = mock<
-  () => { source: 'environment_token' | 'api_key'; storage: 'environment' | 'file'; token: string } | null
+  () => {
+    source: 'environment_token' | 'api_key';
+    storage: 'environment' | 'file';
+    token: string;
+  } | null
 >(() => null);
 const originalTokenManager = { ...tokenManagerModule };
 const originalAuthService = { ...authServiceModule };
@@ -32,7 +36,7 @@ describe('unit/cli/auth-logout', () => {
     getExplicitAccessTokenMock.mockClear();
     getExplicitAccessTokenMock.mockReturnValue(null);
     process.exitCode = 0;
-    delete process.env.CURLYDOTS_TOKEN;
+    process.env.CURLYDOTS_TOKEN = undefined;
 
     mock.module('../../../src/services/auth/token-manager', () => ({
       clearAuthToken: clearAuthTokenMock,
@@ -70,7 +74,9 @@ describe('unit/cli/auth-logout', () => {
     await authLogoutCommand([]);
 
     expect(clearAuthTokenMock).toHaveBeenCalledTimes(1);
-    expect(logs.info.some((message) => message.includes('No stored browser session found'))).toBe(true);
+    expect(logs.info.some((message) => message.includes('No stored browser session found'))).toBe(
+      true,
+    );
     expect(logs.success).toHaveLength(0);
     expect(logs.warn.some((message) => message.includes('API tokens'))).toBe(false);
   });

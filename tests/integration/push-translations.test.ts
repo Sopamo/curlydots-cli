@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -144,10 +144,7 @@ describe('integration/push-translations', () => {
     );
     await writeFile(
       join(tempDir, 'usage.ts'),
-      [
-        "const save = t('common.save');",
-        "const publish = t('admin.publish');",
-      ].join('\n'),
+      ["const save = t('common.save');", "const publish = t('admin.publish');"].join('\n'),
       'utf8',
     );
 

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { AuthToken } from '../../src/services/auth/browser-login';
 import * as browserLoginModule from '../../src/services/auth/browser-login';
-import * as tokenManagerModule from '../../src/services/auth/token-manager';
 import * as authServiceModule from '../../src/services/auth/service';
+import * as tokenManagerModule from '../../src/services/auth/token-manager';
 import * as loggerModule from '../../src/utils/logger';
 
 const token: AuthToken = {
@@ -15,7 +15,11 @@ const token: AuthToken = {
 const runBrowserLoginMock = mock(async () => token);
 const persistAuthTokenMock = mock(async () => {});
 const getExplicitAccessTokenMock = mock<
-  () => { source: 'environment_token' | 'api_key'; storage: 'environment' | 'file'; token: string } | null
+  () => {
+    source: 'environment_token' | 'api_key';
+    storage: 'environment' | 'file';
+    token: string;
+  } | null
 >(() => null);
 const getSecureTokenMock = mock(async () => null);
 const saveSecureTokenMock = mock(async () => {});
@@ -29,7 +33,6 @@ const logs = {
   success: [] as string[],
 };
 
-
 describe('[module-mock] integration/cli-auth-login', () => {
   beforeEach(() => {
     runBrowserLoginMock.mockClear();
@@ -38,7 +41,7 @@ describe('[module-mock] integration/cli-auth-login', () => {
     logs.warn.length = 0;
     logs.success.length = 0;
     process.exitCode = undefined;
-    delete process.env.CURLYDOTS_TOKEN;
+    process.env.CURLYDOTS_TOKEN = undefined;
     mock.module('../../src/services/auth/browser-login', () => ({
       runBrowserLogin: runBrowserLoginMock,
     }));

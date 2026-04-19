@@ -63,9 +63,7 @@ export async function listFilesRespectingGitIgnore(
     });
 
     if (filesResult.status === 0) {
-      const repoRelativePaths = filesResult.stdout
-        .split('\0')
-        .filter(Boolean);
+      const repoRelativePaths = filesResult.stdout.split('\0').filter(Boolean);
 
       const ignoredPaths = filterIgnoredPaths(gitRoot, repoRelativePaths);
 
@@ -81,7 +79,11 @@ export async function listFilesRespectingGitIgnore(
   const files: string[] = [];
   const glob = new Glob('**/*');
 
-  for await (const relativePath of glob.scan({ cwd: searchDir, absolute: false, onlyFiles: true })) {
+  for await (const relativePath of glob.scan({
+    cwd: searchDir,
+    absolute: false,
+    onlyFiles: true,
+  })) {
     if (includeFile(relativePath)) {
       files.push(join(searchDir, relativePath));
     }

@@ -6,7 +6,11 @@ describe('distribution/build-target', () => {
   it('prefers pwsh over other Windows archivers', () => {
     const command = resolveWindowsArchiveCommand((candidate, probeArgs) => {
       if (candidate === 'pwsh') {
-        expect(probeArgs).toEqual(['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()']);
+        expect(probeArgs).toEqual([
+          '-NoProfile',
+          '-Command',
+          '$PSVersionTable.PSVersion.ToString()',
+        ]);
         return true;
       }
 

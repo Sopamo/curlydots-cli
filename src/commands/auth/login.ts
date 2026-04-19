@@ -1,6 +1,6 @@
 import { runBrowserLogin } from '../../services/auth/browser-login';
-import { isTokenExpired, loadAuthToken, persistAuthToken } from '../../services/auth/token-manager';
 import { getExplicitAccessToken } from '../../services/auth/service';
+import { isTokenExpired, loadAuthToken, persistAuthToken } from '../../services/auth/token-manager';
 import { globalLogger } from '../../utils/logger';
 
 const loginState = { inProgress: false };
@@ -14,12 +14,16 @@ export async function authLoginCommand(_args: string[]): Promise<void> {
 
   const explicitToken = getExplicitAccessToken();
   if (explicitToken?.source === 'environment_token') {
-    globalLogger.warn('CURLYDOTS_TOKEN is set. Unset it to use browser login, or keep using the environment token.');
+    globalLogger.warn(
+      'CURLYDOTS_TOKEN is set. Unset it to use browser login, or keep using the environment token.',
+    );
     return;
   }
 
   if (explicitToken?.source === 'api_key') {
-    globalLogger.warn('A token is configured in .curlydots/auth.json. Remove it to use browser login.');
+    globalLogger.warn(
+      'A token is configured in .curlydots/auth.json. Remove it to use browser login.',
+    );
     return;
   }
 
@@ -45,7 +49,10 @@ export async function authLoginCommand(_args: string[]): Promise<void> {
     globalLogger.success('Logged in successfully. Token stored securely.');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    globalLogger.error(`Authentication failed: ${message}`, error instanceof Error ? error : undefined);
+    globalLogger.error(
+      `Authentication failed: ${message}`,
+      error instanceof Error ? error : undefined,
+    );
     process.exitCode = 1;
   } finally {
     loginState.inProgress = false;

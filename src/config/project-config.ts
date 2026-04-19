@@ -1,11 +1,10 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { findNearestCurlydotsFilePathFrom } from './config-paths';
+import { platform } from './node-platform';
 
 const CONFIG_DIR_NAME = '.curlydots';
 const PROJECT_CONFIG_FILE_NAME = 'current-project.json';
-const GLOBAL_CONFIG_DIR = join(homedir(), CONFIG_DIR_NAME);
+const GLOBAL_CONFIG_DIR = join(platform.homedir(), CONFIG_DIR_NAME);
 const GLOBAL_PROJECT_CONFIG_PATH = join(GLOBAL_CONFIG_DIR, PROJECT_CONFIG_FILE_NAME);
 
 interface ProjectConfig {
@@ -18,7 +17,7 @@ function findProjectRoot(startDir: string): string | null {
   let currentDir = startDir;
 
   while (true) {
-    if (existsSync(join(currentDir, '.git'))) {
+    if (platform.existsSync(join(currentDir, '.git'))) {
       return currentDir;
     }
 
@@ -52,15 +51,15 @@ function isProjectConfig(value: unknown): value is ProjectConfig {
   const candidate = value as Record<string, unknown>;
 
   return (
-    typeof candidate.projectId === 'string'
-    && typeof candidate.projectName === 'string'
-    && typeof candidate.teamName === 'string'
+    typeof candidate.projectId === 'string' &&
+    typeof candidate.projectName === 'string' &&
+    typeof candidate.teamName === 'string'
   );
 }
 
 function readProjectConfigFromPath(filePath: string): ProjectConfig | null {
   try {
-    const content = readFileSync(filePath, 'utf8');
+    const content = platform.readFileSync(filePath, 'utf8');
     const parsed = JSON.parse(content) as unknown;
 
     if (parsed === null) {
@@ -76,7 +75,7 @@ function readProjectConfigFromPath(filePath: string): ProjectConfig | null {
 function resolveReadPath(startDir?: string): string {
   const localPath = getLocalProjectConfigPath(startDir);
 
-  if (localPath && existsSync(localPath)) {
+  if (localPath && platform.existsSync(localPath)) {
     return localPath;
   }
 
@@ -95,7 +94,7 @@ function resolveWritePath(): string {
 
 export function getCurrentProject(startDir?: string): ProjectConfig | null {
   const configPath = resolveReadPath(startDir);
-  if (!existsSync(configPath)) {
+  if (!platform.existsSync(configPath)) {
     return null;
   }
 
@@ -106,12 +105,14 @@ export function setCurrentProject(projectId: string, projectName: string, teamNa
   const configPath = resolveWritePath();
 
   try {
-    mkdirSync(dirname(configPath), { recursive: true });
+    platform.mkdirSync(dirname(configPath), { recursive: true });
 
     const config: ProjectConfig = { projectId, projectName, teamName };
-    writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    platform.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
   } catch (error) {
-    throw new Error(`Failed to save project selection: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to save project selection: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
   }
 }
 
@@ -119,8 +120,8 @@ export function clearCurrentProject(): void {
   const configPath = resolveReadPath();
 
   try {
-    if (existsSync(configPath)) {
-      writeFileSync(configPath, JSON.stringify(null), 'utf8');
+    if (platform.existsSync(configPath)) {
+      platform.writeFileSync(configPath, JSON.stringify(null), 'utf8');
     }
   } catch {
     // Ignore errors when clearing

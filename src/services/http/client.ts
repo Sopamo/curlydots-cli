@@ -180,8 +180,18 @@ export class HttpClient {
       return (await response.json()) as T;
     };
 
-    return this.retry(async (_attempt) => {
-      return await requestWithTimeout((signal) => attemptRequest(signal), this.timeout);
+    return this.retry(async () => {
+      try {
+        return await requestWithTimeout((signal) => attemptRequest(signal), this.timeout);
+      } catch (error) {
+        if (error instanceof HttpClientError) {
+          throw error;
+        }
+
+        throw new HttpClientError('System error communicating with backend', {
+          category: 'system',
+        });
+      }
     });
   }
 

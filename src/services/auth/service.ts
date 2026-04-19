@@ -86,12 +86,19 @@ export async function resolveAuthSource(baseDir?: string): Promise<ResolvedAuthS
 export async function getCliAccessToken(baseDir?: string): Promise<string> {
   const resolved = await resolveAuthSource(baseDir);
 
-  if (resolved.source === 'environment_token' || resolved.source === 'api_key') {
-    return resolved.token!;
+  if (
+    (resolved.source === 'environment_token' || resolved.source === 'api_key') &&
+    resolved.token
+  ) {
+    return resolved.token;
   }
 
   if (resolved.source === 'browser_session' && resolved.token && !resolved.expired) {
     return resolved.token;
+  }
+
+  if (resolved.source === null) {
+    return '';
   }
 
   return getValidToken();
@@ -141,7 +148,17 @@ export async function getAuthStatus(baseDir?: string): Promise<AuthStatus> {
     };
   }
 
-  const apiAuth = await validateTokenWithApi(resolved.token!, config);
+  if (!resolved.token) {
+    return {
+      authenticated: false,
+      expired: false,
+      expiresAt: resolved.expiresAt,
+      storage: resolved.storage,
+      source: resolved.source,
+    };
+  }
+
+  const apiAuth = await validateTokenWithApi(resolved.token, config);
   if (apiAuth === false || apiAuth === null) {
     return {
       authenticated: false,

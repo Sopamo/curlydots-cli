@@ -16,7 +16,6 @@ export interface PushArgs {
   help: boolean;
 }
 
-
 // When empty, include all file extensions during context search.
 const includeExtensions: string[] = [];
 
@@ -58,7 +57,10 @@ export function parsePushArgs(args: string[]): PushArgs {
       result.parserFile = arg.slice('--parser-file='.length);
     } else if (arg === '-e' || arg === '--extensions') {
       const extString = args[++i] || '';
-      result.extensions = extString.split(',').map((ext) => ext.trim()).filter(Boolean);
+      result.extensions = extString
+        .split(',')
+        .map((ext) => ext.trim())
+        .filter(Boolean);
     } else if (arg === '--api-host') {
       result.apiHost = args[++i] || result.apiHost;
     } else if (arg === '--api-token') {
