@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { authLogoutCommand } from '../../../src/commands/auth/logout';
 import * as authServiceModule from '../../../src/services/auth/service';
+import type { StoredAuthToken } from '../../../src/services/auth/token-manager';
 import * as tokenManagerModule from '../../../src/services/auth/token-manager';
 import * as loggerModule from '../../../src/utils/logger';
 
@@ -12,7 +13,7 @@ const logs = {
 };
 
 const clearAuthTokenMock = mock(async () => {});
-const loadAuthTokenMock = mock(async () => null);
+const loadAuthTokenMock = mock<() => Promise<StoredAuthToken | null>>(async () => null);
 const getExplicitAccessTokenMock = mock<
   () => {
     source: 'environment_token' | 'api_key';
