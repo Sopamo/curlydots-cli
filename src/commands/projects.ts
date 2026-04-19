@@ -1,11 +1,15 @@
-import { HttpClient, HttpClientError } from '../services/http/client.js';
-import { loadAuthToken } from '../services/auth/token-manager.js';
-import { globalLogger } from '../utils/logger.js';
-import { loadCliConfig } from '../config/cli-config.js';
-import { loadCliAuthConfig } from '../config/auth-config.js';
-import { clearCurrentProject, getCurrentProject, setCurrentProject } from '../config/project-config.js';
 import * as readline from 'node:readline';
 import chalk from 'chalk';
+import { loadCliAuthConfig } from '../config/auth-config.js';
+import { loadCliConfig } from '../config/cli-config.js';
+import {
+  clearCurrentProject,
+  getCurrentProject,
+  setCurrentProject,
+} from '../config/project-config.js';
+import { loadAuthToken } from '../services/auth/token-manager.js';
+import { HttpClient, HttpClientError } from '../services/http/client.js';
+import { globalLogger } from '../utils/logger.js';
 
 interface Project {
   id: string;
@@ -51,13 +55,13 @@ async function promptForSelection(projects: Project[]): Promise<Project | null> 
     const prompt = chalk.cyan('\n→ Select a project (enter number or press Enter to cancel): ');
     rl.question(prompt, (answer) => {
       rl.close();
-      
-      const selection = parseInt(answer.trim(), 10);
-      if (isNaN(selection) || selection < 1 || selection > projects.length) {
+
+      const selection = Number.parseInt(answer.trim(), 10);
+      if (Number.isNaN(selection) || selection < 1 || selection > projects.length) {
         resolve(null);
         return;
       }
-      
+
       const selected = projects[selection - 1];
       resolve(selected ?? null);
     });
@@ -94,30 +98,36 @@ export async function projectsCommand(_args: string[]): Promise<void> {
     if (storedProject && !projectIds.has(storedProject.projectId)) {
       clearCurrentProject();
       currentProject = null;
-      globalLogger.warn('Your current project selection is no longer available. Please select a new project.');
+      globalLogger.warn(
+        'Your current project selection is no longer available. Please select a new project.',
+      );
     }
-    
+
     console.log(chalk.bold('\nAvailable Projects:\n'));
-    
+
     if (response.data.length === 1 && hasApiKey) {
       console.log(chalk.yellow('⚠ You are using an API key which only has access to one project.'));
-      console.log(chalk.yellow(' Remove the API key and run "curlydots auth login" to be able to switch between all your projects.\n'));
+      console.log(
+        chalk.yellow(
+          ' Remove the API key and run "curlydots auth login" to be able to switch between all your projects.\n',
+        ),
+      );
     }
-    
+
     response.data.forEach((project, index) => {
       const isCurrent = currentProject?.projectId === project.id;
       const marker = isCurrent ? chalk.green('● ') : '  ';
       const number = chalk.cyan(`${index + 1}.`);
       const name = isCurrent ? chalk.green.bold(project.name) : chalk.bold(project.name);
-      
-      console.log(marker + number + ' ' + name);
+
+      console.log(`${marker}${number} ${name}`);
       console.log(chalk.dim(`     ${project.team.name}`));
       console.log(chalk.gray(`     ${project.id}`));
       console.log();
     });
 
     const selected = await promptForSelection(response.data);
-    
+
     if (selected) {
       setCurrentProject(selected.id, selected.name, selected.team.name);
       console.log(chalk.green('✓') + chalk.bold(` Selected: ${selected.name}`));

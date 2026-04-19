@@ -1,6 +1,6 @@
+import { loadCliAuthConfig } from '../../config/auth-config';
 import { clearAuthToken } from '../../services/auth/token-manager';
 import { globalLogger } from '../../utils/logger';
-import { loadCliAuthConfig } from '../../config/auth-config';
 
 export async function authLogoutCommand(_args: string[]): Promise<void> {
   try {
@@ -10,7 +10,9 @@ export async function authLogoutCommand(_args: string[]): Promise<void> {
     if (process.env.CURLYDOTS_TOKEN) {
       globalLogger.warn('API tokens provided via CURLYDOTS_TOKEN are not revoked by this command.');
     } else if (authConfig.token) {
-      globalLogger.warn('API tokens provided via .curlydots/auth.json are not revoked by this command.');
+      globalLogger.warn(
+        'API tokens provided via .curlydots/auth.json are not revoked by this command.',
+      );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

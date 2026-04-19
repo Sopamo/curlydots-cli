@@ -75,8 +75,10 @@ function coerceBoolean(value: unknown): boolean | undefined {
 function normalizeConfigFileShape(rawConfig: Record<string, unknown>): Record<string, unknown> {
   const normalized: Record<string, unknown> = {
     schemaVersion: CONFIG_SCHEMA_VERSION,
-    apiEndpoint: typeof rawConfig.apiEndpoint === 'string' ? rawConfig.apiEndpoint : DEFAULT_API_ENDPOINT,
-    frontendUrl: typeof rawConfig.frontendUrl === 'string' ? rawConfig.frontendUrl : DEFAULT_FRONTEND_URL,
+    apiEndpoint:
+      typeof rawConfig.apiEndpoint === 'string' ? rawConfig.apiEndpoint : DEFAULT_API_ENDPOINT,
+    frontendUrl:
+      typeof rawConfig.frontendUrl === 'string' ? rawConfig.frontendUrl : DEFAULT_FRONTEND_URL,
     debug: coerceBoolean(rawConfig.debug) ?? false,
   };
 
@@ -98,7 +100,10 @@ function warnUnsupportedSchemaVersion(filePath: string, version: number): void {
   );
 }
 
-function normalizeVersionedConfig(filePath: string, rawConfig: Record<string, unknown>): Record<string, unknown> {
+function normalizeVersionedConfig(
+  filePath: string,
+  rawConfig: Record<string, unknown>,
+): Record<string, unknown> {
   const version = readSchemaVersion(rawConfig);
 
   if (version > CONFIG_SCHEMA_VERSION) {
@@ -125,13 +130,17 @@ export function loadCliConfig(): ResolvedCliConfig {
   ensureGlobalCurlydotsConfigFiles();
 
   const globalConfigPath = CLI_CONFIG_PATH;
-  const globalRawConfig = normalizeVersionedConfig(globalConfigPath, parseJsonObjectFile(globalConfigPath));
+  const globalRawConfig = normalizeVersionedConfig(
+    globalConfigPath,
+    parseJsonObjectFile(globalConfigPath),
+  );
 
   const globalConfig = pickFileConfigValues(globalRawConfig);
   const projectConfigPath = findNearestProjectCurlydotsFilePath('config.json');
-  const projectRawConfig = projectConfigPath && projectConfigPath !== CLI_CONFIG_PATH
-    ? normalizeVersionedConfig(projectConfigPath, parseJsonObjectFile(projectConfigPath))
-    : null;
+  const projectRawConfig =
+    projectConfigPath && projectConfigPath !== CLI_CONFIG_PATH
+      ? normalizeVersionedConfig(projectConfigPath, parseJsonObjectFile(projectConfigPath))
+      : null;
   const projectConfig = projectRawConfig ? pickFileConfigValues(projectRawConfig) : {};
 
   const merged = {
@@ -142,23 +151,26 @@ export function loadCliConfig(): ResolvedCliConfig {
 
   const parsed = cliConfigSchema.parse(merged);
 
-  const apiEndpointSource = projectRawConfig && hasOwnString(projectRawConfig, 'apiEndpoint')
-    ? { source: 'project' as const, path: projectConfigPath }
-    : hasOwnString(globalRawConfig, 'apiEndpoint')
-      ? { source: 'global' as const, path: globalConfigPath }
-      : { source: 'default' as const };
+  const apiEndpointSource =
+    projectRawConfig && hasOwnString(projectRawConfig, 'apiEndpoint')
+      ? { source: 'project' as const, path: projectConfigPath }
+      : hasOwnString(globalRawConfig, 'apiEndpoint')
+        ? { source: 'global' as const, path: globalConfigPath }
+        : { source: 'default' as const };
 
-  const frontendUrlSource = projectRawConfig && hasOwnString(projectRawConfig, 'frontendUrl')
-    ? { source: 'project' as const, path: projectConfigPath }
-    : hasOwnString(globalRawConfig, 'frontendUrl')
-      ? { source: 'global' as const, path: globalConfigPath }
-      : { source: 'default' as const };
+  const frontendUrlSource =
+    projectRawConfig && hasOwnString(projectRawConfig, 'frontendUrl')
+      ? { source: 'project' as const, path: projectConfigPath }
+      : hasOwnString(globalRawConfig, 'frontendUrl')
+        ? { source: 'global' as const, path: globalConfigPath }
+        : { source: 'default' as const };
 
-  const debugSource = projectRawConfig && hasOwnBooleanLike(projectRawConfig, 'debug')
-    ? { source: 'project' as const, path: projectConfigPath }
-    : hasOwnBooleanLike(globalRawConfig, 'debug')
-      ? { source: 'global' as const, path: globalConfigPath }
-      : { source: 'default' as const };
+  const debugSource =
+    projectRawConfig && hasOwnBooleanLike(projectRawConfig, 'debug')
+      ? { source: 'project' as const, path: projectConfigPath }
+      : hasOwnBooleanLike(globalRawConfig, 'debug')
+        ? { source: 'global' as const, path: globalConfigPath }
+        : { source: 'default' as const };
 
   return {
     ...parsed,

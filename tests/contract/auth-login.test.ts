@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import type { AuthToken, LoginResponse, PollResponse } from '../../src/services/auth/browser-login';
-import { HttpClient, type HttpRequestOptions } from '../../src/services/http/client';
 import type { CliConfig } from '../../src/config/cli-config';
+import type { AuthToken, PollResponse } from '../../src/services/auth/browser-login';
+import { HttpClient, type HttpRequestOptions } from '../../src/services/http/client';
 import { Logger } from '../../src/utils/logger';
 
 interface FakePollEntry {
@@ -12,7 +12,12 @@ interface FakePollEntry {
 }
 
 class FakeClient extends HttpClient {
-  public loginResponse: { code: string; verification_url: string; expires_at: string; poll_token: string };
+  public loginResponse: {
+    code: string;
+    verification_url: string;
+    expires_at: string;
+    poll_token: string;
+  };
   public pollResponses: FakePollEntry[] = [];
   public postCalls = 0;
   public getCalls = 0;
@@ -20,7 +25,12 @@ class FakeClient extends HttpClient {
   public cancelCalls: Array<{ path: string; body: unknown }> = [];
 
   constructor(
-    loginResponse: { code: string; verification_url: string; expires_at: string; poll_token: string },
+    loginResponse: {
+      code: string;
+      verification_url: string;
+      expires_at: string;
+      poll_token: string;
+    },
     pollResponses: FakePollEntry[],
   ) {
     super({ baseUrl: 'https://curlydots.com', timeout: 1000, retries: 0 });
@@ -37,7 +47,10 @@ class FakeClient extends HttpClient {
     return undefined as LoginResponse;
   }
 
-  override async get<PollResponse>(_path: string, options?: HttpRequestOptions): Promise<PollResponse> {
+  override async get<PollResponse>(
+    _path: string,
+    options?: HttpRequestOptions,
+  ): Promise<PollResponse> {
     this.getCalls += 1;
     this.requestHeaders.push({ ...(options?.headers ?? {}) });
     if (this.pollResponses.length === 0) {
@@ -92,7 +105,7 @@ describe('contract/auth-login', () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
       code: 'ABCD',
-      verification_url: AUTH_BROWSER_URL + '/login',
+      verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
     };
@@ -145,9 +158,7 @@ describe('contract/auth-login', () => {
       scope: ['translations:write'],
     };
 
-    const pollResponses: FakePollEntry[] = [
-      { body: { status: 'approved', token_payload: token } },
-    ];
+    const pollResponses: FakePollEntry[] = [{ body: { status: 'approved', token_payload: token } }];
 
     const fakeClient = new FakeClient(loginResponse, pollResponses);
     const opened: string[] = [];
@@ -173,12 +184,14 @@ describe('contract/auth-login', () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
       code: 'ABCD',
-      verification_url: AUTH_BROWSER_URL + '/login',
+      verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
     };
 
-    const pollResponses: FakePollEntry[] = [{ body: { status: 'denied', denied_reason: 'Invalid session' } }];
+    const pollResponses: FakePollEntry[] = [
+      { body: { status: 'denied', denied_reason: 'Invalid session' } },
+    ];
     const fakeClient = new FakeClient(loginResponse, pollResponses);
 
     await expect(
@@ -196,7 +209,7 @@ describe('contract/auth-login', () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
       code: 'ABCD',
-      verification_url: AUTH_BROWSER_URL + '/login',
+      verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
     };
@@ -251,7 +264,7 @@ describe('contract/auth-login', () => {
     const { runBrowserLogin } = await import('../../src/services/auth/browser-login');
     const loginResponse = {
       code: 'ABCDEFGH',
-      verification_url: AUTH_BROWSER_URL + '/login',
+      verification_url: `${AUTH_BROWSER_URL}/login`,
       expires_at: new Date(Date.now() + 60_000).toISOString(),
       poll_token: 'poll-token',
     };

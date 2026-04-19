@@ -13,7 +13,9 @@ describe('distribution/install-smoke-workflow', () => {
   it('uses pwsh for Windows install and verification steps', async () => {
     const workflow = await loadInstallSmokeWorkflow();
 
-    expect(workflow).toContain('name: Install CurlyDots globally from npm registry (with retry, Windows)');
+    expect(workflow).toContain(
+      'name: Install CurlyDots globally from npm registry (with retry, Windows)',
+    );
     expect(workflow).toContain("if: runner.os == 'Windows'");
     expect(workflow).toContain('shell: pwsh');
     expect(workflow).toContain('for ($attempt = 1; $attempt -le 15; $attempt++)');

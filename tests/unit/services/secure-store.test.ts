@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const ORIGINAL_ENV = { ...process.env };
 let moduleNonce = 0;
@@ -21,7 +21,7 @@ describe('services/storage/secure-store', () => {
       CURLYDOTS_HOME: homeDir,
       CURLYDOTS_DISABLE_KEYTAR: '1',
     };
-    delete process.env.CURLYDOTS_TOKEN;
+    process.env.CURLYDOTS_TOKEN = undefined;
   });
 
   afterEach(async () => {
@@ -44,7 +44,8 @@ describe('services/storage/secure-store', () => {
   });
 
   it('clears stored token', async () => {
-    const { clearSecureToken, getSecureToken, saveSecureToken } = await importFreshSecureStoreModule();
+    const { clearSecureToken, getSecureToken, saveSecureToken } =
+      await importFreshSecureStoreModule();
     await saveSecureToken('temp-token');
     await clearSecureToken();
     const token = await getSecureToken();
@@ -52,7 +53,7 @@ describe('services/storage/secure-store', () => {
   });
 
   it('falls back to file storage when keytar runtime connection fails', async () => {
-    delete process.env.CURLYDOTS_DISABLE_KEYTAR;
+    process.env.CURLYDOTS_DISABLE_KEYTAR = undefined;
 
     mock.module('keytar', () => ({
       setPassword: mock(async () => {
@@ -66,7 +67,8 @@ describe('services/storage/secure-store', () => {
       }),
     }));
 
-    const { clearSecureToken, getSecureToken, saveSecureToken } = await importFreshSecureStoreModule();
+    const { clearSecureToken, getSecureToken, saveSecureToken } =
+      await importFreshSecureStoreModule();
 
     await saveSecureToken('saved-token');
     expect(await getSecureToken()).toBe('saved-token');

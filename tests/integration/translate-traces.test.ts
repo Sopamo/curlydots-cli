@@ -78,8 +78,13 @@ users.show_all,Show all users,en,de,"[]","[]"`;
     // Should have a timestamped subdirectory
     const subDirs = readdirSync(tracesBaseDir);
     expect(subDirs.length).toBe(1);
+    const [subDir] = subDirs;
+    expect(subDir).toBeDefined();
+    if (!subDir) {
+      throw new Error('Expected trace directory');
+    }
 
-    const traceDir = join(tracesBaseDir, subDirs[0]!);
+    const traceDir = join(tracesBaseDir, subDir);
 
     // Should have 2 trace files (one per key)
     const traceFiles = readdirSync(traceDir);
@@ -110,7 +115,12 @@ test.key,Test Value,en,de,"[]","[]"`;
     // Find the trace file
     const tracesBaseDir = join(TEST_FIXTURES_DIR, 'reasoning-traces');
     const subDirs = readdirSync(tracesBaseDir);
-    const traceDir = join(tracesBaseDir, subDirs[0]!);
+    const [subDir] = subDirs;
+    expect(subDir).toBeDefined();
+    if (!subDir) {
+      throw new Error('Expected trace directory');
+    }
+    const traceDir = join(tracesBaseDir, subDir);
     const traceFile = join(traceDir, 'test.key.txt');
 
     const content = readFileSync(traceFile, 'utf-8');
@@ -203,7 +213,12 @@ path/to/key,Value,en,de,"[]","[]"`;
 
     const tracesBaseDir = join(TEST_FIXTURES_DIR, 'reasoning-traces');
     const subDirs = readdirSync(tracesBaseDir);
-    const traceDir = join(tracesBaseDir, subDirs[0]!);
+    const [subDir] = subDirs;
+    expect(subDir).toBeDefined();
+    if (!subDir) {
+      throw new Error('Expected trace directory');
+    }
+    const traceDir = join(tracesBaseDir, subDir);
     const traceFiles = readdirSync(traceDir);
 
     // File should exist with sanitized name

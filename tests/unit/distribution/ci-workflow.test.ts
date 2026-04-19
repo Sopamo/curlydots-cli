@@ -18,6 +18,8 @@ describe('distribution/ci-workflow', () => {
     expect(workflow).toContain('--target-triple x86_64-unknown-linux-musl');
     expect(workflow).toContain('name: Verify compiled binary version matches package version');
     expect(workflow).toContain('dist/ci-extract/curlydots --version');
-    expect(workflow).toContain('Expected compiled binary version v${EXPECTED_VERSION}, got: $OUTPUT');
+    expect(workflow).toContain(
+      'Expected compiled binary version v${EXPECTED_VERSION}, got: $OUTPUT',
+    );
   });
 });

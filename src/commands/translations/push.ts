@@ -1,19 +1,19 @@
 import { resolve } from 'node:path';
+import { loadCliConfig } from '../../config/cli-config';
 import { getParser } from '../../parsers';
 import { loadParserFromFile } from '../../parsers/parser-file-loader';
-import { findContextForKeys } from '../../services/context-finder';
 import {
   fetchExistingTranslationKeys,
   resolveAuthToken,
   uploadTranslationKeys,
 } from '../../services/api/translation-keys';
-import { buildTranslationKeyPayloads } from '../../services/translation-keys/payload-builder';
-import { filterNewTranslationKeys } from '../../services/translation-keys/diff';
-import { configStore } from '../../stores';
-import { globalLogger } from '../../utils/logger';
-import { formatPushSummary } from '../../ui/output';
+import { findContextForKeys } from '../../services/context-finder';
 import { HttpClient, HttpClientError } from '../../services/http/client';
-import { loadCliConfig } from '../../config/cli-config';
+import { filterNewTranslationKeys } from '../../services/translation-keys/diff';
+import { buildTranslationKeyPayloads } from '../../services/translation-keys/payload-builder';
+import { configStore } from '../../stores';
+import { formatPushSummary } from '../../ui/output';
+import { globalLogger } from '../../utils/logger';
 import { parsePushArgs, printPushHelp, validatePushArgs } from './push-args';
 
 export async function runTranslationsPush(args: string[]): Promise<void> {
@@ -137,13 +137,14 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
     console.log(summary);
   } catch (error) {
     if (error instanceof HttpClientError) {
-      const prefix = error.meta.category === 'authentication'
-        ? 'Authentication failed'
-        : error.meta.category === 'transient'
-          ? 'Temporary network error'
-          : error.meta.category === 'system'
-            ? 'System error'
-            : 'Request failed';
+      const prefix =
+        error.meta.category === 'authentication'
+          ? 'Authentication failed'
+          : error.meta.category === 'transient'
+            ? 'Temporary network error'
+            : error.meta.category === 'system'
+              ? 'System error'
+              : 'Request failed';
       globalLogger.error(`${prefix}: ${error.message}`);
       if (error.meta.category === 'authentication') {
         globalLogger.info('Run "curlydots auth login" or pass --api-token to authenticate.');

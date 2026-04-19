@@ -1,5 +1,5 @@
-import { getAuthStatus } from '../../services/auth/status-presenter';
 import { loadCliAuthConfig } from '../../config/auth-config';
+import { getAuthStatus } from '../../services/auth/status-presenter';
 import { globalLogger } from '../../utils/logger';
 
 function formatAuthSource(storage: string): string {

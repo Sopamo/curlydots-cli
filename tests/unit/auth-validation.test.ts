@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { join } from 'node:path';
-import * as tokenManagerModule from '../../src/services/auth/token-manager';
 import * as authConfigModule from '../../src/config/auth-config';
+import * as tokenManagerModule from '../../src/services/auth/token-manager';
 
 const TEST_REPO = join(import.meta.dir, '../fixtures/sample-repo');
 

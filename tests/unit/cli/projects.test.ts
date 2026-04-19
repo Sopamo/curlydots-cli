@@ -87,9 +87,10 @@ describe('unit/cli/projects', () => {
       setCurrentProject: setCurrentProjectMock,
     }));
 
-    HttpClient.fromConfig = () => ({
-      get: httpClientGetMock,
-    }) as unknown as HttpClient;
+    HttpClient.fromConfig = () =>
+      ({
+        get: httpClientGetMock,
+      }) as unknown as HttpClient;
 
     mock.module('../../../src/utils/logger', () => ({
       ...originalLogger,

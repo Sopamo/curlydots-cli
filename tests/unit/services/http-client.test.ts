@@ -97,7 +97,7 @@ describe('services/http/client', () => {
       fetcher,
     });
 
-    const response = await client.get('health') as { ok: boolean };
+    const response = (await client.get('health')) as { ok: boolean };
 
     expect(response.ok).toBe(true);
     expect(calls).toBe(2);

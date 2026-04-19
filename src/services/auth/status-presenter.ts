@@ -1,5 +1,5 @@
-import { loadCliConfig } from '../../config/cli-config';
 import { loadCliAuthConfig } from '../../config/auth-config';
+import { loadCliConfig } from '../../config/cli-config';
 import { HttpClient, HttpClientError } from '../http/client';
 import { isTokenExpired, loadAuthToken } from './token-manager';
 
@@ -82,7 +82,10 @@ export async function getAuthStatus(): Promise<AuthStatus> {
   };
 }
 
-async function validateTokenWithApi(token: string, config: ReturnType<typeof loadCliConfig>): Promise<ApiAuthStatus | false | null> {
+async function validateTokenWithApi(
+  token: string,
+  config: ReturnType<typeof loadCliConfig>,
+): Promise<ApiAuthStatus | false | null> {
   const client = HttpClient.fromConfig(config);
 
   try {

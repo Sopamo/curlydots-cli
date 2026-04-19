@@ -12,11 +12,13 @@ const mockLoadCliConfig = mock(() => ({
   debug: false,
   defaultLocale: undefined,
 }));
-const mockLoadCliAuthConfig = mock((): CliAuthConfig => ({
-  authMethod: 'browser' as const,
-  tokenStorage: 'keychain' as const,
-  token: undefined as string | undefined,
-}));
+const mockLoadCliAuthConfig = mock(
+  (): CliAuthConfig => ({
+    authMethod: 'browser' as const,
+    tokenStorage: 'keychain' as const,
+    token: undefined as string | undefined,
+  }),
+);
 
 const mockLoadAuthToken = mock<() => Promise<unknown>>(async () => null);
 const mockIsTokenExpired = mock(() => false);
@@ -32,7 +34,7 @@ const originalHttpClientFromConfig = HttpClient.fromConfig;
 describe('services/auth/status-presenter', () => {
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    delete process.env.CURLYDOTS_TOKEN;
+    process.env.CURLYDOTS_TOKEN = undefined;
     mockHttpClientGet.mockClear();
     mockLoadAuthToken.mockClear();
     mockIsTokenExpired.mockClear();
@@ -74,7 +76,9 @@ describe('services/auth/status-presenter', () => {
 
   it('reports unauthenticated when env token is rejected', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token';
-    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Token deactivated', { category: 'authentication' }));
+    mockHttpClientGet.mockRejectedValueOnce(
+      new HttpClientError('Token deactivated', { category: 'authentication' }),
+    );
 
     const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
     const status = await getAuthStatus();
@@ -85,7 +89,9 @@ describe('services/auth/status-presenter', () => {
 
   it('reports unauthenticated when env token cannot be validated', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token';
-    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Network error', { category: 'system' }));
+    mockHttpClientGet.mockRejectedValueOnce(
+      new HttpClientError('Network error', { category: 'system' }),
+    );
 
     const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
     const status = await getAuthStatus();
@@ -126,7 +132,9 @@ describe('services/auth/status-presenter', () => {
       accessToken: 'stored-token',
       expiresAt: '2026-01-01T00:00:00Z',
     });
-    mockHttpClientGet.mockRejectedValueOnce(new HttpClientError('Network error', { category: 'system' }));
+    mockHttpClientGet.mockRejectedValueOnce(
+      new HttpClientError('Network error', { category: 'system' }),
+    );
 
     const { getAuthStatus } = await import('../../../src/services/auth/status-presenter');
     const status = await getAuthStatus();

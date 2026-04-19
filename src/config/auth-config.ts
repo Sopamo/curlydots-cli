@@ -29,12 +29,14 @@ const defaultAuthConfig: CliAuthConfig = {
 };
 
 function normalizeAuthFileShape(rawConfig: Record<string, unknown>): Record<string, unknown> {
-  const authMethod = typeof rawConfig.authMethod === 'string' && AUTH_METHODS.has(rawConfig.authMethod)
-    ? rawConfig.authMethod
-    : 'browser';
-  const tokenStorage = typeof rawConfig.tokenStorage === 'string' && TOKEN_STORAGES.has(rawConfig.tokenStorage)
-    ? rawConfig.tokenStorage
-    : 'keychain';
+  const authMethod =
+    typeof rawConfig.authMethod === 'string' && AUTH_METHODS.has(rawConfig.authMethod)
+      ? rawConfig.authMethod
+      : 'browser';
+  const tokenStorage =
+    typeof rawConfig.tokenStorage === 'string' && TOKEN_STORAGES.has(rawConfig.tokenStorage)
+      ? rawConfig.tokenStorage
+      : 'keychain';
 
   const normalized: Record<string, unknown> = {
     schemaVersion: AUTH_SCHEMA_VERSION,
@@ -60,7 +62,10 @@ function warnUnsupportedSchemaVersion(filePath: string, version: number): void {
   );
 }
 
-function normalizeVersionedAuthConfig(filePath: string, rawConfig: Record<string, unknown>): Record<string, unknown> {
+function normalizeVersionedAuthConfig(
+  filePath: string,
+  rawConfig: Record<string, unknown>,
+): Record<string, unknown> {
   const version = readSchemaVersion(rawConfig);
 
   if (version > AUTH_SCHEMA_VERSION) {
@@ -83,9 +88,13 @@ export function loadCliAuthConfig(): CliAuthConfig {
     parseJsonObjectFile(AUTH_CONFIG_PATH),
   );
   const projectAuthConfigPath = findNearestProjectCurlydotsFilePath('auth.json');
-  const projectAuthConfig = projectAuthConfigPath && projectAuthConfigPath !== AUTH_CONFIG_PATH
-    ? normalizeVersionedAuthConfig(projectAuthConfigPath, parseJsonObjectFile(projectAuthConfigPath))
-    : {};
+  const projectAuthConfig =
+    projectAuthConfigPath && projectAuthConfigPath !== AUTH_CONFIG_PATH
+      ? normalizeVersionedAuthConfig(
+          projectAuthConfigPath,
+          parseJsonObjectFile(projectAuthConfigPath),
+        )
+      : {};
 
   const envConfig: Record<string, unknown> = {
     token: process.env.CURLYDOTS_TOKEN,
