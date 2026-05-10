@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { clearParsers, getAvailableParsers, getParser, registerParser } from '../../../src/parsers';
+import {
+  clearParsers,
+  getAvailableParsers,
+  getParser,
+  registerParser,
+} from '../../../src/parsers';
 import type { Parser } from '../../../src/types';
 
 describe('parser registry', () => {
@@ -57,6 +62,7 @@ describe('parser registry', () => {
       registerParser(mockParser);
       expect(getParser('mock-parser')).toBe(mockParser);
     });
+
   });
 
   describe('getAvailableParsers', () => {

@@ -16,6 +16,8 @@ import { findMissingTranslations } from '../services/missing-translations';
 import { analysisStore, configStore } from '../stores';
 import { App } from '../ui';
 
+const parserDocsUrl = 'https://curlydots.com/docs/cli/parsers/';
+
 /**
  * Extract command arguments
  */
@@ -39,7 +41,7 @@ export function parseExtractArgs(args: string[]): ExtractArgs {
     source: '',
     target: '',
     translationsDirs: [],
-    parser: 'node-module',
+    parser: '',
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.vue', '.svelte', '.html'],
     output: 'missing-translations.csv',
     help: false,
@@ -61,7 +63,7 @@ export function parseExtractArgs(args: string[]): ExtractArgs {
         result.translationsDirs.push(translationsDir);
       }
     } else if (arg === '-p' || arg === '--parser') {
-      result.parser = args[++i] || 'node-module';
+      result.parser = args[++i] || '';
     } else if (arg === '-e' || arg === '--extensions') {
       const extString = args[++i] || '';
       result.extensions = extString.split(',').map((e) => e.trim());
@@ -93,17 +95,21 @@ OPTIONS:
   -s, --source <lang>           Source language code (required)
   -t, --target <lang>           Target language code (required)
   -d, --translations-dir <path> Translations directory relative to repo (required, repeatable)
-  -p, --parser <name>           Parser to use [default: node-module]
+  -p, --parser <name>           Parser to use (required), e.g. commonjs
   -e, --extensions <list>       File extensions to search [default: .js,.ts,.jsx,.tsx,.vue,.svelte,.html]
   -o, --output <path>           Output CSV path [default: missing-translations.csv]
   -h, --help                    Show this help message
 
 EXAMPLES:
-  aitranslate extract ./my-app -s en -t de -d src/translations
-  aitranslate extract /path/to/repo --source en --target fr --translations-dir locales --translations-dir modules/shared/locales --output report.csv
+  aitranslate extract ./my-app -s en -t de -d src/translations -p commonjs
+  aitranslate extract /path/to/repo --source en --target fr --translations-dir locales --translations-dir modules/shared/locales --parser commonjs --output report.csv
 
 PARSERS:
-  ${getAvailableParsers().join(', ') || 'node-module'}
+  ${getAvailableParsers().join(', ') || 'commonjs'}
+
+CUSTOM PARSERS:
+  If none of the built-in parsers match your project, create a custom parser:
+  ${parserDocsUrl}
 `);
 }
 
@@ -142,7 +148,11 @@ export function validateExtractArgs(args: ExtractArgs): string[] {
     }
   }
 
-  if (!getParser(args.parser)) {
+  if (!args.parser.trim()) {
+    errors.push(
+      `Missing required option: --parser (available: ${getAvailableParsers().join(', ')}). Need a custom parser? See ${parserDocsUrl}`,
+    );
+  } else if (!getParser(args.parser)) {
     errors.push(`Unknown parser: ${args.parser} (available: ${getAvailableParsers().join(', ')})`);
   }
 

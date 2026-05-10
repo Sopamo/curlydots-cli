@@ -24,8 +24,8 @@ describe('configStore', () => {
       expect(configStore.getState().targetLanguage).toBe('');
     });
 
-    it('should have node-module as default parser', () => {
-      expect(configStore.getState().parser).toBe('node-module');
+    it('should have empty parser by default', () => {
+      expect(configStore.getState().parser).toBe('');
     });
 
     it('should have default extensions', () => {
@@ -89,7 +89,7 @@ describe('configStore', () => {
       expect(state.translationsDirs).toEqual([]);
       expect(state.sourceLanguage).toBe('');
       expect(state.targetLanguage).toBe('');
-      expect(state.parser).toBe('node-module');
+      expect(state.parser).toBe('');
     });
   });
 });

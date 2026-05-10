@@ -10,7 +10,7 @@ const defaultConfig: Config = {
   translationsDirs: [],
   sourceLanguage: '',
   targetLanguage: '',
-  parser: 'node-module',
+  parser: '',
   extensions: ['.js', '.ts', '.jsx', '.tsx', '.vue', '.svelte', '.html'],
   outputPath: 'missing-translations.csv',
 };

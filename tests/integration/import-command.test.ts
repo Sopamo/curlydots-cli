@@ -37,7 +37,7 @@ auth.login,Login,en,de,[],[],"Anmelden"`;
     const result = await runImport({
       csvPath,
       translationsDir,
-      parser: 'node-module',
+      parser: 'commonjs',
     });
 
     expect(result.success).toBe(true);
@@ -49,8 +49,8 @@ auth.login,Login,en,de,[],[],"Anmelden"`;
     expect(existsSync(join(translationsDir, 'de', 'auth.js'))).toBe(true);
 
     // Verify content
-    const { nodeModuleParser } = await import('../../src/parsers/node-module');
-    const exported = await nodeModuleParser.export(join(translationsDir, 'de'));
+    const { commonjsParser } = await import('../../src/parsers/commonjs');
+    const exported = await commonjsParser.export(join(translationsDir, 'de'));
 
     expect(exported.get('generic.welcome')).toBe('Willkommen');
     expect(exported.get('generic.goodbye')).toBe('Auf Wiedersehen');
@@ -73,15 +73,15 @@ generic.test,Test,en,de,[],[],"Test-de"`;
     const result = await runImport({
       csvPath,
       translationsDir,
-      parser: 'node-module',
+      parser: 'commonjs',
     });
 
     expect(result.success).toBe(true);
     expect(result.summary?.keysImported).toBe(2);
     expect(result.summary?.rowsSkipped).toBe(1);
 
-    const { nodeModuleParser } = await import('../../src/parsers/node-module');
-    const exported = await nodeModuleParser.export(join(translationsDir, 'de'));
+    const { commonjsParser } = await import('../../src/parsers/commonjs');
+    const exported = await commonjsParser.export(join(translationsDir, 'de'));
 
     expect(exported.get('generic.hello')).toBe('Hallo');
     expect(exported.get('generic.test')).toBe('Test-de');
@@ -112,15 +112,15 @@ generic.newKey,New Key,en,de,[],[],"Neuer Schlüssel"`;
     const result = await runImport({
       csvPath,
       translationsDir,
-      parser: 'node-module',
+      parser: 'commonjs',
     });
 
     expect(result.success).toBe(true);
     expect(result.summary?.filesModified).toBe(1);
     expect(result.summary?.filesCreated).toBe(0);
 
-    const { nodeModuleParser } = await import('../../src/parsers/node-module');
-    const exported = await nodeModuleParser.export(deLangDir);
+    const { commonjsParser } = await import('../../src/parsers/commonjs');
+    const exported = await commonjsParser.export(deLangDir);
 
     // Both old and new keys should exist
     expect(exported.get('generic.existing')).toBe('Bestehend');
@@ -136,7 +136,7 @@ generic.newKey,New Key,en,de,[],[],"Neuer Schlüssel"`;
     const result = await runImport({
       csvPath,
       translationsDir,
-      parser: 'node-module',
+      parser: 'commonjs',
     });
 
     expect(result.success).toBe(false);

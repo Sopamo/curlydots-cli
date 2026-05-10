@@ -51,7 +51,7 @@ describe('import-fixtures integration', () => {
       const result = await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       // Verify success and counts
@@ -79,7 +79,7 @@ describe('import-fixtures integration', () => {
       await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       // Read and evaluate the generated module
@@ -106,7 +106,7 @@ describe('import-fixtures integration', () => {
       const result = await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       // Verify success and counts
@@ -134,7 +134,7 @@ describe('import-fixtures integration', () => {
       await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       // Read and evaluate the generated module
@@ -172,7 +172,7 @@ describe('import-fixtures integration', () => {
       const result = await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       // Verify success and counts
@@ -195,7 +195,7 @@ describe('import-fixtures integration', () => {
       await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       const actualContent = await readFile(join(translationsDir, 'es', 'auth.js'), 'utf-8');
@@ -211,7 +211,7 @@ describe('import-fixtures integration', () => {
       await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       const actualContent = await readFile(join(translationsDir, 'es', 'errors.js'), 'utf-8');
@@ -227,7 +227,7 @@ describe('import-fixtures integration', () => {
       await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       const actualContent = await readFile(join(translationsDir, 'es', 'common.js'), 'utf-8');
@@ -243,7 +243,7 @@ describe('import-fixtures integration', () => {
       await runImport({
         csvPath,
         translationsDir,
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       // Verify skipped keys are not in the output
@@ -271,7 +271,7 @@ describe('import-fixtures integration', () => {
         const result = await runImport({
           csvPath: join(FIXTURES_DIR, fixture.csv),
           translationsDir: tempDir,
-          parser: 'node-module',
+          parser: 'commonjs',
         });
 
         expect(result.success).toBe(true);

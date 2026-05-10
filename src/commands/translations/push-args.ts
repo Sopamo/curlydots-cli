@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { getAvailableParsers, getParser } from '../../parsers';
 
+const parserDocsUrl = 'https://curlydots.com/docs/cli/parsers/';
+
 export interface PushArgs {
   projectUuid?: string;
   repoPath: string;
@@ -25,7 +27,7 @@ export function parsePushArgs(args: string[]): PushArgs {
     repoPath: '',
     translationsDirs: [],
     source: '',
-    parser: 'node-module',
+    parser: '',
     parserFile: undefined,
     extensions: [...includeExtensions],
     apiHost: undefined,
@@ -50,7 +52,7 @@ export function parsePushArgs(args: string[]): PushArgs {
     } else if (arg === '-s' || arg === '--source') {
       result.source = args[++i] || '';
     } else if (arg === '-p' || arg === '--parser') {
-      result.parser = args[++i] || 'node-module';
+      result.parser = args[++i] || '';
     } else if (arg === '--parser-file') {
       result.parserFile = args[++i] || '';
     } else if (arg?.startsWith('--parser-file=')) {
@@ -113,6 +115,10 @@ export function validatePushArgs(args: PushArgs): string[] {
         errors.push(`Parser file not found: ${resolvedParserFile}`);
       }
     }
+  } else if (!args.parser.trim()) {
+    errors.push(
+      `Missing required option: --parser (available: ${getAvailableParsers().join(', ')}). Need a custom parser? See ${parserDocsUrl}`,
+    );
   } else if (!getParser(args.parser)) {
     errors.push(`Unknown parser: ${args.parser} (available: ${getAvailableParsers().join(', ')})`);
   }
@@ -136,8 +142,8 @@ OPTIONS:
   --repo <path>                  Path to the root of the app/repository to scan (required)
   -d, --translations-dir <path>  Path inside --repo where translation files live (required, repeatable, supports globs)
   -s, --source <lang>            Source language folder/code inside each translations dir, e.g. en (required)
-  -p, --parser <name>            Parser that matches how translations are stored, e.g. node-module [default: node-module]
-  --parser-file <path>           Load parser module from file (.js/.ts)
+  -p, --parser <name>            Parser that matches how translations are stored, e.g. commonjs (required unless --parser-file is used)
+  --parser-file <path>           Load parser module from file (.js/.ts) instead of a named parser
   -e, --extensions <list>        File extensions to search [default: all files]
   --api-host <url>               API host override (otherwise uses configured apiEndpoint)
   --api-token <token>            API token override
@@ -145,6 +151,10 @@ OPTIONS:
   -h, --help                     Show this help message
 
 PARSERS:
-  ${getAvailableParsers().join(', ') || 'node-module'}
+  ${getAvailableParsers().join(', ') || 'commonjs'}
+
+CUSTOM PARSERS:
+  If none of the built-in parsers match your project, create a custom parser:
+  ${parserDocsUrl}
 `);
 }

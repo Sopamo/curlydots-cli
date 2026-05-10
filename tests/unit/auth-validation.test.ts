@@ -18,7 +18,7 @@ const runTranslationsPushMock = async () => {
     '--source',
     'en',
     '--parser',
-    'node-module',
+    'commonjs',
     '--api-host',
     'https://curlydots.com',
   ]);

@@ -22,7 +22,7 @@ export interface Config {
   /** Target language code (e.g., "de") */
   targetLanguage: string;
 
-  /** Parser name to use (e.g., "node-module") */
+  /** Parser name to use (e.g., "commonjs") */
   parser: string;
 
   /** File extensions to search for context */
@@ -480,7 +480,7 @@ export interface ImportConfig {
   /** Path to translations directory */
   translationsDir: string;
 
-  /** Parser to use (default: node-module) */
+  /** Explicit parser name to use */
   parser: string;
 }
 
@@ -528,7 +528,7 @@ export interface ParserImportResult {
  * - Comparing translations (handled by analyzer service)
  */
 export interface Parser {
-  /** Unique parser identifier (e.g., "node-module") */
+  /** Unique parser identifier (e.g., "commonjs") */
   name: string;
 
   /**

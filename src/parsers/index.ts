@@ -47,5 +47,5 @@ export function clearParsers(): void {
 export type { Parser } from '../types';
 
 // Import and register built-in parsers
-import { nodeModuleParser } from './node-module';
-registerParser(nodeModuleParser);
+import { commonjsParser } from './commonjs';
+registerParser(commonjsParser);

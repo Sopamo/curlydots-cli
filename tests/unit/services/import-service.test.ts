@@ -7,7 +7,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { nodeModuleParser } from '../../../src/parsers/node-module';
+import { commonjsParser } from '../../../src/parsers/commonjs';
 // Import will be created
 import { runImport } from '../../../src/services/import-service';
 
@@ -33,7 +33,7 @@ generic.goodbye,Goodbye,en,de,[],[],"Auf Wiedersehen"`;
 
       await writeFile(csvPath, csvContent, 'utf-8');
 
-      const result = await runImport(csvPath, translationsDir, nodeModuleParser);
+      const result = await runImport(csvPath, translationsDir, commonjsParser);
 
       expect(result.filesCreated).toBe(1);
       expect(result.keysImported).toBe(2);
@@ -41,7 +41,7 @@ generic.goodbye,Goodbye,en,de,[],[],"Auf Wiedersehen"`;
       expect(result.errors.length).toBe(0);
 
       // Verify translations were written
-      const exported = await nodeModuleParser.export(join(translationsDir, 'de'));
+      const exported = await commonjsParser.export(join(translationsDir, 'de'));
       expect(exported.get('generic.welcome')).toBe('Willkommen');
       expect(exported.get('generic.goodbye')).toBe('Auf Wiedersehen');
     });
@@ -56,12 +56,12 @@ generic.test,Test,en,de,[],[],`;
 
       await writeFile(csvPath, csvContent, 'utf-8');
 
-      const result = await runImport(csvPath, translationsDir, nodeModuleParser);
+      const result = await runImport(csvPath, translationsDir, commonjsParser);
 
       expect(result.keysImported).toBe(1);
       expect(result.rowsSkipped).toBe(2);
 
-      const exported = await nodeModuleParser.export(join(translationsDir, 'de'));
+      const exported = await commonjsParser.export(join(translationsDir, 'de'));
       expect(exported.get('generic.hello')).toBe('Hallo');
       expect(exported.has('generic.world')).toBe(false);
     });
@@ -74,12 +74,12 @@ generic.hello,Hello,en,fr,[],[],"Bonjour"`;
 
       await writeFile(csvPath, csvContent, 'utf-8');
 
-      const result = await runImport(csvPath, translationsDir, nodeModuleParser);
+      const result = await runImport(csvPath, translationsDir, commonjsParser);
 
       expect(result.targetLanguage).toBe('fr');
 
       // Verify written to correct language directory
-      const exported = await nodeModuleParser.export(join(translationsDir, 'fr'));
+      const exported = await commonjsParser.export(join(translationsDir, 'fr'));
       expect(exported.get('generic.hello')).toBe('Bonjour');
     });
 
@@ -93,12 +93,12 @@ errors.notFound,Not Found,en,de,[],[],"Nicht gefunden"`;
 
       await writeFile(csvPath, csvContent, 'utf-8');
 
-      const result = await runImport(csvPath, translationsDir, nodeModuleParser);
+      const result = await runImport(csvPath, translationsDir, commonjsParser);
 
       expect(result.filesCreated).toBe(3);
       expect(result.keysImported).toBe(3);
 
-      const exported = await nodeModuleParser.export(join(translationsDir, 'de'));
+      const exported = await commonjsParser.export(join(translationsDir, 'de'));
       expect(exported.get('generic.hello')).toBe('Hallo');
       expect(exported.get('auth.login')).toBe('Anmelden');
       expect(exported.get('errors.notFound')).toBe('Nicht gefunden');
@@ -108,7 +108,7 @@ errors.notFound,Not Found,en,de,[],[],"Nicht gefunden"`;
       const csvPath = join(tempPath, 'nonexistent.csv');
       const translationsDir = join(tempPath, 'translations');
 
-      await expect(runImport(csvPath, translationsDir, nodeModuleParser)).rejects.toThrow(
+      await expect(runImport(csvPath, translationsDir, commonjsParser)).rejects.toThrow(
         'CSV file not found',
       );
     });
@@ -121,7 +121,7 @@ generic.hello,Hello,en,de,[],[],""`;
 
       await writeFile(csvPath, csvContent, 'utf-8');
 
-      await expect(runImport(csvPath, translationsDir, nodeModuleParser)).rejects.toThrow(
+      await expect(runImport(csvPath, translationsDir, commonjsParser)).rejects.toThrow(
         'No valid translations found',
       );
     });
@@ -137,7 +137,7 @@ auth.login,Login,en,de,[],[],"Anmelden"`;
 
       await writeFile(csvPath, csvContent, 'utf-8');
 
-      const result = await runImport(csvPath, translationsDir, nodeModuleParser);
+      const result = await runImport(csvPath, translationsDir, commonjsParser);
 
       expect(result.filesCreated).toBe(2);
       expect(result.filesModified).toBe(0);

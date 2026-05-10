@@ -16,6 +16,13 @@ describe('extract command', () => {
     ]);
 
     expect(parsed.translationsDirs).toEqual(['translations', 'modules/shared/translations']);
+    expect(parsed.parser).toBe('');
+  });
+
+  it('parses explicit parser argument', () => {
+    const parsed = parseExtractArgs(['/repo', '--parser', 'commonjs']);
+
+    expect(parsed.parser).toBe('commonjs');
   });
 
   it('validates all configured translation directories', () => {
@@ -24,7 +31,7 @@ describe('extract command', () => {
       source: 'en',
       target: 'de',
       translationsDirs: ['translations', 'modules/shared/translations'],
-      parser: 'node-module',
+      parser: 'commonjs',
       extensions: ['.ts'],
       output: 'missing-translations.csv',
       help: false,
@@ -39,12 +46,30 @@ describe('extract command', () => {
       source: 'en',
       target: 'de',
       translationsDirs: [],
-      parser: 'node-module',
+      parser: 'commonjs',
       extensions: ['.ts'],
       output: 'missing-translations.csv',
       help: false,
     });
 
     expect(errors).toContain('Missing required option: --translations-dir');
+  });
+
+  it('requires an explicit parser', () => {
+    const errors = validateExtractArgs({
+      repoPath: '/repo',
+      source: 'en',
+      target: 'de',
+      translationsDirs: [],
+      parser: '',
+      extensions: ['.ts'],
+      output: 'missing-translations.csv',
+      help: false,
+    });
+
+    expect(errors.some((error) => error.startsWith('Missing required option: --parser'))).toBe(
+      true,
+    );
+    expect(errors.some((error) => error.includes('/docs/cli/parsers/'))).toBe(true);
   });
 });

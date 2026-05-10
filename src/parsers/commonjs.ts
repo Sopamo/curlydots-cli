@@ -1,5 +1,5 @@
 /**
- * Node Module Parser
+ * CommonJS Parser
  *
  * Parses CommonJS module.exports translation files.
  * Expected structure: translations/<lang>/*.js with module.exports = { key: value }
@@ -122,10 +122,10 @@ function formatAsModule(obj: Record<string, unknown>): string {
 }
 
 /**
- * Node Module Parser implementation
+ * CommonJS Parser implementation
  */
-export const nodeModuleParser: Parser = {
-  name: 'node-module',
+export const commonjsParser: Parser = {
+  name: 'commonjs',
 
   async export(langDir: string): Promise<Map<string, string>> {
     const result = new Map<string, string>();

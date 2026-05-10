@@ -11,7 +11,7 @@ describe('ConfigSummaryView', () => {
           translationsDirs: ['translations', 'modules/*/translations'],
           sourceLanguage: 'en',
           targetLanguage: 'de',
-          parser: 'node-module',
+          parser: 'commonjs',
           extensions: ['.ts'],
           outputPath: 'missing-translations.csv',
         }}

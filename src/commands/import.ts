@@ -11,6 +11,8 @@ import { getAvailableParsers, getParser } from '../parsers';
 import { runImport as runImportService } from '../services/import-service';
 import type { ImportCommandResult, ImportConfig } from '../types';
 
+const parserDocsUrl = 'https://curlydots.com/docs/cli/parsers/';
+
 /**
  * Import command arguments
  */
@@ -28,7 +30,7 @@ export function parseImportArgs(args: string[]): ImportArgs {
   const result: ImportArgs = {
     csvPath: '',
     translationsDir: '',
-    parser: 'node-module',
+    parser: '',
     help: false,
   };
 
@@ -41,7 +43,7 @@ export function parseImportArgs(args: string[]): ImportArgs {
     } else if (arg === '-d' || arg === '--translations-dir') {
       result.translationsDir = args[++i] || '';
     } else if (arg === '-p' || arg === '--parser') {
-      result.parser = args[++i] || 'node-module';
+      result.parser = args[++i] || '';
     } else if (!arg?.startsWith('-') && !result.csvPath) {
       result.csvPath = arg || '';
     }
@@ -66,6 +68,10 @@ export function validateImportArgs(args: ImportArgs): string | null {
   const resolvedCsvPath = resolve(args.csvPath);
   if (!existsSync(resolvedCsvPath)) {
     return `CSV file not found: ${resolvedCsvPath}`;
+  }
+
+  if (!args.parser.trim()) {
+    return `Parser (-p, --parser) is required. Available: ${getAvailableParsers().join(', ')}. Need a custom parser? See ${parserDocsUrl}`;
   }
 
   const parser = getParser(args.parser);
@@ -93,20 +99,24 @@ ARGUMENTS:
 
 OPTIONS:
   -d, --translations-dir <path>  Translations directory (required)
-  -p, --parser <name>            Parser to use [default: node-module]
+  -p, --parser <name>            Parser to use (required), e.g. commonjs
   -h, --help                     Show this help message
 
 AVAILABLE PARSERS:
   ${parsers}
 
+CUSTOM PARSERS:
+  If none of the built-in parsers match your project, create a custom parser:
+  ${parserDocsUrl}
+
 EXAMPLES:
-  aitranslate import translated.csv -d src/translations
-  aitranslate import ./output/translations-de.csv -d locales -p node-module
+  aitranslate import translated.csv -d src/translations -p commonjs
+  aitranslate import ./output/translations-de.csv -d locales -p commonjs
 
 WORKFLOW:
-  1. Extract missing translations:  aitranslate extract ./repo -s en -t de -d translations
+  1. Extract missing translations:  aitranslate extract ./repo -s en -t de -d translations -p commonjs
   2. Translate with AI:             aitranslate translate missing.csv
-  3. Import translations:           aitranslate import translated.csv -d translations
+  3. Import translations:           aitranslate import translated.csv -d translations -p commonjs
 `);
 }
 
@@ -117,6 +127,13 @@ export async function runImport(config: ImportConfig): Promise<ImportCommandResu
   try {
     const resolvedCsvPath = resolve(config.csvPath);
     const resolvedTranslationsDir = resolve(config.translationsDir);
+
+    if (!config.parser.trim()) {
+      return {
+        success: false,
+        error: `Parser is required. Need a custom parser? See ${parserDocsUrl}`,
+      };
+    }
 
     const parser = getParser(config.parser);
     if (!parser) {

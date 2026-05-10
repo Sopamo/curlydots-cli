@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clearParsers, registerParser } from '../../../src/parsers';
-import { nodeModuleParser } from '../../../src/parsers/node-module';
+import { commonjsParser } from '../../../src/parsers/commonjs';
 import {
   compareTranslationSets,
   findMissingTranslations,
@@ -16,7 +16,7 @@ const FIXTURES_PATH = join(import.meta.dir, '../../fixtures/sample-repo');
 describe('missing-translations', () => {
   beforeEach(() => {
     clearParsers();
-    registerParser(nodeModuleParser);
+    registerParser(commonjsParser);
     configStore.getState().reset();
   });
 
@@ -74,7 +74,7 @@ describe('missing-translations', () => {
         translationsDirs: ['translations'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       const result = await findMissingTranslations();
@@ -94,7 +94,7 @@ describe('missing-translations', () => {
         translationsDirs: ['translations'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       const result = await findMissingTranslations();
@@ -121,7 +121,7 @@ describe('missing-translations', () => {
         translationsDirs: ['translations'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       const result = await findMissingTranslations();
@@ -165,7 +165,7 @@ describe('missing-translations', () => {
           translationsDirs: ['translations-a', 'translations-b'],
           sourceLanguage: 'en',
           targetLanguage: 'de',
-          parser: 'node-module',
+          parser: 'commonjs',
         });
 
         const result = await findMissingTranslations();
@@ -185,7 +185,7 @@ describe('missing-translations', () => {
         translationsDirs: [],
         sourceLanguage: 'en',
         targetLanguage: 'de',
-        parser: 'node-module',
+        parser: 'commonjs',
       });
 
       await expect(findMissingTranslations()).rejects.toThrow(
