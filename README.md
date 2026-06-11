@@ -64,6 +64,7 @@ curlydots <command> [options]
 | `auth status` | Display stored authentication token metadata |
 | `auth logout` | Revoke current token and clear secure storage |
 | `translations push` | Push translation JSON payload with context to backend |
+| `translations sync` | Sync the full default-language key set with Curlydots |
 | `translations status` | Check status of a push request |
 | `extract` | Find missing translations with code context and export to CSV |
 | `translate` | Translate a CSV file using AI (OpenAI) |
