@@ -13,6 +13,7 @@ export interface SyncArgs {
   extensions: string[];
   apiHost: string;
   apiToken?: string;
+  idempotencyKey?: string;
   help: boolean;
 }
 
@@ -30,6 +31,7 @@ export function parseSyncArgs(args: string[]): SyncArgs {
     extensions: [...includeExtensions],
     apiHost: '',
     apiToken: undefined,
+    idempotencyKey: undefined,
     help: false,
   };
 
@@ -65,6 +67,10 @@ export function parseSyncArgs(args: string[]): SyncArgs {
       result.apiHost = args[++i] || '';
     } else if (arg === '--api-token') {
       result.apiToken = args[++i] || '';
+    } else if (arg === '--idempotency-key') {
+      result.idempotencyKey = args[++i] || '';
+    } else if (arg?.startsWith('--idempotency-key=')) {
+      result.idempotencyKey = arg.slice('--idempotency-key='.length);
     }
     i += 1;
   }
@@ -118,6 +124,15 @@ export function validateSyncArgs(args: SyncArgs): string[] {
     errors.push(`Unknown parser: ${args.parser} (available: ${getAvailableParsers().join(', ')})`);
   }
 
+  if (args.idempotencyKey !== undefined) {
+    const idempotencyKey = args.idempotencyKey.trim();
+    if (!idempotencyKey) {
+      errors.push('Missing required value for --idempotency-key');
+    } else if (idempotencyKey.length > 255) {
+      errors.push('Idempotency key must not exceed 255 characters');
+    }
+  }
+
   return errors;
 }
 
@@ -139,6 +154,7 @@ OPTIONS:
   -e, --extensions <list>        File extensions to search [default: all files]
   --api-host <url>               API host [default: CLI config]
   --api-token <token>            API token override
+  --idempotency-key <key>        Stable key for safely retrying the sync request
   -h, --help                     Show this help message
 
 PARSERS:

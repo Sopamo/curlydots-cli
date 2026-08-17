@@ -89,7 +89,7 @@ export async function runTranslationsSync(args: string[]): Promise<void> {
 
     const withContext = await findContextForKeys(entries, resolvedPath);
     const payloads = buildTranslationSyncPayloads(withContext, resolvedPath);
-    const idempotencyKey = process.env.CURLYDOTS_GITHUB_DELIVERY_ID?.trim() || randomUUID();
+    const idempotencyKey = parsedArgs.idempotencyKey?.trim() || randomUUID();
 
     const result = await startTranslationSyncRun(
       client,

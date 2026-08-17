@@ -7,7 +7,6 @@ type FetchArgs = Parameters<typeof fetch>;
 describe('integration/sync-translations', () => {
   const originalFetch = globalThis.fetch;
   const originalCurlydotsToken = process.env.CURLYDOTS_TOKEN;
-  const originalGithubDeliveryId = process.env.CURLYDOTS_GITHUB_DELIVERY_ID;
   const fetchCalls: Array<{ input: FetchArgs[0]; init?: FetchArgs[1] }> = [];
   const fetchMock = mock(async (...args: FetchArgs) => {
     const [input, init] = args;
@@ -33,28 +32,21 @@ describe('integration/sync-translations', () => {
     fetchCalls.length = 0;
     fetchMock.mockClear();
     globalThis.fetch = fetchMock as unknown as typeof fetch;
-    delete process.env.CURLYDOTS_TOKEN;
-    delete process.env.CURLYDOTS_GITHUB_DELIVERY_ID;
+    Reflect.deleteProperty(process.env, 'CURLYDOTS_TOKEN');
     process.exitCode = 0;
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     if (originalCurlydotsToken === undefined) {
-      delete process.env.CURLYDOTS_TOKEN;
+      Reflect.deleteProperty(process.env, 'CURLYDOTS_TOKEN');
     } else {
       process.env.CURLYDOTS_TOKEN = originalCurlydotsToken;
-    }
-    if (originalGithubDeliveryId === undefined) {
-      delete process.env.CURLYDOTS_GITHUB_DELIVERY_ID;
-    } else {
-      process.env.CURLYDOTS_GITHUB_DELIVERY_ID = originalGithubDeliveryId;
     }
     process.exitCode = 0;
   });
 
-  it('syncs the full default-language key set with the GitHub delivery ID', async () => {
-    process.env.CURLYDOTS_GITHUB_DELIVERY_ID = '12de834a-8bd7-4fa2-92ed-2a59e27e1f98';
+  it('syncs the full default-language key set with an explicit idempotency key', async () => {
     const { runTranslationsSync } = await import('../../src/commands/translations/sync');
 
     await runTranslationsSync([
@@ -74,6 +66,8 @@ describe('integration/sync-translations', () => {
       'https://curlydots.com/api',
       '--api-token',
       'token-abc',
+      '--idempotency-key',
+      '12de834a-8bd7-4fa2-92ed-2a59e27e1f98',
     ]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
