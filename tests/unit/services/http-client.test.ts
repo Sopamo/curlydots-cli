@@ -79,4 +79,44 @@ describe('services/http/client', () => {
       expect(receivedSignal.aborted).toBe(true);
     }
   });
+
+  it('reuses an idempotency key across retries', async () => {
+    const HttpClient = await loadHttpClient();
+    const receivedIdempotencyKeys: Array<string | undefined> = [];
+    let attempt = 0;
+    const fetcher = (async (_url, init) => {
+      attempt += 1;
+      receivedIdempotencyKeys.push(
+        (init?.headers as Record<string, string> | undefined)?.['Idempotency-Key'],
+      );
+
+      if (attempt === 1) {
+        return new Response(JSON.stringify({ message: 'Temporary failure' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 1,
+      fetcher,
+    });
+
+    await client.post(
+      'sync',
+      { keys: [] },
+      {
+        headers: { 'Idempotency-Key': 'github-job-123' },
+      },
+    );
+
+    expect(receivedIdempotencyKeys).toEqual(['github-job-123', 'github-job-123']);
+  });
 });

@@ -1,8 +1,8 @@
-import { HttpClient } from '../http/client';
 import type {
   TranslationSyncKeyPayload,
   TranslationSyncRunResponse,
 } from '../../types/translation-sync';
+import type { HttpClient } from '../http/client';
 
 export interface StartTranslationSyncRunResult {
   runId: string;
@@ -17,11 +17,17 @@ export async function startTranslationSyncRun(
   projectSlug: string,
   token: string,
   keys: TranslationSyncKeyPayload[],
+  idempotencyKey: string,
 ): Promise<StartTranslationSyncRunResult> {
   const response = await client.post<TranslationSyncRunResponse>(
     `/api/teams/${encodeURIComponent(teamSlug)}/projects/${encodeURIComponent(projectSlug)}/translation-sync-runs`,
     { keys },
-    token,
+    {
+      token,
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+      },
+    },
   );
 
   return {

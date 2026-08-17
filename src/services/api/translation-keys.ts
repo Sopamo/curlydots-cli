@@ -1,5 +1,5 @@
-import { HttpClient } from '../http/client';
 import type { ExistingKeysResponse, TranslationKeyPayload } from '../../types/translation-keys';
+import type { HttpClient } from '../http/client';
 
 export interface TranslationKeysClientOptions {
   client: HttpClient;
@@ -13,7 +13,9 @@ export interface UploadResult {
   batches: number;
 }
 
-export async function resolveAuthToken(options: TranslationKeysClientOptions): Promise<string | null> {
+export async function resolveAuthToken(
+  options: TranslationKeysClientOptions,
+): Promise<string | null> {
   if (options.token) return options.token;
   if (options.loadToken) {
     const stored = await options.loadToken();
@@ -29,7 +31,9 @@ export async function fetchExistingTranslationKeys(
   projectUuid: string,
   token: string,
 ): Promise<ExistingKeysResponse> {
-  return client.get<ExistingKeysResponse>(`/api/projects/${projectUuid}/translation-keys`, { token });
+  return client.get<ExistingKeysResponse>(`/api/projects/${projectUuid}/translation-keys`, {
+    token,
+  });
 }
 
 export async function uploadTranslationKeys(
@@ -49,7 +53,7 @@ export async function uploadTranslationKeys(
     await client.post(
       `/api/projects/${projectUuid}/translation-keys`,
       { keys: batch, current_batch: currentBatch, total_batch: totalBatch },
-      token,
+      { token },
     );
     uploaded += batch.length;
     batches += 1;

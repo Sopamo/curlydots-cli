@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'bun:test';
-import { HttpClient } from '../../src/services/http/client';
+import { HttpClient, type HttpRequestOptions } from '../../src/services/http/client';
 import type { TranslationSyncKeyPayload } from '../../src/types/translation-sync';
 
 class FakeClient extends HttpClient {
-  public postCalls: Array<{ path: string; token?: string; body?: unknown }> = [];
+  public postCalls: Array<{ path: string; options?: HttpRequestOptions; body?: unknown }> = [];
 
   constructor() {
     super({ baseUrl: 'https://curlydots.com', timeout: 1000, retries: 0 });
   }
 
-  override async post<T, B = unknown>(path: string, body?: B, token?: string): Promise<T> {
-    this.postCalls.push({ path, token, body });
+  override async post<T, B = unknown>(
+    path: string,
+    body?: B,
+    options?: HttpRequestOptions,
+  ): Promise<T> {
+    this.postCalls.push({ path, options, body });
 
     return {
       data: {
@@ -40,6 +44,7 @@ describe('contract/translation-sync-runs', () => {
       'project-a',
       'token-abc',
       payload,
+      'github-job-123',
     );
 
     expect(result).toEqual({
@@ -51,7 +56,12 @@ describe('contract/translation-sync-runs', () => {
     expect(client.postCalls).toEqual([
       {
         path: '/api/teams/team-a/projects/project-a/translation-sync-runs',
-        token: 'token-abc',
+        options: {
+          token: 'token-abc',
+          headers: {
+            'Idempotency-Key': 'github-job-123',
+          },
+        },
         body: { keys: payload },
       },
     ]);

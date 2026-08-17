@@ -7,6 +7,7 @@ type FetchArgs = Parameters<typeof fetch>;
 describe('integration/sync-translations', () => {
   const originalFetch = globalThis.fetch;
   const originalCurlydotsToken = process.env.CURLYDOTS_TOKEN;
+  const originalGithubDeliveryId = process.env.CURLYDOTS_GITHUB_DELIVERY_ID;
   const fetchCalls: Array<{ input: FetchArgs[0]; init?: FetchArgs[1] }> = [];
   const fetchMock = mock(async (...args: FetchArgs) => {
     const [input, init] = args;
@@ -33,6 +34,7 @@ describe('integration/sync-translations', () => {
     fetchMock.mockClear();
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     delete process.env.CURLYDOTS_TOKEN;
+    delete process.env.CURLYDOTS_GITHUB_DELIVERY_ID;
     process.exitCode = 0;
   });
 
@@ -43,10 +45,16 @@ describe('integration/sync-translations', () => {
     } else {
       process.env.CURLYDOTS_TOKEN = originalCurlydotsToken;
     }
+    if (originalGithubDeliveryId === undefined) {
+      delete process.env.CURLYDOTS_GITHUB_DELIVERY_ID;
+    } else {
+      process.env.CURLYDOTS_GITHUB_DELIVERY_ID = originalGithubDeliveryId;
+    }
     process.exitCode = 0;
   });
 
-  it('syncs the full default-language key set to the backend', async () => {
+  it('syncs the full default-language key set with the GitHub delivery ID', async () => {
+    process.env.CURLYDOTS_GITHUB_DELIVERY_ID = '12de834a-8bd7-4fa2-92ed-2a59e27e1f98';
     const { runTranslationsSync } = await import('../../src/commands/translations/sync');
 
     await runTranslationsSync([
@@ -74,6 +82,9 @@ describe('integration/sync-translations', () => {
       '/api/teams/team-a/projects/project-a/translation-sync-runs',
     );
     expect(postCall?.init?.method).toBe('POST');
+    expect(
+      (postCall?.init?.headers as Record<string, string> | undefined)?.['Idempotency-Key'],
+    ).toBe('12de834a-8bd7-4fa2-92ed-2a59e27e1f98');
 
     const body = JSON.parse((postCall?.init?.body as string) ?? '{}') as {
       keys?: Array<Record<string, unknown>>;
@@ -115,5 +126,8 @@ describe('integration/sync-translations', () => {
     expect((postCall?.init?.headers as Record<string, string> | undefined)?.Authorization).toBe(
       'Bearer env-token-abc',
     );
+    expect(
+      (postCall?.init?.headers as Record<string, string> | undefined)?.['Idempotency-Key'],
+    ).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
 });

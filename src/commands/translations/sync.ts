@@ -1,14 +1,15 @@
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
+import { loadCliConfig } from '../../config/cli-config';
 import { getParser } from '../../parsers';
 import { loadParserFromFile } from '../../parsers/parser-file-loader';
-import { findContextForKeys } from '../../services/context-finder';
 import { resolveAuthToken } from '../../services/api/translation-keys';
 import { startTranslationSyncRun } from '../../services/api/translation-sync-runs';
+import { findContextForKeys } from '../../services/context-finder';
+import { HttpClient, HttpClientError } from '../../services/http/client';
 import { buildTranslationSyncPayloads } from '../../services/translation-sync/payload-builder';
 import { configStore } from '../../stores';
 import { globalLogger } from '../../utils/logger';
-import { HttpClient, HttpClientError } from '../../services/http/client';
-import { loadCliConfig } from '../../config/cli-config';
 import { parseSyncArgs, printSyncHelp, validateSyncArgs } from './sync-args';
 
 export async function runTranslationsSync(args: string[]): Promise<void> {
@@ -88,6 +89,7 @@ export async function runTranslationsSync(args: string[]): Promise<void> {
 
     const withContext = await findContextForKeys(entries, resolvedPath);
     const payloads = buildTranslationSyncPayloads(withContext, resolvedPath);
+    const idempotencyKey = process.env.CURLYDOTS_GITHUB_DELIVERY_ID?.trim() || randomUUID();
 
     const result = await startTranslationSyncRun(
       client,
@@ -95,6 +97,7 @@ export async function runTranslationsSync(args: string[]): Promise<void> {
       parsedArgs.projectSlug,
       token,
       payloads,
+      idempotencyKey,
     );
 
     globalLogger.info(
