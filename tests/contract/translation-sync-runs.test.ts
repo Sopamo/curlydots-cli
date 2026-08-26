@@ -43,6 +43,7 @@ describe('contract/translation-sync-runs', () => {
       'team-a',
       'project-a',
       'token-abc',
+      'en',
       payload,
       'github-job-123',
     );
@@ -62,7 +63,7 @@ describe('contract/translation-sync-runs', () => {
             'Idempotency-Key': 'github-job-123',
           },
         },
-        body: { keys: payload },
+        body: { source_language: 'en', keys: payload },
       },
     ]);
   });

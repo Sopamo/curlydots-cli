@@ -16,12 +16,13 @@ export async function startTranslationSyncRun(
   teamSlug: string,
   projectSlug: string,
   token: string,
+  sourceLanguage: string,
   keys: TranslationSyncKeyPayload[],
   idempotencyKey: string,
 ): Promise<StartTranslationSyncRunResult> {
   const response = await client.post<TranslationSyncRunResponse>(
     `/api/teams/${encodeURIComponent(teamSlug)}/projects/${encodeURIComponent(projectSlug)}/translation-sync-runs`,
-    { keys },
+    { source_language: sourceLanguage, keys },
     {
       token,
       headers: {

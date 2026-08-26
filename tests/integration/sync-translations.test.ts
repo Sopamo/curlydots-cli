@@ -81,9 +81,11 @@ describe('integration/sync-translations', () => {
     ).toBe('12de834a-8bd7-4fa2-92ed-2a59e27e1f98');
 
     const body = JSON.parse((postCall?.init?.body as string) ?? '{}') as {
+      source_language?: string;
       keys?: Array<Record<string, unknown>>;
     };
 
+    expect(body.source_language).toBe('en');
     expect(Array.isArray(body.keys)).toBe(true);
     expect(body.keys?.length).toBeGreaterThan(0);
     expect(body.keys?.some((key) => key.key === 'generic.back')).toBe(true);

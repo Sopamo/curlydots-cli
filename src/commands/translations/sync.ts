@@ -96,6 +96,7 @@ export async function runTranslationsSync(args: string[]): Promise<void> {
       parsedArgs.teamSlug,
       parsedArgs.projectSlug,
       token,
+      parsedArgs.source,
       payloads,
       idempotencyKey,
     );
