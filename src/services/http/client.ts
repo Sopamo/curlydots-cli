@@ -25,7 +25,10 @@ export interface HttpRequestOptions {
 }
 
 export class HttpClientError extends Error {
-  constructor(message: string, public readonly meta: HttpErrorMeta) {
+  constructor(
+    message: string,
+    public readonly meta: HttpErrorMeta,
+  ) {
     super(message);
     this.name = 'HttpClientError';
   }
@@ -33,7 +36,10 @@ export class HttpClientError extends Error {
 
 const retryableStatus = new Set([408, 429, 500, 502, 503, 504]);
 
-async function requestWithTimeout<T>(request: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
+async function requestWithTimeout<T>(
+  request: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ms);
 
@@ -77,8 +83,8 @@ export class HttpClient {
     return this.request<T>('GET', path, undefined, options);
   }
 
-  async post<T, B = unknown>(path: string, body?: B, token?: string): Promise<T> {
-    return this.request<T>('POST', path, body, { token });
+  async post<T, B = unknown>(path: string, body?: B, options?: HttpRequestOptions): Promise<T> {
+    return this.request<T>('POST', path, body, options);
   }
 
   private async request<T>(
@@ -88,9 +94,7 @@ export class HttpClient {
     options: HttpRequestOptions = {},
   ): Promise<T> {
     const cliVersion = this.cliVersion ?? process.env.npm_package_version ?? '0.1.0';
-    const baseUrl = this.baseUrl.endsWith('/')
-      ? this.baseUrl
-      : `${this.baseUrl}/`;
+    const baseUrl = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
     const url = new URL(path, baseUrl).toString();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -147,7 +151,9 @@ export class HttpClient {
           throw error;
         }
         if (attempt >= this.retries) {
-          throw new HttpClientError('System error communicating with backend', { category: 'system' });
+          throw new HttpClientError('System error communicating with backend', {
+            category: 'system',
+          });
         }
         throw error;
       }

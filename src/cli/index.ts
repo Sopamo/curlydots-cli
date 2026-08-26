@@ -6,6 +6,7 @@ import { authLoginCommand } from '../commands/auth/login';
 import { authLogoutCommand } from '../commands/auth/logout';
 import { authStatusCommand } from '../commands/auth/status';
 import { runTranslationsPush } from '../commands/translations/push';
+import { runTranslationsSync } from '../commands/translations/sync';
 import { runTranslationsStatus } from '../commands/translations/status';
 import { globalLogger } from '../utils/logger';
 import packageJson from '../../package.json' with { type: 'json' };
@@ -65,6 +66,7 @@ const commandMap: Record<string, CommandHandler> = {
   'auth logout': async (args) => authLogoutCommand(args),
   'auth status': async (args) => authStatusCommand(args),
   'translations push': async (args) => runTranslationsPush(args),
+  'translations sync': async (args) => runTranslationsSync(args),
   'translations status': async (args) => runTranslationsStatus(args),
 };
 
@@ -95,6 +97,7 @@ Commands:
   auth status            Display stored authentication info
   projects               List available projects
   translations push      Push translation payload to backend
+  translations sync      Sync default-language keys with backend
   translations status    Check translation push status
   extract                Find missing translations
   translate              Translate CSV using AI
