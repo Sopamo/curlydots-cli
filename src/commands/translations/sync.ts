@@ -10,10 +10,19 @@ import { HttpClient, HttpClientError } from '../../services/http/client';
 import { buildTranslationSyncPayloads } from '../../services/translation-sync/payload-builder';
 import { configStore } from '../../stores';
 import { globalLogger } from '../../utils/logger';
-import { parseSyncArgs, printSyncHelp, validateSyncArgs } from './sync-args';
+import { type SyncArgs, parseSyncArgs, printSyncHelp, validateSyncArgs } from './sync-args';
 
 export async function runTranslationsSync(args: string[]): Promise<void> {
-  const parsedArgs = parseSyncArgs(args);
+  let parsedArgs: SyncArgs;
+  try {
+    parsedArgs = parseSyncArgs(args);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    globalLogger.error(message);
+    globalLogger.info('Run "curlydots translations sync --help" for usage information.');
+    process.exitCode = 1;
+    return;
+  }
 
   if (parsedArgs.help) {
     printSyncHelp();
@@ -102,7 +111,7 @@ export async function runTranslationsSync(args: string[]): Promise<void> {
     );
 
     globalLogger.info(
-      `Translation sync started: ${result.runId} (${result.status}). Imported ${result.importedKeysCount} keys, queued ${result.queuedBatchesCount} batches.`,
+      `Translation sync started: ${result.run_id} (${result.status}). Imported ${result.imported_keys_count} keys, queued ${result.queued_batches_count} batches.`,
     );
   } catch (error) {
     if (error instanceof HttpClientError) {

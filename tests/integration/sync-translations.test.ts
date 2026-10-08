@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { join } from 'node:path';
+import { globalLogger } from '../../src/utils/logger';
 
 const TEST_REPO = join(import.meta.dir, '../fixtures/sample-repo');
 type FetchArgs = Parameters<typeof fetch>;
@@ -44,10 +45,12 @@ describe('integration/sync-translations', () => {
       process.env.CURLYDOTS_TOKEN = originalCurlydotsToken;
     }
     process.exitCode = 0;
+    mock.restore();
   });
 
   it('syncs the full default-language key set with an explicit idempotency key', async () => {
     const { runTranslationsSync } = await import('../../src/commands/translations/sync');
+    const infoSpy = spyOn(globalLogger, 'info').mockImplementation(() => {});
 
     await runTranslationsSync([
       '--team',
@@ -94,7 +97,78 @@ describe('integration/sync-translations', () => {
     const saveKey = body.keys?.find((key) => key.key === 'generic.save');
     expect(saveKey?.default_value).toBe('Save');
     expect(typeof saveKey?.context).toBe('string');
+    expect(infoSpy).toHaveBeenCalledWith(
+      'Translation sync started: run-123 (processing). Imported 4 keys, queued 2 batches.',
+    );
+    expect(process.exitCode).toBe(0);
   });
+
+  for (const { name, suffix, option } of [
+    {
+      name: 'rejects an idempotency key missing before help without making a request',
+      suffix: ['--idempotency-key', '--help'],
+      option: '--idempotency-key',
+    },
+    {
+      name: 'rejects an idempotency key missing before another option without making a request',
+      suffix: ['--idempotency-key', '--api-host', 'https://example.invalid'],
+      option: '--idempotency-key',
+    },
+    {
+      name: 'rejects unknown flags without making a request',
+      suffix: ['--typo'],
+      option: '--typo',
+    },
+  ]) {
+    it(name, async () => {
+      const { runTranslationsSync } = await import('../../src/commands/translations/sync');
+      const errorSpy = spyOn(globalLogger, 'error').mockImplementation(() => {});
+      const infoSpy = spyOn(globalLogger, 'info').mockImplementation(() => {});
+
+      await expect(
+        runTranslationsSync([
+          '--team',
+          'team-a',
+          '--project',
+          'project-a',
+          '--repo',
+          TEST_REPO,
+          '--translations-dir',
+          'translations',
+          '--source',
+          'en',
+          '--api-host',
+          'https://curlydots.com/api',
+          '--api-token',
+          'token-abc',
+          ...suffix,
+        ]),
+      ).resolves.toBeUndefined();
+
+      expect(process.exitCode).toBe(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(option));
+      expect(infoSpy).toHaveBeenCalledWith(
+        'Run "curlydots translations sync --help" for usage information.',
+      );
+    });
+  }
+
+  it.each(['--help', '-h'])(
+    'shows standalone help with %s without making a request',
+    async (flag) => {
+      const { runTranslationsSync } = await import('../../src/commands/translations/sync');
+      const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+      const errorSpy = spyOn(globalLogger, 'error').mockImplementation(() => {});
+
+      await runTranslationsSync([flag]);
+
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('curlydots translations sync'));
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(0);
+    },
+  );
 
   it('uses CURLYDOTS_TOKEN when api token is not passed', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token-abc';

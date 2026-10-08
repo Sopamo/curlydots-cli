@@ -49,10 +49,10 @@ describe('contract/translation-sync-runs', () => {
     );
 
     expect(result).toEqual({
-      runId: 'run-123',
+      run_id: 'run-123',
       status: 'processing',
-      importedKeysCount: 2,
-      queuedBatchesCount: 1,
+      imported_keys_count: 2,
+      queued_batches_count: 1,
     });
     expect(client.postCalls).toEqual([
       {

@@ -4,13 +4,6 @@ import type {
 } from '../../types/translation-sync';
 import type { HttpClient } from '../http/client';
 
-export interface StartTranslationSyncRunResult {
-  runId: string;
-  status: string;
-  importedKeysCount: number;
-  queuedBatchesCount: number;
-}
-
 export async function startTranslationSyncRun(
   client: HttpClient,
   teamSlug: string,
@@ -19,7 +12,7 @@ export async function startTranslationSyncRun(
   sourceLanguage: string,
   keys: TranslationSyncKeyPayload[],
   idempotencyKey: string,
-): Promise<StartTranslationSyncRunResult> {
+): Promise<TranslationSyncRunResponse['data']> {
   const response = await client.post<TranslationSyncRunResponse>(
     `/api/teams/${encodeURIComponent(teamSlug)}/projects/${encodeURIComponent(projectSlug)}/translation-sync-runs`,
     { source_language: sourceLanguage, keys },
@@ -31,10 +24,5 @@ export async function startTranslationSyncRun(
     },
   );
 
-  return {
-    runId: response.data.run_id,
-    status: response.data.status,
-    importedKeysCount: response.data.imported_keys_count,
-    queuedBatchesCount: response.data.queued_batches_count,
-  };
+  return response.data;
 }

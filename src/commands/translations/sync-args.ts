@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
 import { getAvailableParsers, getParser } from '../../parsers';
 
 export interface SyncArgs {
@@ -17,65 +18,44 @@ export interface SyncArgs {
   help: boolean;
 }
 
-const includeExtensions: string[] = [];
-
 export function parseSyncArgs(args: string[]): SyncArgs {
-  const result: SyncArgs = {
-    teamSlug: '',
-    projectSlug: '',
-    repoPath: '',
-    translationsDir: '',
-    source: '',
-    parser: 'node-module',
-    parserFile: undefined,
-    extensions: [...includeExtensions],
-    apiHost: '',
-    apiToken: undefined,
-    idempotencyKey: undefined,
-    help: false,
+  const { values } = parseArgs({
+    args,
+    strict: true,
+    allowPositionals: false,
+    options: {
+      team: { type: 'string' },
+      project: { type: 'string' },
+      repo: { type: 'string' },
+      'translations-dir': { type: 'string', short: 'd' },
+      source: { type: 'string', short: 's' },
+      parser: { type: 'string', short: 'p', default: 'node-module' },
+      'parser-file': { type: 'string' },
+      extensions: { type: 'string', short: 'e' },
+      'api-host': { type: 'string' },
+      'api-token': { type: 'string' },
+      'idempotency-key': { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  });
+
+  return {
+    teamSlug: values.team ?? '',
+    projectSlug: values.project ?? '',
+    repoPath: values.repo ?? '',
+    translationsDir: values['translations-dir'] ?? '',
+    source: values.source ?? '',
+    parser: values.parser || 'node-module',
+    parserFile: values['parser-file'],
+    extensions: (values.extensions ?? '')
+      .split(',')
+      .map((ext) => ext.trim())
+      .filter(Boolean),
+    apiHost: values['api-host'] ?? '',
+    apiToken: values['api-token'],
+    idempotencyKey: values['idempotency-key'],
+    help: values.help ?? false,
   };
-
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-
-    if (arg === '-h' || arg === '--help') {
-      result.help = true;
-    } else if (arg === '--team') {
-      result.teamSlug = args[++i] || '';
-    } else if (arg === '--project') {
-      result.projectSlug = args[++i] || '';
-    } else if (arg === '--repo') {
-      result.repoPath = args[++i] || '';
-    } else if (arg === '-d' || arg === '--translations-dir') {
-      result.translationsDir = args[++i] || '';
-    } else if (arg === '-s' || arg === '--source') {
-      result.source = args[++i] || '';
-    } else if (arg === '-p' || arg === '--parser') {
-      result.parser = args[++i] || 'node-module';
-    } else if (arg === '--parser-file') {
-      result.parserFile = args[++i] || '';
-    } else if (arg?.startsWith('--parser-file=')) {
-      result.parserFile = arg.slice('--parser-file='.length);
-    } else if (arg === '-e' || arg === '--extensions') {
-      const extString = args[++i] || '';
-      result.extensions = extString
-        .split(',')
-        .map((ext) => ext.trim())
-        .filter(Boolean);
-    } else if (arg === '--api-host') {
-      result.apiHost = args[++i] || '';
-    } else if (arg === '--api-token') {
-      result.apiToken = args[++i] || '';
-    } else if (arg === '--idempotency-key') {
-      result.idempotencyKey = args[++i] || '';
-    } else if (arg?.startsWith('--idempotency-key=')) {
-      result.idempotencyKey = arg.slice('--idempotency-key='.length);
-    }
-    i += 1;
-  }
-
-  return result;
 }
 
 export function validateSyncArgs(args: SyncArgs): string[] {
