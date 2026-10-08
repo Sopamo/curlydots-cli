@@ -1,5 +1,5 @@
-import { describe, expect, it, mock } from 'bun:test';
-import { HttpClient } from '../../src/services/http/client';
+import { describe, expect, it } from 'bun:test';
+import { HttpClient, type HttpRequestOptions } from '../../src/services/http/client';
 import type { TranslationKeyPayload } from '../../src/types/translation-keys';
 
 class FakeClient extends HttpClient {
@@ -15,15 +15,21 @@ class FakeClient extends HttpClient {
     return { keys: ['alpha', 'beta'] } as T;
   }
 
-  override async post<T, B = unknown>(path: string, body?: B, token?: string): Promise<T> {
-    this.postCalls.push({ path, token, body });
+  override async post<T, B = unknown>(
+    path: string,
+    body?: B,
+    options?: HttpRequestOptions,
+  ): Promise<T> {
+    this.postCalls.push({ path, token: options?.token, body });
     return undefined as T;
   }
 }
 
 describe('contract/translation-keys', () => {
   it('fetches existing keys using project endpoint + auth token', async () => {
-    const { fetchExistingTranslationKeys } = await import('../../src/services/api/translation-keys');
+    const { fetchExistingTranslationKeys } = await import(
+      '../../src/services/api/translation-keys'
+    );
     const client = new FakeClient();
 
     const response = await fetchExistingTranslationKeys(client, 'project-123', 'token-abc');
