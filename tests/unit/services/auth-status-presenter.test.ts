@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CliAuthConfig } from '../../../src/config/auth-config';
+import * as authConfigModule from '../../../src/config/auth-config';
+import * as cliConfigModule from '../../../src/config/cli-config';
+import * as tokenManagerModule from '../../../src/services/auth/token-manager';
 import { HttpClient, HttpClientError } from '../../../src/services/http/client';
+
+const originalAuthConfig = { ...authConfigModule };
+const originalCliConfig = { ...cliConfigModule };
+const originalTokenManager = { ...tokenManagerModule };
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -65,6 +72,9 @@ describe('services/auth/service getAuthStatus', () => {
     mock.clearAllMocks();
     mock.restore();
     HttpClient.fromConfig = originalHttpClientFromConfig;
+    mock.module('../../../src/config/auth-config', () => ({ ...originalAuthConfig }));
+    mock.module('../../../src/config/cli-config', () => ({ ...originalCliConfig }));
+    mock.module('../../../src/services/auth/token-manager', () => ({ ...originalTokenManager }));
   });
 
   it('reports authenticated when env token is valid', async () => {

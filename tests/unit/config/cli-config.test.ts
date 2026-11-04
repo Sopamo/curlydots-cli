@@ -29,7 +29,7 @@ function mockConfigPathsModule(options: {
         mkdirSyncMock('/home/test/.curlydots', { recursive: true });
         writeFileSyncMock(
           globalConfigPath,
-          `${JSON.stringify({ schemaVersion: 1, apiEndpoint: 'https://curlydots.com/api', frontendUrl: 'https://curlydots.com', debug: false }, null, 2)}\n`,
+          `${JSON.stringify({ schemaVersion: 1, apiEndpoint: 'https://api.curlydots.com/api', frontendUrl: 'https://app.curlydots.com', debug: false }, null, 2)}\n`,
           'utf8',
         );
       }
@@ -106,7 +106,7 @@ describe('config/cli-config', () => {
       if (filePath === globalConfigPath) {
         return JSON.stringify({
           schemaVersion: 1,
-          apiEndpoint: 'https://curlydots.com/api',
+          apiEndpoint: 'https://api.curlydots.com/api',
           debug: false,
         });
       }
@@ -134,15 +134,15 @@ describe('config/cli-config', () => {
     const { loadCliConfig } = await importFreshCliConfigModule();
     const config = loadCliConfig();
 
-    expect(config.apiEndpoint).toBe('https://curlydots.com/api');
-    expect(config.frontendUrl).toBe('https://curlydots.com');
+    expect(config.apiEndpoint).toBe('https://api.curlydots.com/api');
+    expect(config.frontendUrl).toBe('https://app.curlydots.com');
     expect(config.debug).toBe(false);
     expect(config.timeout).toBe(30_000);
     expect(config.retries).toBe(3);
 
     expect(writeFileSyncMock).toHaveBeenCalledWith(
       globalConfigPath,
-      `${JSON.stringify({ schemaVersion: 1, apiEndpoint: 'https://curlydots.com/api', frontendUrl: 'https://curlydots.com', debug: false }, null, 2)}\n`,
+      `${JSON.stringify({ schemaVersion: 1, apiEndpoint: 'https://api.curlydots.com/api', frontendUrl: 'https://app.curlydots.com', debug: false }, null, 2)}\n`,
       'utf8',
     );
     expect(writeFileSyncMock).toHaveBeenCalledWith(
@@ -431,12 +431,37 @@ describe('config/cli-config', () => {
     const { loadCliConfig } = await importFreshCliConfigModule();
     const config = loadCliConfig();
 
-    expect(config.apiEndpoint).toBe('https://curlydots.com/api');
-    expect(config.frontendUrl).toBe('https://curlydots.com');
+    expect(config.apiEndpoint).toBe('https://api.curlydots.com/api');
+    expect(config.frontendUrl).toBe('https://app.curlydots.com');
     expect(config.debug).toBe(false);
     expect(config.sources.apiEndpoint).toEqual({ source: 'default' });
     expect(config.sources.frontendUrl).toEqual({ source: 'default' });
     expect(config.sources.debug).toEqual({ source: 'default' });
+  });
+
+  it('migrates the old generated production URL pair to the split API and UI domains', async () => {
+    const configPath = '/home/test/.curlydots/config.json';
+    const writeFileSyncMock = mock(() => undefined);
+    mockConfigPathsModule({
+      existsSyncMock: (filePath) => filePath === configPath,
+      readFileSyncMock: () =>
+        JSON.stringify({
+          schemaVersion: 1,
+          apiEndpoint: 'https://curlydots.com/api',
+          frontendUrl: 'https://curlydots.com',
+          debug: false,
+        }),
+      writeFileSyncMock,
+    });
+    const { loadCliConfig } = await importFreshCliConfigModule();
+    const config = loadCliConfig();
+    expect(config.apiEndpoint).toBe('https://api.curlydots.com/api');
+    expect(config.frontendUrl).toBe('https://app.curlydots.com');
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      configPath,
+      expect.stringContaining('https://api.curlydots.com/api'),
+      'utf8',
+    );
   });
 
   it('warns when config schema version is newer than supported', async () => {

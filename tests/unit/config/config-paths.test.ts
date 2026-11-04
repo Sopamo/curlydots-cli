@@ -129,8 +129,8 @@ describe('config/config-paths', () => {
       `${JSON.stringify(
         {
           schemaVersion: 1,
-          apiEndpoint: 'https://curlydots.com/api',
-          frontendUrl: 'https://curlydots.com',
+          apiEndpoint: 'https://api.curlydots.com/api',
+          frontendUrl: 'https://app.curlydots.com',
           debug: false,
         },
         null,

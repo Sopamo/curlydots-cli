@@ -12,8 +12,8 @@ import {
 export const CLI_CONFIG_PATH = getGlobalCurlydotsFilePath('config.json');
 const CONFIG_SCHEMA_VERSION = 1;
 const warnedVersionPaths = new Set<string>();
-const DEFAULT_API_ENDPOINT = 'https://curlydots.com/api';
-const DEFAULT_FRONTEND_URL = 'https://curlydots.com';
+const DEFAULT_API_ENDPOINT = 'https://api.curlydots.com/api';
+const DEFAULT_FRONTEND_URL = 'https://app.curlydots.com';
 
 export type CliConfigSource = 'default' | 'global' | 'project';
 
@@ -85,6 +85,13 @@ function normalizeConfigFileShape(rawConfig: Record<string, unknown>): Record<st
   }
   if (typeof rawConfig.frontendUrl === 'string') {
     normalized.frontendUrl = rawConfig.frontendUrl;
+  }
+  if (
+    rawConfig.apiEndpoint === 'https://curlydots.com/api' &&
+    rawConfig.frontendUrl === 'https://curlydots.com'
+  ) {
+    normalized.apiEndpoint = DEFAULT_API_ENDPOINT;
+    normalized.frontendUrl = DEFAULT_FRONTEND_URL;
   }
   const debug = coerceBoolean(rawConfig.debug);
   if (debug !== undefined) {

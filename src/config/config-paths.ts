@@ -173,8 +173,8 @@ function writeJsonTemplateIfMissing(filePath: string, template: Record<string, u
 export function ensureGlobalCurlydotsConfigFiles(): void {
   writeJsonTemplateIfMissing(getGlobalCurlydotsFilePath('config.json'), {
     schemaVersion: 1,
-    apiEndpoint: 'https://curlydots.com/api',
-    frontendUrl: 'https://curlydots.com',
+    apiEndpoint: 'https://api.curlydots.com/api',
+    frontendUrl: 'https://app.curlydots.com',
     debug: false,
   });
 
