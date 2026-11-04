@@ -1,15 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -202,21 +194,14 @@ export function stageMainPackage({
     `${JSON.stringify(publishManifest, null, 2)}\n`,
   );
   mkdirSync(npmCacheDir, { recursive: true });
-  const tarballsBeforePack = new Set(
-    readdirSync(resolvedOutputDir).filter((fileName) => fileName.endsWith('.tgz')),
-  );
-
-  run('npm', ['pack', '--pack-destination', resolvedOutputDir], {
+  const packOutput = run('npm', ['pack', '--json', '--pack-destination', resolvedOutputDir], {
     cwd: stagingDir,
     env: {
       ...process.env,
       npm_config_cache: npmCacheDir,
     },
   });
-  const tarballFile =
-    readdirSync(resolvedOutputDir).find(
-      (fileName) => fileName.endsWith('.tgz') && !tarballsBeforePack.has(fileName),
-    ) ?? null;
+  const tarballFile = JSON.parse(packOutput)[0]?.filename;
 
   if (!tarballFile) {
     throw new Error('npm pack did not emit main package tarball name');

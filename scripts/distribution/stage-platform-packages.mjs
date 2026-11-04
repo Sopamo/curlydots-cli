@@ -8,7 +8,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -221,21 +220,14 @@ export function stagePlatformPackages({
       'utf8',
     );
     mkdirSync(npmCacheDir, { recursive: true });
-    const tarballsBeforePack = new Set(
-      readdirSync(resolvedOutputDir).filter((fileName) => fileName.endsWith('.tgz')),
-    );
-
-    run('npm', ['pack', '--pack-destination', resolvedOutputDir], {
+    const packOutput = run('npm', ['pack', '--json', '--pack-destination', resolvedOutputDir], {
       cwd: targetStagingDir,
       env: {
         ...process.env,
         npm_config_cache: npmCacheDir,
       },
     });
-    const tarballFile =
-      readdirSync(resolvedOutputDir).find(
-        (fileName) => fileName.endsWith('.tgz') && !tarballsBeforePack.has(fileName),
-      ) ?? null;
+    const tarballFile = JSON.parse(packOutput)[0]?.filename;
 
     if (!tarballFile) {
       throw new Error(`npm pack did not emit tarball name for ${target.packageName}`);

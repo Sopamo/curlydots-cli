@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { Glob } from 'bun';
 
@@ -49,7 +50,8 @@ export async function listFilesRespectingGitIgnore(
   const gitRoot = findGitRoot(searchDir);
 
   if (gitRoot) {
-    const relativeSearchDir = relative(gitRoot, searchDir);
+    const canonicalSearchDir = realpathSync(searchDir);
+    const relativeSearchDir = relative(gitRoot, canonicalSearchDir);
     // Ask Git for tracked files and untracked-but-not-ignored files within the
     // requested subtree, then let filterIgnoredPaths enforce ignore rules again.
     const args = ['-C', gitRoot, 'ls-files', '--cached', '--others', '--exclude-standard', '-z'];
@@ -70,7 +72,7 @@ export async function listFilesRespectingGitIgnore(
       return repoRelativePaths
         .filter((filePath) => !ignoredPaths.has(filePath))
         .map((filePath) => join(gitRoot, filePath))
-        .filter((absolutePath) => includeFile(relative(searchDir, absolutePath)));
+        .filter((absolutePath) => includeFile(relative(canonicalSearchDir, absolutePath)));
     }
   }
 

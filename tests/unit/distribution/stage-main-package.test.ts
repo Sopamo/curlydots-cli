@@ -91,6 +91,15 @@ describe('distribution/stage-main-package', () => {
       expect(Object.keys(manifest.optionalDependencies).sort()).toEqual(
         [...PLATFORM_PACKAGE_NAMES].sort(),
       );
+      const repeated = stageMainPackage({
+        version: '5.6.7',
+        outputDir,
+        packageRoot: CLI_ROOT,
+        stagingDir,
+        platformMetadataPath,
+      });
+      expect(repeated.tarballPath).toBe(metadata.tarballPath);
+      expect(readTgzPackageJson(repeated.tarballPath).version).toBe('5.6.7');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

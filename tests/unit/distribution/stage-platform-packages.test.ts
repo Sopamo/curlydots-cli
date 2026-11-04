@@ -135,6 +135,21 @@ describe('distribution/stage-platform-packages', () => {
 
       const windowsEntries = readTgzEntries(windowsX64.tarballPath);
       expect(windowsEntries).toContain('package/bin/curlydots.exe');
+      const repeated = stagePlatformPackages({
+        version: '9.9.9',
+        artifactsDir,
+        outputDir,
+        packageRoot: CLI_ROOT,
+        stagingDir,
+      }) as StagePlatformMetadata;
+      expect(repeated.packages.map((entry) => entry.tarballPath)).toEqual(
+        metadata.packages.map((entry) => entry.tarballPath),
+      );
+      const firstRepeatedPackage = repeated.packages[0];
+      if (!firstRepeatedPackage) {
+        throw new Error('Expected a staged platform package after rerunning');
+      }
+      expect(readTgzPackageJson(firstRepeatedPackage.tarballPath).version).toBe('9.9.9');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

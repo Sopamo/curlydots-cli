@@ -55,12 +55,14 @@ export interface ResolvedCliConfig extends CliConfig {
 }
 
 function pickFileConfigValues(config: Record<string, unknown>): Record<string, unknown> {
-  return {
-    apiEndpoint: config.apiEndpoint,
-    frontendUrl: config.frontendUrl,
-    defaultLocale: config.defaultLocale,
-    debug: config.debug,
-  };
+  return Object.fromEntries(
+    Object.entries({
+      apiEndpoint: config.apiEndpoint,
+      frontendUrl: config.frontendUrl,
+      defaultLocale: config.defaultLocale,
+      debug: config.debug,
+    }).filter(([, value]) => value !== undefined),
+  );
 }
 
 function coerceBoolean(value: unknown): boolean | undefined {
@@ -76,12 +78,18 @@ function coerceBoolean(value: unknown): boolean | undefined {
 function normalizeConfigFileShape(rawConfig: Record<string, unknown>): Record<string, unknown> {
   const normalized: Record<string, unknown> = {
     schemaVersion: CONFIG_SCHEMA_VERSION,
-    apiEndpoint:
-      typeof rawConfig.apiEndpoint === 'string' ? rawConfig.apiEndpoint : DEFAULT_API_ENDPOINT,
-    frontendUrl:
-      typeof rawConfig.frontendUrl === 'string' ? rawConfig.frontendUrl : DEFAULT_FRONTEND_URL,
-    debug: coerceBoolean(rawConfig.debug) ?? false,
   };
+
+  if (typeof rawConfig.apiEndpoint === 'string') {
+    normalized.apiEndpoint = rawConfig.apiEndpoint;
+  }
+  if (typeof rawConfig.frontendUrl === 'string') {
+    normalized.frontendUrl = rawConfig.frontendUrl;
+  }
+  const debug = coerceBoolean(rawConfig.debug);
+  if (debug !== undefined) {
+    normalized.debug = debug;
+  }
 
   if (typeof rawConfig.defaultLocale === 'string' && rawConfig.defaultLocale.trim() !== '') {
     normalized.defaultLocale = rawConfig.defaultLocale;

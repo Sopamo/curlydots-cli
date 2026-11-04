@@ -1,5 +1,5 @@
 import { loadCliAuthConfig } from '../../config/auth-config';
-import { loadCliConfig } from '../../config/cli-config';
+import { type CliConfig, loadCliConfig } from '../../config/cli-config';
 import { HttpClient, HttpClientError } from '../http/client';
 import { getValidToken, isTokenExpired, loadAuthToken } from './token-manager';
 
@@ -83,7 +83,7 @@ export async function resolveAuthSource(baseDir?: string): Promise<ResolvedAuthS
   };
 }
 
-export async function getCliAccessToken(baseDir?: string): Promise<string> {
+export async function getCliAccessToken(baseDir?: string, config?: CliConfig): Promise<string> {
   const resolved = await resolveAuthSource(baseDir);
 
   if (
@@ -101,7 +101,7 @@ export async function getCliAccessToken(baseDir?: string): Promise<string> {
     return '';
   }
 
-  return getValidToken();
+  return getValidToken({ config: config ?? loadCliConfig(baseDir) });
 }
 
 export function formatAuthSourceLabel(source: AuthSource | null, storage: AuthStorageType): string {

@@ -3,6 +3,7 @@ import type { HttpClient } from '../http/client';
 
 export interface TranslationKeysClientOptions {
   baseDir?: string;
+  config?: CliConfig;
   client: HttpClient;
   token?: string;
   batchSize?: number;
@@ -26,7 +27,7 @@ export async function resolveAuthToken(
     return stored?.accessToken ?? null;
   }
   const { getCliAccessToken } = await import('../auth/service');
-  return getCliAccessToken(options.baseDir);
+  return getCliAccessToken(options.baseDir, options.config);
 }
 
 export async function fetchExistingTranslationKeys(
@@ -98,3 +99,4 @@ export async function uploadTranslationKeys(
 
   return { uploaded, batches };
 }
+import type { CliConfig } from '../../config/cli-config';

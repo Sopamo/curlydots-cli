@@ -155,12 +155,20 @@ describe('contract/translation-keys', () => {
     const { resolveAuthToken } = await import('../../src/services/api/translation-keys');
     getCliAccessTokenMock.mockResolvedValueOnce('shared-token');
 
+    const config = {
+      apiEndpoint: 'https://selected-backend.example/api',
+      frontendUrl: 'https://selected-frontend.example',
+      timeout: 1000,
+      retries: 0,
+      debug: false,
+    };
     const token = await resolveAuthToken({
       baseDir: '/tmp/project',
+      config,
       client: new FakeClient(),
     });
 
     expect(token).toBe('shared-token');
-    expect(getCliAccessTokenMock).toHaveBeenCalledWith('/tmp/project');
+    expect(getCliAccessTokenMock).toHaveBeenCalledWith('/tmp/project', config);
   });
 });

@@ -260,6 +260,44 @@ describe('config/cli-config', () => {
     expect(config.sources.debug).toEqual({ source: 'project', path: projectConfigPath });
   });
 
+  it('preserves global URLs and locale when project config only enables debugging', async () => {
+    const globalConfigPath = '/home/test/.curlydots/config.json';
+    const projectConfigPath = join(process.cwd(), '.curlydots/config.json');
+    const files: Record<string, Record<string, unknown>> = {
+      [globalConfigPath]: {
+        schemaVersion: 1,
+        apiEndpoint: 'https://staging.example/api',
+        frontendUrl: 'https://staging.example',
+        defaultLocale: 'fr',
+        debug: false,
+      },
+      [projectConfigPath]: { debug: true },
+    };
+    const writeFileSyncMock = mock(() => undefined);
+    mockConfigPathsModule({
+      globalConfigPath,
+      projectConfigPath,
+      existsSyncMock: (path) => path in files,
+      readFileSyncMock: (path) => JSON.stringify(files[path] ?? {}),
+      writeFileSyncMock,
+    });
+
+    const { loadCliConfig } = await importFreshCliConfigModule();
+    const config = loadCliConfig();
+
+    expect(config.apiEndpoint).toBe('https://staging.example/api');
+    expect(config.frontendUrl).toBe('https://staging.example');
+    expect(config.defaultLocale).toBe('fr');
+    expect(config.debug).toBe(true);
+    expect(config.sources.apiEndpoint).toEqual({ source: 'global', path: globalConfigPath });
+    expect(config.sources.debug).toEqual({ source: 'project', path: projectConfigPath });
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      projectConfigPath,
+      `${JSON.stringify({ schemaVersion: 1, debug: true }, null, 2)}\n`,
+      'utf8',
+    );
+  });
+
   it('uses the explicit base directory to find project config overrides', async () => {
     const globalConfigPath = '/home/test/.curlydots/config.json';
     const globalAuthPath = '/home/test/.curlydots/auth.json';
@@ -396,9 +434,9 @@ describe('config/cli-config', () => {
     expect(config.apiEndpoint).toBe('https://curlydots.com/api');
     expect(config.frontendUrl).toBe('https://curlydots.com');
     expect(config.debug).toBe(false);
-    expect(config.sources.apiEndpoint).toEqual({ source: 'global', path: globalConfigPath });
-    expect(config.sources.frontendUrl).toEqual({ source: 'global', path: globalConfigPath });
-    expect(config.sources.debug).toEqual({ source: 'global', path: globalConfigPath });
+    expect(config.sources.apiEndpoint).toEqual({ source: 'default' });
+    expect(config.sources.frontendUrl).toEqual({ source: 'default' });
+    expect(config.sources.debug).toEqual({ source: 'default' });
   });
 
   it('warns when config schema version is newer than supported', async () => {

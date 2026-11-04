@@ -124,8 +124,9 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
   }
 
   const config = loadCliConfig(configBaseDir);
+  const requestConfig = { ...config, apiEndpoint: parsedArgs.apiHost ?? config.apiEndpoint };
   const client = new HttpClient({
-    baseUrl: parsedArgs.apiHost ?? config.apiEndpoint,
+    baseUrl: requestConfig.apiEndpoint,
     timeout: config.timeout,
     retries: config.retries,
     debug: config.debug,
@@ -133,6 +134,7 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
 
   const token = await resolveAuthToken({
     baseDir: configBaseDir,
+    config: requestConfig,
     client,
     token: parsedArgs.apiToken,
   });
