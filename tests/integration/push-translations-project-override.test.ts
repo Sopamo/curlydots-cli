@@ -11,6 +11,7 @@ type FetchArgs = Parameters<typeof fetch>;
 const originalAuthConfig = { ...authConfigModule };
 const originalCliConfig = { ...cliConfigModule };
 const originalProjectConfig = { ...projectConfigModule };
+const originalEnvironmentToken = process.env.CURLYDOTS_TOKEN;
 
 function stripAnsiCodes(value: string): string {
   const escapeCharacter = String.fromCharCode(27);
@@ -52,12 +53,14 @@ describe('integration/push-translations-project-override', () => {
   });
 
   beforeEach(() => {
+    process.env.CURLYDOTS_TOKEN = undefined;
     fetchCalls.length = 0;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     process.exitCode = 0;
   });
 
   afterEach(() => {
+    process.env.CURLYDOTS_TOKEN = originalEnvironmentToken;
     globalThis.fetch = originalFetch;
     process.exitCode = undefined;
     mock.clearAllMocks();
