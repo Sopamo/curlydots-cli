@@ -124,7 +124,14 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
   }
 
   const config = loadCliConfig(configBaseDir);
-  const requestConfig = { ...config, apiEndpoint: parsedArgs.apiHost ?? config.apiEndpoint };
+  const overrideEndpoint = parsedArgs.apiHost ? new URL(parsedArgs.apiHost) : undefined;
+  if (overrideEndpoint && (overrideEndpoint.pathname === '/' || overrideEndpoint.pathname === '')) {
+    overrideEndpoint.pathname = '/api';
+  }
+  const requestConfig = {
+    ...config,
+    apiEndpoint: overrideEndpoint?.toString() ?? config.apiEndpoint,
+  };
   const client = new HttpClient({
     baseUrl: requestConfig.apiEndpoint,
     timeout: config.timeout,

@@ -368,3 +368,27 @@ describe('nodeModuleParser', () => {
     });
   });
 });
+
+it('ignores nested translation modules with either path separator', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'curlydots-nested-modules-'));
+  try {
+    await mkdir(join(directory, 'nested'));
+    await writeFile(join(directory, 'generic.js'), 'module.exports = { greeting: "root" };');
+    await writeFile(
+      join(directory, 'nested/generic.js'),
+      'module.exports = { greeting: "nested" };',
+    );
+    if (process.platform !== 'win32') {
+      await writeFile(
+        join(directory, 'nested\\generic.js'),
+        'module.exports = { greeting: "windows nested" };',
+      );
+    }
+    const { nodeModuleParser } = await loadParserModules();
+    expect(await nodeModuleParser.export(directory)).toEqual(
+      new Map([['generic.greeting', 'root']]),
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

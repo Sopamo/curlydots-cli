@@ -32,3 +32,26 @@ test('file discovery respects tracked and untracked ignores through a directory 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('large Git listings keep ignore filtering beyond the default process buffer', async () => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'curlydots-git-large-')));
+  try {
+    execFileSync('git', ['init', '-q', directory]);
+    const hash = execFileSync('git', ['-C', directory, 'hash-object', '-w', '--stdin'], {
+      input: 'content',
+      encoding: 'utf8',
+    }).trim();
+    const paths = Array.from(
+      { length: 7000 },
+      (_, index) => `ignored/${index}_${'a'.repeat(170)}.ts`,
+    );
+    const indexInput = paths.map((path) => `100644 ${hash}\t${path}\n`).join('');
+    execFileSync('git', ['-C', directory, 'update-index', '--index-info'], { input: indexInput });
+    await writeFile(join(directory, '.gitignore'), 'ignored/\n');
+    await writeFile(join(directory, 'visible.ts'), 'visible');
+    const files = await listFilesRespectingGitIgnore(directory, (path) => path.endsWith('.ts'));
+    expect(files.map((path) => basename(path))).toEqual(['visible.ts']);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

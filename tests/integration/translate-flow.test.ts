@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { resetClient } from '../../src/services/openai/client';
 
 const TEST_FIXTURES_DIR = join(import.meta.dir, '../fixtures');
 const TEST_INPUT_CSV = join(TEST_FIXTURES_DIR, 'integration-input.csv');
@@ -25,16 +26,16 @@ const mockCreate = mock(() =>
   }),
 );
 
-mock.module('openai', () => ({
-  default: class {
-    responses = {
-      create: mockCreate,
-    };
-  },
-}));
-
 describe('translate-flow integration', () => {
   beforeEach(() => {
+    mock.module('openai', () => ({
+      default: class {
+        responses = {
+          create: mockCreate,
+        };
+      },
+    }));
+    resetClient();
     if (!existsSync(TEST_FIXTURES_DIR)) {
       mkdirSync(TEST_FIXTURES_DIR, { recursive: true });
     }

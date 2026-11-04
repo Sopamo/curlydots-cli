@@ -177,7 +177,16 @@ export class HttpClient {
         return undefined as T;
       }
 
-      return (await response.json()) as T;
+      let responseBody: string;
+      try {
+        responseBody = await response.text();
+      } catch {
+        throw new HttpClientError('Connection failed while reading backend response', {
+          category: 'transient',
+        });
+      }
+
+      return JSON.parse(responseBody) as T;
     };
 
     return this.retry(async () => {

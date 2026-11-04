@@ -218,3 +218,46 @@ describe('services/http/client', () => {
     expect(calls).toBe(2);
   });
 });
+
+describe('response body failures', () => {
+  it('retries a transport failure after response headers', async () => {
+    const { HttpClient } = await import('../../../src/services/http/client');
+    let calls = 0;
+    const client = new HttpClient({
+      baseUrl: 'https://example.test/api',
+      timeout: 2000,
+      retries: 1,
+      fetcher: (async () => {
+        calls++;
+        if (calls === 1) {
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new TypeError('Connection reset'));
+              },
+            }),
+          );
+        }
+        return Response.json({ ok: true });
+      }) as unknown as typeof fetch,
+    });
+    expect(await client.get<{ ok: boolean }>('health')).toEqual({ ok: true });
+    expect(calls).toBe(2);
+  });
+
+  it('does not retry malformed JSON', async () => {
+    const { HttpClient } = await import('../../../src/services/http/client');
+    let calls = 0;
+    const client = new HttpClient({
+      baseUrl: 'https://example.test/api',
+      timeout: 1000,
+      retries: 1,
+      fetcher: (async () => {
+        calls++;
+        return new Response('invalid json');
+      }) as unknown as typeof fetch,
+    });
+    await expect(client.get('health')).rejects.toMatchObject({ meta: { category: 'system' } });
+    expect(calls).toBe(1);
+  });
+});

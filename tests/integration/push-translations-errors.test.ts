@@ -144,7 +144,7 @@ describe('integration/push-translations-errors', () => {
 
     expect(getValidTokenMock).toHaveBeenCalledTimes(1);
     expect(getValidTokenMock).toHaveBeenCalledWith({
-      config: expect.objectContaining({ apiEndpoint: 'https://curlydots.com' }),
+      config: expect.objectContaining({ apiEndpoint: 'https://curlydots.com/api' }),
     });
     const authHeaders = fetchCalls.map(
       (call) => (call.init?.headers as Record<string, string> | undefined)?.Authorization,

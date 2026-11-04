@@ -113,11 +113,7 @@ async function deleteWithKeytar(): Promise<void> {
   const keytar = await loadKeytar();
   if (!keytar) return;
 
-  try {
-    await keytar.deletePassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
-  } catch {
-    // ignore and allow file cleanup to continue
-  }
+  await keytar.deletePassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
 }
 
 function saveWithFile(value: string) {
@@ -164,6 +160,9 @@ export async function getSecureToken(): Promise<string | null> {
 }
 
 export async function clearSecureToken(): Promise<void> {
-  await deleteWithKeytar();
-  deleteFileToken();
+  try {
+    await deleteWithKeytar();
+  } finally {
+    deleteFileToken();
+  }
 }

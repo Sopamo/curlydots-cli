@@ -141,7 +141,7 @@ export const nodeModuleParser: Parser = {
     const files = await listFilesRespectingGitIgnore(
       langDir,
       (relativePath) =>
-        relativePath.endsWith('.js') && relativePath !== 'index.js' && !relativePath.includes('/'),
+        relativePath.endsWith('.js') && relativePath !== 'index.js' && !/[\\/]/.test(relativePath),
     );
 
     // Parse each file

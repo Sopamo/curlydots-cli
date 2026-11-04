@@ -266,3 +266,21 @@ describe('context-finder', () => {
     });
   });
 });
+
+it('never includes project credential files as uploaded context', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'curlydots-private-context-'));
+  try {
+    initGitRepo(directory);
+    await mkdir(join(directory, '.curlydots'));
+    await writeFile(join(directory, '.curlydots/auth.json'), '{"token":"private-access-token"}');
+    await writeFile(join(directory, '.curlydots/tokens.json'), '{"token":"private-session"}');
+    await writeFile(join(directory, 'app.ts'), 'const token = t("token");');
+    configStore.getState().setConfig({ repoPath: directory, extensions: [] });
+    const contexts = await findKeyUsages('token', directory);
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0]?.filePath).toEndWith('app.ts');
+    expect(JSON.stringify(contexts)).not.toContain('private-access-token');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

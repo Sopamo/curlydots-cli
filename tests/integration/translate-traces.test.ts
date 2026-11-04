@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { resetClient } from '../../src/services/openai/client';
 
 const TEST_FIXTURES_DIR = join(import.meta.dir, '../fixtures/traces-test');
 const TEST_INPUT_CSV = join(TEST_FIXTURES_DIR, 'traces-input.csv');
@@ -27,16 +28,16 @@ const mockCreate = mock(() =>
   }),
 );
 
-mock.module('openai', () => ({
-  default: class {
-    responses = {
-      create: mockCreate,
-    };
-  },
-}));
-
 describe('translate-traces integration', () => {
   beforeEach(() => {
+    mock.module('openai', () => ({
+      default: class {
+        responses = {
+          create: mockCreate,
+        };
+      },
+    }));
+    resetClient();
     // Clean and create test directory
     if (existsSync(TEST_FIXTURES_DIR)) {
       rmSync(TEST_FIXTURES_DIR, { recursive: true });

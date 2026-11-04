@@ -102,7 +102,12 @@ export async function findKeyUsages(key: string, searchDir: string): Promise<Usa
   const config = configStore.getState();
   const contexts: UsageContext[] = [];
 
-  const searchableFiles = await listFilesRespectingGitIgnore(searchDir, (relativePath) => {
+  const searchableFiles = await listFilesRespectingGitIgnore(searchDir, (filePath) => {
+    const relativePath = filePath.replaceAll('\\', '/');
+    if (relativePath.split('/').includes('.curlydots')) {
+      return false;
+    }
+
     if (
       relativePath.includes('node_modules/') ||
       relativePath.includes('/node_modules/') ||

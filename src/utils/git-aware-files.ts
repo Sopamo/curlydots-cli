@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { Glob } from 'bun';
@@ -20,22 +20,39 @@ function findGitRoot(searchDir: string): string | undefined {
 
 // git ls-files can still return tracked files that now match ignore rules, so we
 // run git check-ignore as a second pass and remove anything Git considers ignored.
-function filterIgnoredPaths(gitRoot: string, repoRelativePaths: string[]): Set<string> {
+async function runGit(
+  args: string[],
+  input?: string,
+): Promise<{ status: number | null; stdout: string }> {
+  return new Promise((resolve, reject) => {
+    const process = spawn('git', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    const chunks: Buffer[] = [];
+    process.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+    process.stderr.resume();
+    process.on('error', reject);
+    process.stdin.on('error', reject);
+    process.on('close', (status) =>
+      resolve({ status, stdout: Buffer.concat(chunks).toString('utf8') }),
+    );
+    process.stdin.end(input);
+  });
+}
+
+async function filterIgnoredPaths(
+  gitRoot: string,
+  repoRelativePaths: string[],
+): Promise<Set<string>> {
   if (repoRelativePaths.length === 0) {
     return new Set();
   }
 
-  const ignoredResult = spawnSync(
-    'git',
+  const ignoredResult = await runGit(
     ['-C', gitRoot, 'check-ignore', '--no-index', '-z', '--stdin'],
-    {
-      encoding: 'utf8',
-      input: repoRelativePaths.join('\0'),
-    },
+    `${repoRelativePaths.join('\0')}\0`,
   );
 
   if (ignoredResult.status !== 0 && ignoredResult.status !== 1) {
-    return new Set();
+    throw new Error('Unable to check Git ignore rules.');
   }
 
   return new Set(ignoredResult.stdout.split('\0').filter(Boolean));
@@ -60,20 +77,20 @@ export async function listFilesRespectingGitIgnore(
       args.push('--', relativeSearchDir);
     }
 
-    const filesResult = spawnSync('git', args, {
-      encoding: 'utf8',
-    });
+    const filesResult = await runGit(args);
 
     if (filesResult.status === 0) {
       const repoRelativePaths = filesResult.stdout.split('\0').filter(Boolean);
 
-      const ignoredPaths = filterIgnoredPaths(gitRoot, repoRelativePaths);
+      const ignoredPaths = await filterIgnoredPaths(gitRoot, repoRelativePaths);
 
       return repoRelativePaths
         .filter((filePath) => !ignoredPaths.has(filePath))
         .map((filePath) => join(gitRoot, filePath))
         .filter((absolutePath) => includeFile(relative(canonicalSearchDir, absolutePath)));
     }
+
+    throw new Error('Unable to list files from Git.');
   }
 
   // Outside a Git repository we cannot ask Git which paths are ignored, so the

@@ -45,11 +45,11 @@ const httpClientGetMock = mock(async () => ({
   ],
 }));
 
-const originalLogger = await import('../../../src/utils/logger');
-const originalConfigModule = await import('../../../src/config/cli-config');
-const originalAuthServiceModule = await import('../../../src/services/auth/service');
-const originalProjectConfigModule = await import('../../../src/config/project-config');
-const originalReadlineModule = await import('node:readline');
+const originalLogger = { ...(await import('../../../src/utils/logger')) };
+const originalConfigModule = { ...(await import('../../../src/config/cli-config')) };
+const originalAuthServiceModule = { ...(await import('../../../src/services/auth/service')) };
+const originalProjectConfigModule = { ...(await import('../../../src/config/project-config')) };
+const originalReadlineModule = { ...(await import('node:readline')) };
 
 const originalConsoleLog = console.log;
 const originalHttpClientFromConfig = HttpClient.fromConfig;

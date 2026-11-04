@@ -73,7 +73,20 @@ describe('services/storage/secure-store', () => {
     await saveSecureToken('saved-token');
     expect(await getSecureToken()).toBe('saved-token');
 
-    await clearSecureToken();
+    await expect(clearSecureToken()).rejects.toThrow('Could not connect');
     expect(await getSecureToken()).toBeNull();
+  });
+
+  it('reports keychain deletion failure even when credentials remain readable', async () => {
+    process.env.CURLYDOTS_DISABLE_KEYTAR = undefined;
+    mock.module('keytar', () => ({
+      getPassword: mock(async () => 'remaining-session'),
+      deletePassword: mock(async () => {
+        throw new Error('Keychain locked');
+      }),
+    }));
+    const { clearSecureToken, getSecureToken } = await importFreshSecureStoreModule();
+    await expect(clearSecureToken()).rejects.toThrow('Keychain locked');
+    expect(await getSecureToken()).toBe('remaining-session');
   });
 });
