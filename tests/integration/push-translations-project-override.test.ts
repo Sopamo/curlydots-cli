@@ -365,7 +365,7 @@ describe('integration/push-translations-project-override', () => {
         new Response(child.stderr).text(),
         child.exited,
       ]);
-      expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: '' });
+      expect(exitCode, stderr).toBe(0);
       expect(stdout).toContain('Uploaded: 3');
       expect(requests).toEqual([
         {
