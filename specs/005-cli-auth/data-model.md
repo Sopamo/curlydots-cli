@@ -201,7 +201,8 @@ TranslationEntry 0..1 TranslationContext
 ```json
 {
   "defaultLocale": "en",
-  "apiEndpoint": "https://api.curlydots.com",
+  "apiEndpoint": "https://curlydots.com/api",
+  "frontendUrl": "https://curlydots.com",
   "authMethod": "browser",
   "tokenStorage": "keychain"
 }

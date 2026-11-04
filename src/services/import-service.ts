@@ -46,7 +46,10 @@ export async function runImport(
   }
 
   // Extract target language from first valid row (all rows have same target)
-  const firstRow = validRows[0]!;
+  const firstRow = validRows[0];
+  if (!firstRow) {
+    throw new Error('No valid translations found in CSV (all rows have empty translated_value)');
+  }
   const targetLanguage = firstRow.targetLanguage;
 
   if (!targetLanguage) {

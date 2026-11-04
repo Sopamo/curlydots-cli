@@ -1,14 +1,14 @@
-import { runExtract } from '../commands/extract';
-import { importCommand } from '../commands/import';
-import { translateCommand } from '../commands/translate';
-import { projectsCommand, printProjectsHelp } from '../commands/projects';
+import packageJson from '../../package.json' with { type: 'json' };
 import { authLoginCommand } from '../commands/auth/login';
 import { authLogoutCommand } from '../commands/auth/logout';
 import { authStatusCommand } from '../commands/auth/status';
+import { runExtract } from '../commands/extract';
+import { importCommand } from '../commands/import';
+import { printProjectsHelp, projectsCommand } from '../commands/projects';
+import { translateCommand } from '../commands/translate';
 import { runTranslationsPush } from '../commands/translations/push';
 import { runTranslationsStatus } from '../commands/translations/status';
 import { globalLogger } from '../utils/logger';
-import packageJson from '../../package.json' with { type: 'json' };
 
 export type CommandHandler = (args: string[]) => Promise<void>;
 

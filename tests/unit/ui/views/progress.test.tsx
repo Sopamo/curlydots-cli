@@ -14,20 +14,12 @@ describe('ProgressView', () => {
     expect(lastFrame()).toContain('Translation Context Analyzer');
   });
 
-  it('should show parsing source status', () => {
-    analysisStore.getState().setStatus('parsing_source');
+  it('should show parsing translations status', () => {
+    analysisStore.getState().setStatus('parsing_translations');
 
     const { lastFrame } = render(<ProgressView />);
 
-    expect(lastFrame()).toContain('Parsing source');
-  });
-
-  it('should show parsing target status', () => {
-    analysisStore.getState().setStatus('parsing_target');
-
-    const { lastFrame } = render(<ProgressView />);
-
-    expect(lastFrame()).toContain('Parsing target');
+    expect(lastFrame()).toContain('Parsing translation keys');
   });
 
   it('should show comparing status', () => {

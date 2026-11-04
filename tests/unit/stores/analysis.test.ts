@@ -38,9 +38,9 @@ describe('analysisStore', () => {
   });
 
   describe('setStatus', () => {
-    it('should update status to parsing_source', () => {
-      analysisStore.getState().setStatus('parsing_source');
-      expect(analysisStore.getState().status).toBe('parsing_source');
+    it('should update status to parsing_translations', () => {
+      analysisStore.getState().setStatus('parsing_translations');
+      expect(analysisStore.getState().status).toBe('parsing_translations');
     });
 
     it('should update status to complete', () => {
@@ -115,38 +115,37 @@ describe('analysisStore', () => {
 
     it('should reset tasks to default pending state', () => {
       // Start a task
-      analysisStore.getState().startTask('find_source_keys');
+      analysisStore.getState().startTask('find_translation_keys');
 
       analysisStore.getState().reset();
 
       const state = analysisStore.getState();
-      expect(state.tasks.length).toBe(6);
+      expect(state.tasks.length).toBe(5);
       expect(state.tasks[0]?.status).toBe('pending');
       expect(state.activeTaskId).toBeNull();
     });
   });
 
   describe('tasks', () => {
-    it('should have 6 tasks in initial state', () => {
+    it('should have 5 tasks in initial state', () => {
       const state = analysisStore.getState();
-      expect(state.tasks.length).toBe(6);
+      expect(state.tasks.length).toBe(5);
     });
 
     it('should have tasks in correct order', () => {
       const state = analysisStore.getState();
-      expect(state.tasks[0]?.id).toBe('find_source_keys');
-      expect(state.tasks[1]?.id).toBe('find_target_keys');
-      expect(state.tasks[2]?.id).toBe('find_missing');
-      expect(state.tasks[3]?.id).toBe('find_code_context');
-      expect(state.tasks[4]?.id).toBe('find_translation_context');
-      expect(state.tasks[5]?.id).toBe('export_csv');
+      expect(state.tasks[0]?.id).toBe('find_translation_keys');
+      expect(state.tasks[1]?.id).toBe('find_missing');
+      expect(state.tasks[2]?.id).toBe('find_code_context');
+      expect(state.tasks[3]?.id).toBe('find_translation_context');
+      expect(state.tasks[4]?.id).toBe('export_csv');
     });
 
     it('should have correct labels for tasks', () => {
       const state = analysisStore.getState();
-      expect(state.tasks[0]?.label).toBe('Find source translation keys');
-      expect(state.tasks[3]?.label).toBe('Find code usage context');
-      expect(state.tasks[5]?.label).toBe('Export CSV file');
+      expect(state.tasks[0]?.label).toBe('Find translation keys');
+      expect(state.tasks[2]?.label).toBe('Find code usage context');
+      expect(state.tasks[4]?.label).toBe('Export CSV file');
     });
 
     it('should have all tasks pending initially', () => {
@@ -163,40 +162,40 @@ describe('analysisStore', () => {
 
   describe('startTask', () => {
     it('should mark task as in_progress', () => {
-      analysisStore.getState().startTask('find_source_keys');
+      analysisStore.getState().startTask('find_translation_keys');
 
-      const task = analysisStore.getState().tasks.find((t) => t.id === 'find_source_keys');
+      const task = analysisStore.getState().tasks.find((t) => t.id === 'find_translation_keys');
       expect(task?.status).toBe('in_progress');
     });
 
     it('should set activeTaskId', () => {
-      analysisStore.getState().startTask('find_target_keys');
-      expect(analysisStore.getState().activeTaskId).toBe('find_target_keys');
+      analysisStore.getState().startTask('find_missing');
+      expect(analysisStore.getState().activeTaskId).toBe('find_missing');
     });
 
     it('should only have one task in_progress at a time', () => {
-      analysisStore.getState().startTask('find_source_keys');
-      analysisStore.getState().startTask('find_target_keys');
+      analysisStore.getState().startTask('find_translation_keys');
+      analysisStore.getState().startTask('find_missing');
 
       const tasks = analysisStore.getState().tasks;
       const inProgressTasks = tasks.filter((t) => t.status === 'in_progress');
       expect(inProgressTasks.length).toBe(1);
-      expect(inProgressTasks[0]?.id).toBe('find_target_keys');
+      expect(inProgressTasks[0]?.id).toBe('find_missing');
     });
   });
 
   describe('completeTask', () => {
     it('should mark task as complete', () => {
-      analysisStore.getState().startTask('find_source_keys');
-      analysisStore.getState().completeTask('find_source_keys');
+      analysisStore.getState().startTask('find_translation_keys');
+      analysisStore.getState().completeTask('find_translation_keys');
 
-      const task = analysisStore.getState().tasks.find((t) => t.id === 'find_source_keys');
+      const task = analysisStore.getState().tasks.find((t) => t.id === 'find_translation_keys');
       expect(task?.status).toBe('complete');
     });
 
     it('should clear activeTaskId when completing active task', () => {
-      analysisStore.getState().startTask('find_source_keys');
-      analysisStore.getState().completeTask('find_source_keys');
+      analysisStore.getState().startTask('find_translation_keys');
+      analysisStore.getState().completeTask('find_translation_keys');
       expect(analysisStore.getState().activeTaskId).toBeNull();
     });
   });

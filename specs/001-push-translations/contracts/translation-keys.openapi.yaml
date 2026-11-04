@@ -21,14 +21,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  keys:
-                    type: array
-                    items:
-                      type: string
+                $ref: '#/components/schemas/ExistingKeysResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
     post:
-      summary: Upload new translation keys for a project
+      summary: Upload translation keys for a project
       parameters:
         - name: projectUuid
           in: path
@@ -42,20 +41,26 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - entries
               properties:
-                keys:
+                entries:
                   type: array
                   items:
                     $ref: '#/components/schemas/TranslationKeyPayload'
-              required:
-                - keys
       responses:
-        '201':
-          description: Keys accepted
-        '400':
-          description: Validation error
+        '200':
+          description: Upload summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationKeyUploadResponse'
         '401':
           description: Unauthorized
+        '403':
+          description: Forbidden
+        '422':
+          description: Validation error
 components:
   schemas:
     UsageContext:
@@ -95,3 +100,25 @@ components:
         - sourceValue
         - sourceLanguage
         - codeContext
+    TranslationKeyUploadResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            accepted:
+              type: integer
+            skipped:
+              type: integer
+            duplicates:
+              type: integer
+    ExistingKeysResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            keys:
+              type: array
+              items:
+                type: string

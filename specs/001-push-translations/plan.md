@@ -1,13 +1,13 @@
-# Implementation Plan: Push Translations Command
+# Implementation Plan: CLI Translation Push
 
-**Branch**: `001-push-translations` | **Date**: 2026-01-16 | **Spec**: ../spec.md
+**Branch**: `[001-push-translations]` | **Date**: 2026-02-06 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-push-translations/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-Implement `aitranslate translations push` to analyze translation keys, gather code context and source values, diff against backend keys, and upload only missing keys. The command takes explicit CLI arguments, validates auth before scanning, batches uploads (default 100), aborts on first failed batch, and uses the shared HTTP client plus auth token manager added in the CLI auth feature.
+Replace the CSV extract workflow with a CLI command that extracts translation keys and uploads them to the backend in batches. The CLI sends API requests using the existing HTTP client in `services/http/client.ts` (same approach as auth), retries failed batches up to 3 times, and sends all keys so the backend can process duplicates and return counts.
 
 ## Technical Context
 
@@ -17,32 +17,34 @@ Implement `aitranslate translations push` to analyze translation keys, gather co
   the iteration process.
 -->
 
-**Language/Version**: TypeScript 5.x (strict)  
-**Primary Dependencies**: Bun runtime, Ink, fast-csv, p-limit, zustand, keytar (optional)  
-**Storage**: Local filesystem + OS keychain (secure token store), translation files  
-**Testing**: `bun test` (unit/integration/contract)  
-**Target Platform**: Cross-platform CLI (Bun)  
-**Project Type**: Single CLI repository  
-**Performance Goals**: Upload 1,000 new keys with context in <60s on typical repos  
-**Constraints**: Bun-only runtime, strict TypeScript, CLI I/O via stdout/stderr, JSON + human output formats  
-**Scale/Scope**: Typical repo <5MB source; context search across default extensions
+**Language/Version**: TypeScript 5.x (Bun runtime)  
+**Primary Dependencies**: Bun, existing CLI extraction/analyzer modules  
+**Storage**: N/A (file scanning + API requests)  
+**Testing**: bun test (unit/integration/contract)  
+**Target Platform**: CLI on macOS/Linux/Windows via Bun
+**Project Type**: Single CLI project  
+**Performance Goals**: Upload 100 keys per batch with <2s request latency  
+**Constraints**: Strict TypeScript, no Node.js runtime, JSON + human-readable output, reuse `services/http/client.ts`  
+**Scale/Scope**: Repos with up to 10k translation keys; single push command only
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- TypeScript-first CLI design (strict mode, no `any` without comment) → Pass
-- Bun-only runtime (no Node APIs) → Pass
-- CLI output supports JSON + human-readable formats → Planned
-- Test-first development and bun test gate → Planned
-- Simplicity/YAGNI → Pass
+| Principle                              | Gate                                                                 | Status |
+| -------------------------------------- | -------------------------------------------------------------------- | ------ |
+| I. TypeScript-First CLI Design         | Strict TS, CLI-first I/O, JSON + human-readable output               | ✅     |
+| II. Bun.js Runtime                     | Bun-only runtime, bun run/build, no Node.js                          | ✅     |
+| III. Test-First Development            | Tests written before implementation                                  | ✅     |
+| IV. Test Completion Gate               | bun test passes before completion                                    | ✅     |
+| V. Simplicity & YAGNI                  | Minimal dependencies, no unnecessary features                        | ✅     |
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
+specs/001-push-translations/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
@@ -61,12 +63,14 @@ specs/[###-feature]/
 
 ```text
 src/
+├── cli/
 ├── commands/
-├── parsers/
+│   ├── extract.ts
+│   └── pushTranslations.ts
 ├── services/
-├── stores/
-├── types/
-└── ui/
+│   └── http/
+│       └── client.ts
+└── lib/
 
 tests/
 ├── contract/
@@ -74,7 +78,7 @@ tests/
 └── unit/
 ```
 
-**Structure Decision**: Single CLI project. New command and services live under `src/commands` and `src/services`, tests under `tests/`.
+**Structure Decision**: Single CLI project; new command in `src/commands` reusing `services/http/client.ts`.
 
 ## Complexity Tracking
 

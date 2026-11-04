@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 
 describe('services/http/client', () => {
   let receivedHeaders: RequestInit['headers'] | undefined;
@@ -9,23 +9,15 @@ describe('services/http/client', () => {
     return HttpClient;
   }
 
-  beforeEach(() => {
-    receivedHeaders = undefined;
-  });
-
-  afterEach(() => {
-    receivedHeaders = undefined;
-  });
-
   it('always sends CLI version header', async () => {
     const HttpClient = await loadHttpClient();
-    const fetcher = (async (_url, init) => {
+    const fetcher = (async (_url: string | URL, init?: RequestInit) => {
       receivedHeaders = init?.headers;
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
       timeout: 1000,
@@ -47,7 +39,7 @@ describe('services/http/client', () => {
   it('aborts the request when the timeout elapses', async () => {
     const HttpClient = await loadHttpClient();
     let receivedSignal: AbortSignal | undefined;
-    const fetcher = (async (_url, init) => {
+    const fetcher = (async (_url: string | URL, init?: RequestInit) => {
       receivedSignal = init?.signal as AbortSignal | undefined;
       return new Promise((_resolve, reject) => {
         if (!receivedSignal) {
@@ -58,7 +50,7 @@ describe('services/http/client', () => {
           reject(new Error('Aborted'));
         });
       }) as unknown as Response;
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const client = new HttpClient({
       baseUrl: 'https://curlydots.com',
@@ -70,7 +62,7 @@ describe('services/http/client', () => {
     await expect(client.get('health')).rejects.toEqual(
       expect.objectContaining({
         name: 'HttpClientError',
-        meta: expect.objectContaining({ category: 'system' }),
+        meta: expect.objectContaining({ category: 'transient' }),
       }),
     );
 
@@ -78,5 +70,194 @@ describe('services/http/client', () => {
     if (receivedSignal) {
       expect(receivedSignal.aborted).toBe(true);
     }
+  });
+
+  it('retries on 500 responses and succeeds on a later attempt', async () => {
+    const HttpClient = await loadHttpClient();
+    let calls = 0;
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ message: 'Temporary outage' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 1,
+      fetcher,
+    });
+
+    const response = (await client.get('health')) as { ok: boolean };
+
+    expect(response.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('does not retry on 403 authentication errors', async () => {
+    const HttpClient = await loadHttpClient();
+    let calls = 0;
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
+      calls += 1;
+      return new Response(JSON.stringify({ message: 'Token has been deactivated.' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 3,
+      fetcher,
+    });
+
+    await expect(client.get('health')).rejects.toEqual(
+      expect.objectContaining({
+        name: 'HttpClientError',
+        meta: expect.objectContaining({ category: 'authentication', status: 403 }),
+      }),
+    );
+
+    expect(calls).toBe(1);
+  });
+
+  it('retries on 429 responses and honors Retry-After when provided', async () => {
+    const HttpClient = await loadHttpClient();
+    let calls = 0;
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
+      calls += 1;
+      return new Response(JSON.stringify({ message: 'Too many requests' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '0' },
+      });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 1,
+      fetcher,
+    });
+
+    await expect(client.get('health')).rejects.toEqual(
+      expect.objectContaining({
+        name: 'HttpClientError',
+        meta: expect.objectContaining({ category: 'transient', status: 429 }),
+      }),
+    );
+
+    expect(calls).toBe(2);
+  });
+
+  it('retries on 408 responses', async () => {
+    const HttpClient = await loadHttpClient();
+    let calls = 0;
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ message: 'Request timeout' }), {
+          status: 408,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 1,
+      fetcher,
+    });
+
+    const response = (await client.get('health')) as { ok: boolean };
+
+    expect(response.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('retries on system errors from fetch', async () => {
+    const HttpClient = await loadHttpClient();
+    let calls = 0;
+    const fetcher = (async (_url: string | URL, _init?: RequestInit) => {
+      calls += 1;
+      if (calls === 1) {
+        throw new Error('Network down');
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpClient({
+      baseUrl: 'https://curlydots.com',
+      timeout: 1000,
+      retries: 1,
+      fetcher,
+    });
+
+    const response = (await client.get('health')) as { ok: boolean };
+
+    expect(response.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+});
+
+describe('response body failures', () => {
+  it('retries a transport failure after response headers', async () => {
+    const { HttpClient } = await import('../../../src/services/http/client');
+    let calls = 0;
+    const client = new HttpClient({
+      baseUrl: 'https://example.test/api',
+      timeout: 2000,
+      retries: 1,
+      fetcher: (async () => {
+        calls++;
+        if (calls === 1) {
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new TypeError('Connection reset'));
+              },
+            }),
+          );
+        }
+        return Response.json({ ok: true });
+      }) as unknown as typeof fetch,
+    });
+    expect(await client.get<{ ok: boolean }>('health')).toEqual({ ok: true });
+    expect(calls).toBe(2);
+  });
+
+  it('does not retry malformed JSON', async () => {
+    const { HttpClient } = await import('../../../src/services/http/client');
+    let calls = 0;
+    const client = new HttpClient({
+      baseUrl: 'https://example.test/api',
+      timeout: 1000,
+      retries: 1,
+      fetcher: (async () => {
+        calls++;
+        return new Response('invalid json');
+      }) as unknown as typeof fetch,
+    });
+    await expect(client.get('health')).rejects.toMatchObject({ meta: { category: 'system' } });
+    expect(calls).toBe(1);
   });
 });

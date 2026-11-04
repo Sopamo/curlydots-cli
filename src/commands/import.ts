@@ -149,7 +149,12 @@ export function printImportSummary(result: ImportCommandResult): void {
     return;
   }
 
-  const summary = result.summary!;
+  if (!result.summary) {
+    console.error('\n❌ Import failed: Missing import summary\n');
+    return;
+  }
+
+  const summary = result.summary;
   console.log(`
 ✅ Import completed successfully!
 

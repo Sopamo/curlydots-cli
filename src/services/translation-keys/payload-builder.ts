@@ -11,10 +11,22 @@ export function buildTranslationKeyPayloads(
   keys: KeyWithContext[],
   sourceLanguage: string,
 ): TranslationKeyPayload[] {
-  return keys.map((entry) => ({
-    translationKey: entry.key,
-    sourceValue: entry.sourceValue,
-    sourceLanguage,
-    codeContext: entry.contexts,
-  }));
+  const seenKeys = new Set<string>();
+  const payloads: TranslationKeyPayload[] = [];
+
+  for (const entry of keys) {
+    if (seenKeys.has(entry.key)) {
+      continue;
+    }
+
+    seenKeys.add(entry.key);
+    payloads.push({
+      translationKey: entry.key,
+      sourceValue: entry.sourceValue,
+      sourceLanguage,
+      codeContext: entry.contexts,
+    });
+  }
+
+  return payloads;
 }
