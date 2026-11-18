@@ -115,8 +115,8 @@ export class HttpClient {
     return this.request<T>('GET', path, undefined, options);
   }
 
-  async post<T, B = unknown>(path: string, body?: B, token?: string): Promise<T> {
-    return this.request<T>('POST', path, body, { token });
+  async post<T, B = unknown>(path: string, body?: B, options?: HttpRequestOptions): Promise<T> {
+    return this.request<T>('POST', path, body, options);
   }
 
   private async request<T>(

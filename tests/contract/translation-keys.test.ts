@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { CliAuthConfig } from '../../src/config/auth-config';
 import * as authConfigModule from '../../src/config/auth-config';
 import * as authServiceModule from '../../src/services/auth/service';
-import { HttpClient } from '../../src/services/http/client';
+import { HttpClient, type HttpRequestOptions } from '../../src/services/http/client';
 import type { TranslationKeyPayload } from '../../src/types/translation-keys';
 
 const loadCliAuthConfigMock = mock<() => CliAuthConfig>(() => ({
@@ -27,8 +27,12 @@ class FakeClient extends HttpClient {
     return { data: { keys: ['alpha', 'beta'] } } as T;
   }
 
-  override async post<T, B = unknown>(path: string, body?: B, token?: string): Promise<T> {
-    this.postCalls.push({ path, token, body });
+  override async post<T, B = unknown>(
+    path: string,
+    body?: B,
+    options?: HttpRequestOptions,
+  ): Promise<T> {
+    this.postCalls.push({ path, token: options?.token, body });
     return undefined as T;
   }
 }
