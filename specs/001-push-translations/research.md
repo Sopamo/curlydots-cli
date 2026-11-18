@@ -19,8 +19,7 @@
 **Rationale**: This matches the requirement to fetch all existing keys in a single response and upload only missing keys in batches.
 
 **Alternatives considered**:
-- One endpoint that accepts full payload and lets backend dedupe (rejected: wastes bandwidth and ignores explicit diff requirement).
-- Pagination for existing keys (rejected: spec explicitly requires a single response).
+- Uploading everything and letting the backend dedupe (rejected: wastes bandwidth and ignores diff requirement).
 
 ## Decision 3: Authentication source precedence
 

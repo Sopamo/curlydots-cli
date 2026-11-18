@@ -7,8 +7,8 @@
 
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { Glob } from 'bun';
 import type { Parser, ParserImportResult } from '../types';
+import { listFilesRespectingGitIgnore } from '../utils/git-aware-files';
 
 /**
  * Flatten nested object to dot-notation keys
@@ -63,14 +63,22 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: strin
   let current: Record<string, unknown> = obj;
 
   for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i]!;
+    const part = parts[i];
+    if (part === undefined) {
+      continue;
+    }
+
     if (!(part in current) || typeof current[part] !== 'object') {
       current[part] = {};
     }
     current = current[part] as Record<string, unknown>;
   }
 
-  const lastPart = parts[parts.length - 1]!;
+  const lastPart = parts.at(-1);
+  if (lastPart === undefined) {
+    return;
+  }
+
   current[lastPart] = value;
 }
 
@@ -128,20 +136,17 @@ export const nodeModuleParser: Parser = {
     }
 
     // Find all .js files in the language directory
-    const glob = new Glob('*.js');
-    const files: string[] = [];
-
-    for await (const file of glob.scan({ cwd: langDir, absolute: false })) {
-      // Skip index.js as it typically just re-exports other modules
-      if (file !== 'index.js') {
-        files.push(file);
-      }
-    }
+    // but skip index.js (it's usually the entry point)
+    // also respect .gitignore files
+    const files = await listFilesRespectingGitIgnore(
+      langDir,
+      (relativePath) =>
+        relativePath.endsWith('.js') && relativePath !== 'index.js' && !/[\\/]/.test(relativePath),
+    );
 
     // Parse each file
-    for (const file of files) {
-      const filePath = join(langDir, file);
-      const moduleName = basename(file, '.js');
+    for (const filePath of files) {
+      const moduleName = basename(filePath, '.js');
 
       try {
         const moduleContent = await parseModuleFile(filePath);
@@ -191,7 +196,7 @@ export const nodeModuleParser: Parser = {
       if (!fileGroups.has(fileName)) {
         fileGroups.set(fileName, new Map());
       }
-      fileGroups.get(fileName)!.set(nestedKey, value);
+      fileGroups.get(fileName)?.set(nestedKey, value);
     }
 
     // Write each file

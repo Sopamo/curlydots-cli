@@ -12,8 +12,7 @@ import type { AnalysisStatus } from '../../types';
 /** Status display configuration */
 const STATUS_DISPLAY: Record<AnalysisStatus, { label: string; color: string }> = {
   idle: { label: '⏳ Waiting...', color: 'gray' },
-  parsing_source: { label: '📖 Parsing source translations...', color: 'yellow' },
-  parsing_target: { label: '📖 Parsing target translations...', color: 'yellow' },
+  parsing_translations: { label: '📖 Parsing translation keys...', color: 'yellow' },
   comparing: { label: '🔍 Comparing translation sets...', color: 'cyan' },
   searching_context: { label: '🔎 Searching for code context...', color: 'blue' },
   searching_translation_context: {

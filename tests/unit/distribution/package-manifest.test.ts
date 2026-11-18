@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { describe, expect, it, mock } from 'bun:test';
 import path from 'node:path';
 
-function loadPackageManifest() {
-  const packagePath = path.resolve(process.cwd(), 'package.json');
-  return JSON.parse(readFileSync(packagePath, 'utf8')) as {
+const CLI_ROOT = path.resolve(import.meta.dir, '../../..');
+
+async function loadPackageManifest() {
+  mock.restore();
+  const packagePath = path.resolve(CLI_ROOT, 'package.json');
+  return JSON.parse(await Bun.file(packagePath).text()) as {
     name: string;
     private: boolean;
     bin: Record<string, string>;
@@ -21,36 +23,36 @@ function loadPackageManifest() {
 }
 
 describe('distribution/package-manifest', () => {
-  it('publishes under @curlydots/cli and is not private', () => {
-    const manifest = loadPackageManifest();
+  it('publishes under @curlydots/cli and is not private', async () => {
+    const manifest = await loadPackageManifest();
 
     expect(manifest.name).toBe('@curlydots/cli');
     expect(manifest.private).toBe(false);
   });
 
-  it('uses native binary placeholder as bin entrypoint', () => {
-    const manifest = loadPackageManifest();
+  it('uses native binary placeholder as bin entrypoint', async () => {
+    const manifest = await loadPackageManifest();
 
     expect(manifest.bin.curlydots).toBe('bin/curlydots.exe');
   });
 
-  it('ships binary placeholder and installer script with public access', () => {
-    const manifest = loadPackageManifest();
+  it('ships binary placeholder and installer script with public access', async () => {
+    const manifest = await loadPackageManifest();
 
     expect(manifest.files).toContain('bin');
     expect(manifest.files).toContain('scripts/distribution/install-native-binary.cjs');
     expect(manifest.publishConfig?.access).toBe('public');
   });
 
-  it('declares react-devtools-core for Bun compile compatibility with ink', () => {
-    const manifest = loadPackageManifest();
+  it('declares react-devtools-core for Bun compile compatibility with ink', async () => {
+    const manifest = await loadPackageManifest();
 
     expect(manifest.dependencies).toBeDefined();
     expect(manifest.dependencies?.['react-devtools-core']).toBeDefined();
   });
 
-  it('declares repository metadata required for npm provenance verification', () => {
-    const manifest = loadPackageManifest();
+  it('declares repository metadata required for npm provenance verification', async () => {
+    const manifest = await loadPackageManifest();
 
     expect(manifest.repository?.type).toBe('git');
     expect(manifest.repository?.url).toBe('https://github.com/Sopamo/curlydots-cli');

@@ -3,40 +3,30 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { nodeModuleParser } from '../../../src/parsers/node-module';
 // Import will be created
 import { runImport } from '../../../src/services/import-service';
 
-const TEMP_PATH = join(import.meta.dir, '../../fixtures/temp-import-service');
-
 describe('import-service', () => {
+  let tempPath = '';
+
   beforeEach(async () => {
-    // Clean up and create temp directory
-    try {
-      await rm(TEMP_PATH, { recursive: true, force: true });
-    } catch {
-      // Ignore if doesn't exist
-    }
-    await mkdir(TEMP_PATH, { recursive: true });
+    tempPath = await mkdtemp(join(tmpdir(), 'import-service-'));
   });
 
   afterEach(async () => {
-    // Clean up temp directory
-    try {
-      await rm(TEMP_PATH, { recursive: true, force: true });
-    } catch {
-      // Ignore
-    }
+    await rm(tempPath, { recursive: true, force: true });
   });
 
   describe('runImport', () => {
     it('should import translations from CSV to translation files', async () => {
       // Create a CSV file with translations
-      const csvPath = join(TEMP_PATH, 'translations.csv');
-      const translationsDir = join(TEMP_PATH, 'translations');
+      const csvPath = join(tempPath, 'translations.csv');
+      const translationsDir = join(tempPath, 'translations');
       const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
 generic.welcome,Welcome,en,de,[],[],"Willkommen"
 generic.goodbye,Goodbye,en,de,[],[],"Auf Wiedersehen"`;
@@ -57,8 +47,8 @@ generic.goodbye,Goodbye,en,de,[],[],"Auf Wiedersehen"`;
     });
 
     it('should skip rows with empty translated_value', async () => {
-      const csvPath = join(TEMP_PATH, 'translations.csv');
-      const translationsDir = join(TEMP_PATH, 'translations');
+      const csvPath = join(tempPath, 'translations.csv');
+      const translationsDir = join(tempPath, 'translations');
       const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
 generic.hello,Hello,en,de,[],[],"Hallo"
 generic.world,World,en,de,[],[],""
@@ -77,8 +67,8 @@ generic.test,Test,en,de,[],[],`;
     });
 
     it('should extract target language from CSV rows', async () => {
-      const csvPath = join(TEMP_PATH, 'translations.csv');
-      const translationsDir = join(TEMP_PATH, 'translations');
+      const csvPath = join(tempPath, 'translations.csv');
+      const translationsDir = join(tempPath, 'translations');
       const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
 generic.hello,Hello,en,fr,[],[],"Bonjour"`;
 
@@ -94,8 +84,8 @@ generic.hello,Hello,en,fr,[],[],"Bonjour"`;
     });
 
     it('should handle multiple files (different key prefixes)', async () => {
-      const csvPath = join(TEMP_PATH, 'translations.csv');
-      const translationsDir = join(TEMP_PATH, 'translations');
+      const csvPath = join(tempPath, 'translations.csv');
+      const translationsDir = join(tempPath, 'translations');
       const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
 generic.hello,Hello,en,de,[],[],"Hallo"
 auth.login,Login,en,de,[],[],"Anmelden"
@@ -115,8 +105,8 @@ errors.notFound,Not Found,en,de,[],[],"Nicht gefunden"`;
     });
 
     it('should throw error if CSV file does not exist', async () => {
-      const csvPath = join(TEMP_PATH, 'nonexistent.csv');
-      const translationsDir = join(TEMP_PATH, 'translations');
+      const csvPath = join(tempPath, 'nonexistent.csv');
+      const translationsDir = join(tempPath, 'translations');
 
       await expect(runImport(csvPath, translationsDir, nodeModuleParser)).rejects.toThrow(
         'CSV file not found',
@@ -124,8 +114,8 @@ errors.notFound,Not Found,en,de,[],[],"Nicht gefunden"`;
     });
 
     it('should throw error if CSV has no rows with translations', async () => {
-      const csvPath = join(TEMP_PATH, 'translations.csv');
-      const translationsDir = join(TEMP_PATH, 'translations');
+      const csvPath = join(tempPath, 'translations.csv');
+      const translationsDir = join(tempPath, 'translations');
       const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
 generic.hello,Hello,en,de,[],[],""`;
 
@@ -137,8 +127,8 @@ generic.hello,Hello,en,de,[],[],""`;
     });
 
     it('should return summary with correct counts', async () => {
-      const csvPath = join(TEMP_PATH, 'translations.csv');
-      const translationsDir = join(TEMP_PATH, 'translations');
+      const csvPath = join(tempPath, 'translations.csv');
+      const translationsDir = join(tempPath, 'translations');
       const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
 generic.a,A,en,de,[],[],"A-de"
 generic.b,B,en,de,[],[],"B-de"

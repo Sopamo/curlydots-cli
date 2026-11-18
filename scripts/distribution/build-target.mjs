@@ -179,6 +179,13 @@ function main() {
     ]);
 
     ensureFile(compiledBinaryPath);
+    console.log(
+      JSON.stringify({
+        buildPlatform: process.platform,
+        buildArchitecture: process.arch,
+        binaryHeader: readFileSync(compiledBinaryPath).subarray(0, 20).toString('hex'),
+      }),
+    );
 
     archiveBinary({
       binaryPath: compiledBinaryPath,

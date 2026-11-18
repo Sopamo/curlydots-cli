@@ -59,36 +59,40 @@ export async function runTranslationsSync(args: string[]): Promise<void> {
     return;
   }
 
-  const config = loadCliConfig();
-  const apiHost = parsedArgs.apiHost || config.apiEndpoint;
-  const tokenOverride =
-    parsedArgs.apiToken && parsedArgs.apiToken.trim() !== '' ? parsedArgs.apiToken : config.token;
-
-  const client = new HttpClient({
-    baseUrl: apiHost,
-    timeout: config.timeout,
-    retries: config.retries,
-    debug: config.debug,
-  });
-
-  const token = await resolveAuthToken({ client, token: tokenOverride });
-  if (!token) {
-    globalLogger.error('Missing API token. Run "curlydots auth login" or pass --api-token.');
-    process.exitCode = 1;
-    return;
-  }
-
-  configStore.getState().setConfig({
-    repoPath: resolvedPath,
-    translationsDir: parsedArgs.translationsDir,
-    sourceLanguage: parsedArgs.source,
-    targetLanguage: '',
-    parser: parser.name,
-    extensions: parsedArgs.extensions,
-    outputPath: '',
-  });
-
   try {
+    const config = loadCliConfig(resolvedPath);
+    const overrideEndpoint = parsedArgs.apiHost ? new URL(parsedArgs.apiHost) : undefined;
+    if (overrideEndpoint?.pathname === '/') {
+      overrideEndpoint.pathname = '/api';
+    }
+    const requestConfig = {
+      ...config,
+      apiEndpoint: overrideEndpoint?.toString() ?? config.apiEndpoint,
+    };
+    const client = HttpClient.fromConfig(requestConfig);
+
+    const token = await resolveAuthToken({
+      baseDir: resolvedPath,
+      config: requestConfig,
+      client,
+      token: parsedArgs.apiToken?.trim() ? parsedArgs.apiToken : undefined,
+    });
+    if (!token) {
+      globalLogger.error('Missing API token. Run "curlydots auth login" or pass --api-token.');
+      process.exitCode = 1;
+      return;
+    }
+
+    configStore.getState().setConfig({
+      repoPath: resolvedPath,
+      translationsDirs: [parsedArgs.translationsDir],
+      sourceLanguage: parsedArgs.source,
+      targetLanguage: '',
+      parser: parser.name,
+      extensions: parsedArgs.extensions,
+      outputPath: '',
+    });
+
     const languageDir = resolve(resolvedPath, parsedArgs.translationsDir, parsedArgs.source);
     const sourceKeys = await parser.export(languageDir);
     const entries = Array.from(sourceKeys.entries()).map(([key, sourceValue]) => ({

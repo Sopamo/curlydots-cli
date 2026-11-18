@@ -1,21 +1,43 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { clearParsers, getParser, registerParser } from '../../../src/parsers';
-import { nodeModuleParser } from '../../../src/parsers/node-module';
 
 const FIXTURES_PATH = join(import.meta.dir, '../../fixtures/sample-repo/translations');
+let moduleNonce = 0;
+
+async function loadParserModules() {
+  moduleNonce += 1;
+  const parsers = await import(`../../../src/parsers/index.ts?test=${moduleNonce}`);
+  const nodeModule = await import(`../../../src/parsers/node-module.ts?test=${moduleNonce}`);
+  return {
+    clearParsers: parsers.clearParsers,
+    getParser: parsers.getParser,
+    registerParser: parsers.registerParser,
+    nodeModuleParser: nodeModule.nodeModuleParser,
+  };
+}
+
+function initGitRepo(repoPath: string): void {
+  execFileSync('git', ['init'], { cwd: repoPath, stdio: 'ignore' });
+}
+
+function addFileToGit(repoPath: string, filePath: string): void {
+  execFileSync('git', ['add', filePath], { cwd: repoPath, stdio: 'ignore' });
+}
 
 describe('nodeModuleParser', () => {
-  beforeEach(() => {
-    clearParsers();
-  });
-
   describe('parser registration', () => {
-    it('should have name "node-module"', () => {
+    it('should have name "node-module"', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       expect(nodeModuleParser.name).toBe('node-module');
     });
 
-    it('should be registerable', () => {
+    it('should be registerable', async () => {
+      const { clearParsers, getParser, nodeModuleParser, registerParser } =
+        await loadParserModules();
+      clearParsers();
       registerParser(nodeModuleParser);
       expect(getParser('node-module')).toBe(nodeModuleParser);
     });
@@ -23,6 +45,7 @@ describe('nodeModuleParser', () => {
 
   describe('export', () => {
     it('should export English translations', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'en');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -33,6 +56,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should flatten nested objects with dot notation', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'en');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -42,7 +66,31 @@ describe('nodeModuleParser', () => {
       expect(keys.get('generic.errors.serverError')).toBe('Server error');
     });
 
+    it('should keep same leaf keys from different files as different translation keys', async () => {
+      const { nodeModuleParser } = await loadParserModules();
+      const tempDir = await mkdtemp(join(tmpdir(), 'node-module-same-leaf-'));
+
+      try {
+        const langDir = join(tempDir, 'translations', 'en');
+        await mkdir(langDir, { recursive: true });
+        await writeFile(join(langDir, 'users.js'), 'module.exports = { name: "Name" };\n', 'utf8');
+        await writeFile(
+          join(langDir, 'products.js'),
+          'module.exports = { name: "Name" };\n',
+          'utf8',
+        );
+
+        const keys = await nodeModuleParser.export(langDir);
+
+        expect(keys.get('users.name')).toBe('Name');
+        expect(keys.get('products.name')).toBe('Name');
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
     it('should export German translations', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'de');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -52,6 +100,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should return Map with correct size for English', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'en');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -60,6 +109,7 @@ describe('nodeModuleParser', () => {
     });
 
     it('should return Map with correct size for German (missing keys)', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'de');
       const keys = await nodeModuleParser.export(langDir);
 
@@ -68,28 +118,84 @@ describe('nodeModuleParser', () => {
     });
 
     it('should throw error for non-existent directory', async () => {
+      const { nodeModuleParser } = await loadParserModules();
       const langDir = join(FIXTURES_PATH, 'nonexistent');
 
       await expect(nodeModuleParser.export(langDir)).rejects.toThrow();
     });
+
+    it('should ignore translation files excluded by .gitignore', async () => {
+      const { nodeModuleParser } = await loadParserModules();
+      const tempDir = await mkdtemp(join(tmpdir(), 'node-module-ignore-'));
+
+      try {
+        initGitRepo(tempDir);
+        await mkdir(join(tempDir, 'translations', 'en'), { recursive: true });
+        await writeFile(join(tempDir, '.gitignore'), 'translations/en/ignored.js\n', 'utf8');
+        await writeFile(
+          join(tempDir, 'translations', 'en', 'tracked.js'),
+          'module.exports = { welcome: "Welcome" };\n',
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'translations', 'en', 'ignored.js'),
+          'module.exports = { leaked: "Ignored" };\n',
+          'utf8',
+        );
+
+        const keys = await nodeModuleParser.export(join(tempDir, 'translations', 'en'));
+
+        expect(keys.get('tracked.welcome')).toBe('Welcome');
+        expect(keys.has('ignored.leaked')).toBe(false);
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should ignore tracked translation files that match .gitignore', async () => {
+      const { nodeModuleParser } = await loadParserModules();
+      const tempDir = await mkdtemp(join(tmpdir(), 'node-module-tracked-ignore-'));
+
+      try {
+        initGitRepo(tempDir);
+        await mkdir(join(tempDir, 'translations', 'en'), { recursive: true });
+        await writeFile(
+          join(tempDir, 'translations', 'en', 'tracked.js'),
+          'module.exports = { leaked: "Tracked but ignored" };\n',
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'translations', 'en', 'visible.js'),
+          'module.exports = { welcome: "Visible" };\n',
+          'utf8',
+        );
+        addFileToGit(tempDir, 'translations/en/tracked.js');
+        await writeFile(join(tempDir, '.gitignore'), 'translations/en/tracked.js\n', 'utf8');
+
+        const keys = await nodeModuleParser.export(join(tempDir, 'translations', 'en'));
+
+        expect(keys.get('visible.welcome')).toBe('Visible');
+        expect(keys.has('tracked.leaked')).toBe(false);
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('import', () => {
-    const TEMP_PATH = join(import.meta.dir, '../../fixtures/temp-import');
+    let tempPath = '';
 
     beforeEach(async () => {
-      // Clean up temp directory before each test
-      const { rm, mkdir } = await import('node:fs/promises');
-      try {
-        await rm(TEMP_PATH, { recursive: true, force: true });
-      } catch {
-        // Ignore if doesn't exist
-      }
-      await mkdir(TEMP_PATH, { recursive: true });
+      tempPath = await mkdtemp(join(tmpdir(), 'node-module-import-'));
+    });
+
+    afterEach(async () => {
+      await rm(tempPath, { recursive: true, force: true });
     });
 
     it('should create new file with translations', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
       const translations = new Map([
         ['generic.welcome', 'Willkommen'],
         ['generic.goodbye', 'Auf Wiedersehen'],
@@ -108,7 +214,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create nested key structure', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
       const translations = new Map([
         ['auth.login.button', 'Anmelden'],
         ['auth.login.title', 'Einloggen'],
@@ -124,7 +231,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should merge with existing file content', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
 
       // First import
       const initial = new Map([
@@ -148,7 +256,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should update existing keys', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
 
       // First import
       const initial = new Map([['generic.hello', 'Hallo']]);
@@ -163,7 +272,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create multiple files for different prefixes', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
       const translations = new Map([
         ['generic.welcome', 'Willkommen'],
         ['auth.login', 'Anmelden'],
@@ -182,7 +292,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should create language directory if it does not exist', async () => {
-      const langDir = join(TEMP_PATH, 'fr', 'nested');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'fr', 'nested');
       const translations = new Map([['generic.hello', 'Bonjour']]);
 
       const result = await nodeModuleParser.import(langDir, translations);
@@ -193,7 +304,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle empty translations map', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
       const translations = new Map<string, string>();
 
       const result = await nodeModuleParser.import(langDir, translations);
@@ -204,7 +316,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should skip keys without file prefix and log warning', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
       const translations = new Map([
         ['generic.hello', 'Hallo'], // valid
         ['invalidkey', 'Invalid'], // no dot - should be skipped
@@ -221,7 +334,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle deeply nested keys', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
       const translations = new Map([
         ['settings.account.profile.name', 'Name'],
         ['settings.account.profile.email', 'E-Mail'],
@@ -237,7 +351,8 @@ describe('nodeModuleParser', () => {
     });
 
     it('should handle special characters in values', async () => {
-      const langDir = join(TEMP_PATH, 'de');
+      const { nodeModuleParser } = await loadParserModules();
+      const langDir = join(tempPath, 'de');
       const translations = new Map([
         ['generic.quote', "It's a test"],
         ['generic.html', '<span>HTML</span>'],
@@ -252,4 +367,28 @@ describe('nodeModuleParser', () => {
       expect(exported.get('generic.unicode')).toBe('日本語テスト');
     });
   });
+});
+
+it('ignores nested translation modules with either path separator', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'curlydots-nested-modules-'));
+  try {
+    await mkdir(join(directory, 'nested'));
+    await writeFile(join(directory, 'generic.js'), 'module.exports = { greeting: "root" };');
+    await writeFile(
+      join(directory, 'nested/generic.js'),
+      'module.exports = { greeting: "nested" };',
+    );
+    if (process.platform !== 'win32') {
+      await writeFile(
+        join(directory, 'nested\\generic.js'),
+        'module.exports = { greeting: "windows nested" };',
+      );
+    }
+    const { nodeModuleParser } = await loadParserModules();
+    expect(await nodeModuleParser.export(directory)).toEqual(
+      new Map([['generic.greeting', 'root']]),
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

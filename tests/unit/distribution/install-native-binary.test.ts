@@ -1,20 +1,15 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  chmodSync,
-  copyFileSync,
-  lstatSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
-import os from 'node:os';
+import type * as fs from 'node:fs';
+import * as os from 'node:os';
 import path from 'node:path';
 
+let moduleNonce = 0;
+
 async function loadInstaller() {
-  const module = await import('../../../scripts/distribution/install-native-binary.cjs');
+  moduleNonce += 1;
+  const module = await import(
+    `../../../scripts/distribution/install-native-binary.cjs?test=${moduleNonce}`
+  );
   return (module.default ?? module) as {
     WINDOWS_ARM64_UNSUPPORTED_MESSAGE: string;
     linkInstalledBinary: (args: {
@@ -22,16 +17,12 @@ async function loadInstaller() {
       destinationPath: string;
       platform?: string;
       operations?: {
-        mkdirSync: typeof mkdirSync;
-        rmSync: typeof rmSync;
-        linkSync: (sourcePath: string, destinationPath: string) => void;
-        symlinkSync: (
-          targetPath: string,
-          destinationPath: string,
-          type?: 'dir' | 'file' | 'junction',
-        ) => void;
-        copyFileSync: typeof copyFileSync;
-        chmodSync: typeof chmodSync;
+        mkdirSync: typeof fs.mkdirSync;
+        rmSync: typeof fs.rmSync;
+        linkSync: typeof fs.linkSync;
+        symlinkSync: typeof fs.symlinkSync;
+        copyFileSync: typeof fs.copyFileSync;
+        chmodSync: typeof fs.chmodSync;
       };
     }) => { method: string };
     installNativeBinary: (args: {
@@ -51,7 +42,8 @@ async function loadInstaller() {
   };
 }
 
-function makeTempDir(prefix: string) {
+async function makeTempDir(prefix: string) {
+  const { mkdtempSync } = await import('node:fs');
   return mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
@@ -86,7 +78,10 @@ describe('distribution/install-native-binary', () => {
 
   it('links the resolved binary to the top-level bin path without copy duplication', async () => {
     const installer = await loadInstaller();
-    const tempDir = makeTempDir('curlydots-install-link-');
+    const { lstatSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } = await import(
+      'node:fs'
+    );
+    const tempDir = await makeTempDir('curlydots-install-link-');
 
     try {
       const sourcePath = path.join(tempDir, 'source', 'curlydots');
@@ -117,7 +112,9 @@ describe('distribution/install-native-binary', () => {
 
   it('falls back to copying when hardlink and symlink fail', async () => {
     const installer = await loadInstaller();
-    const tempDir = makeTempDir('curlydots-install-link-fallback-');
+    const { chmodSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } =
+      await import('node:fs');
+    const tempDir = await makeTempDir('curlydots-install-link-fallback-');
 
     try {
       const sourcePath = path.join(tempDir, 'source', 'curlydots');
@@ -152,7 +149,8 @@ describe('distribution/install-native-binary', () => {
 
   it('installs directly from already-resolved optional dependency when present', async () => {
     const installer = await loadInstaller();
-    const tempDir = makeTempDir('curlydots-install-resolve-');
+    const { mkdirSync, readFileSync, rmSync, writeFileSync } = await import('node:fs');
+    const tempDir = await makeTempDir('curlydots-install-resolve-');
 
     try {
       const packageRoot = path.join(tempDir, 'package');
@@ -201,7 +199,8 @@ describe('distribution/install-native-binary', () => {
 
   it('attempts fallback npm install when optional dependency is missing', async () => {
     const installer = await loadInstaller();
-    const tempDir = makeTempDir('curlydots-install-fallback-');
+    const { mkdirSync, readFileSync, rmSync, writeFileSync } = await import('node:fs');
+    const tempDir = await makeTempDir('curlydots-install-fallback-');
 
     try {
       const packageRoot = path.join(tempDir, 'package');

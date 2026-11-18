@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadParserFromFile } from '../../../src/parsers/parser-file-loader';
+
+let moduleNonce = 0;
+
+async function loadParserLoaderModule() {
+  moduleNonce += 1;
+  return import(`../../../src/parsers/parser-file-loader.ts?test=${moduleNonce}`);
+}
 
 describe('parser-file-loader', () => {
   let tempDir = '';
@@ -35,6 +41,7 @@ export default {
       'utf8',
     );
 
+    const { loadParserFromFile } = await loadParserLoaderModule();
     const parser = await loadParserFromFile(parserFilePath);
     expect(parser.name).toBe('ts-custom-parser');
 
@@ -60,6 +67,7 @@ export const parser = {
       'utf8',
     );
 
+    const { loadParserFromFile } = await loadParserLoaderModule();
     const parser = await loadParserFromFile(parserFilePath);
     expect(parser.name).toBe('js-custom-parser');
 
@@ -72,6 +80,7 @@ export const parser = {
     await writeFile(parserFilePath, `export default { name: 'invalid' };`, 'utf8');
 
     await expect(async () => {
+      const { loadParserFromFile } = await loadParserLoaderModule();
       await loadParserFromFile(parserFilePath);
     }).toThrow('must export a parser with name/export/import functions');
   });

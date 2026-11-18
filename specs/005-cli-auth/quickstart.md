@@ -79,8 +79,6 @@ curlydots auth logout
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `CURLYDOTS_TOKEN` | API authentication token | `sk_test_123456789` |
-| `CURLYDOTS_API_URL` | Custom API endpoint | `https://api.staging.curlydots.com` |
-| `CURLYDOTS_DEBUG` | Enable debug logging | `true` |
 
 ### Configuration File
 
@@ -89,7 +87,8 @@ Create `~/.curlydots/config.json`:
 ```json
 {
   "defaultLocale": "en",
-  "apiEndpoint": "https://api.curlydots.com",
+  "apiEndpoint": "https://curlydots.com/api",
+  "frontendUrl": "https://curlydots.com",
   "authMethod": "browser",
   "tokenStorage": "keychain",
   "timeout": 30000,

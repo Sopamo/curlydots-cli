@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -7,13 +7,11 @@ type FetchArgs = Parameters<typeof fetch>;
 
 mock.module('../../src/config/cli-config', () => ({
   loadCliConfig: () => ({
-    apiEndpoint: 'https://curlydots.com',
-    authMethod: 'browser',
-    tokenStorage: 'keychain',
+    apiEndpoint: 'https://curlydots.com/api',
+    frontendUrl: 'https://curlydots.com',
     timeout: 500,
     retries: 0,
     debug: false,
-    token: undefined,
     defaultLocale: undefined,
   }),
 }));
@@ -250,7 +248,7 @@ describe('integration/push-translations parser-file', () => {
     fetchCalls.push({ input, init });
     const method = init?.method ?? 'GET';
     if (method === 'GET') {
-      return new Response(JSON.stringify({ keys: [] }), {
+      return new Response(JSON.stringify({ data: { keys: [] } }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -300,10 +298,10 @@ describe('integration/push-translations parser-file', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const postCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') !== 'GET');
     const body = JSON.parse((postCall?.init?.body as string) ?? '{}') as {
-      keys?: Array<{ translationKey: string }>;
+      entries?: Array<{ translationKey: string }>;
     };
 
-    const pushedKeys = (body.keys ?? []).map((item) => item.translationKey).sort();
+    const pushedKeys = (body.entries ?? []).map((item) => item.translationKey).sort();
     expect(pushedKeys).toEqual(['common.greeting', 'common.nested.cta', 'errors.notFound']);
   });
 
@@ -330,10 +328,10 @@ describe('integration/push-translations parser-file', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const postCall = fetchCalls.find((call) => (call.init?.method ?? 'GET') !== 'GET');
     const body = JSON.parse((postCall?.init?.body as string) ?? '{}') as {
-      keys?: Array<{ translationKey: string }>;
+      entries?: Array<{ translationKey: string }>;
     };
 
-    const pushedKeys = (body.keys ?? []).map((item) => item.translationKey).sort();
+    const pushedKeys = (body.entries ?? []).map((item) => item.translationKey).sort();
     expect(pushedKeys).toEqual([
       'screens.auth.login.button',
       'screens.home.index.subtitle',

@@ -4,34 +4,24 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { existsSync } from 'node:fs';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const TEST_FIXTURES_DIR = join(import.meta.dir, '../fixtures/temp-import-integration');
-
 describe('import-command integration', () => {
+  let testFixturesDir = '';
+
   beforeEach(async () => {
-    // Clean up and create temp directory
-    try {
-      await rm(TEST_FIXTURES_DIR, { recursive: true, force: true });
-    } catch {
-      // Ignore if doesn't exist
-    }
-    await mkdir(TEST_FIXTURES_DIR, { recursive: true });
+    testFixturesDir = await mkdtemp(join(tmpdir(), 'import-command-'));
   });
 
   afterEach(async () => {
-    // Clean up temp directory
-    try {
-      await rm(TEST_FIXTURES_DIR, { recursive: true, force: true });
-    } catch {
-      // Ignore
-    }
+    await rm(testFixturesDir, { recursive: true, force: true });
   });
 
   it('should import translated CSV to translation files end-to-end', async () => {
-    const csvPath = join(TEST_FIXTURES_DIR, 'translated.csv');
-    const translationsDir = join(TEST_FIXTURES_DIR, 'translations');
+    const csvPath = join(testFixturesDir, 'translated.csv');
+    const translationsDir = join(testFixturesDir, 'translations');
 
     // Create translated CSV (simulating output from translate command)
     const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
@@ -68,8 +58,8 @@ auth.login,Login,en,de,[],[],"Anmelden"`;
   });
 
   it('should handle CSV with some empty translations', async () => {
-    const csvPath = join(TEST_FIXTURES_DIR, 'partial.csv');
-    const translationsDir = join(TEST_FIXTURES_DIR, 'translations');
+    const csvPath = join(testFixturesDir, 'partial.csv');
+    const translationsDir = join(testFixturesDir, 'translations');
 
     const csvContent = `translation_key,source_value,source_language,target_language,code_context,translation_context,translated_value
 generic.hello,Hello,en,de,[],[],"Hallo"
@@ -99,8 +89,8 @@ generic.test,Test,en,de,[],[],"Test-de"`;
   });
 
   it('should merge with existing translation files', async () => {
-    const csvPath = join(TEST_FIXTURES_DIR, 'updates.csv');
-    const translationsDir = join(TEST_FIXTURES_DIR, 'translations');
+    const csvPath = join(testFixturesDir, 'updates.csv');
+    const translationsDir = join(testFixturesDir, 'translations');
     const deLangDir = join(translationsDir, 'de');
 
     // Create existing translation file
@@ -138,8 +128,8 @@ generic.newKey,New Key,en,de,[],[],"Neuer Schlüssel"`;
   });
 
   it('should fail gracefully for non-existent CSV', async () => {
-    const csvPath = join(TEST_FIXTURES_DIR, 'nonexistent.csv');
-    const translationsDir = join(TEST_FIXTURES_DIR, 'translations');
+    const csvPath = join(testFixturesDir, 'nonexistent.csv');
+    const translationsDir = join(testFixturesDir, 'translations');
 
     const { runImport } = await import('../../src/commands/import');
 

@@ -4,21 +4,19 @@ import type { TaskId, TaskState } from '../../../src/types';
 describe('TaskId type', () => {
   it('should allow valid task IDs', () => {
     const validIds: TaskId[] = [
-      'find_source_keys',
-      'find_target_keys',
+      'find_translation_keys',
       'find_missing',
       'find_code_context',
       'find_translation_context',
       'export_csv',
     ];
 
-    expect(validIds.length).toBe(6);
+    expect(validIds.length).toBe(5);
   });
 
   it('should have all required task IDs in correct order', () => {
     const taskOrder: TaskId[] = [
-      'find_source_keys',
-      'find_target_keys',
+      'find_translation_keys',
       'find_missing',
       'find_code_context',
       'find_translation_context',
@@ -26,31 +24,30 @@ describe('TaskId type', () => {
     ];
 
     // Verify the expected IDs exist
-    expect(taskOrder[0]).toBe('find_source_keys');
-    expect(taskOrder[1]).toBe('find_target_keys');
-    expect(taskOrder[2]).toBe('find_missing');
-    expect(taskOrder[3]).toBe('find_code_context');
-    expect(taskOrder[4]).toBe('find_translation_context');
-    expect(taskOrder[5]).toBe('export_csv');
+    expect(taskOrder[0]).toBe('find_translation_keys');
+    expect(taskOrder[1]).toBe('find_missing');
+    expect(taskOrder[2]).toBe('find_code_context');
+    expect(taskOrder[3]).toBe('find_translation_context');
+    expect(taskOrder[4]).toBe('export_csv');
   });
 });
 
 describe('TaskState interface', () => {
   it('should have required fields', () => {
     const task: TaskState = {
-      id: 'find_source_keys',
-      label: 'Find source translation keys',
+      id: 'find_translation_keys',
+      label: 'Find translation keys',
       status: 'pending',
     };
 
-    expect(task.id).toBe('find_source_keys');
-    expect(task.label).toBe('Find source translation keys');
+    expect(task.id).toBe('find_translation_keys');
+    expect(task.label).toBe('Find translation keys');
     expect(task.status).toBe('pending');
   });
 
   it('should allow pending status', () => {
     const task: TaskState = {
-      id: 'find_source_keys',
+      id: 'find_translation_keys',
       label: 'Test',
       status: 'pending',
     };
@@ -59,7 +56,7 @@ describe('TaskState interface', () => {
 
   it('should allow in_progress status', () => {
     const task: TaskState = {
-      id: 'find_source_keys',
+      id: 'find_translation_keys',
       label: 'Test',
       status: 'in_progress',
     };
@@ -68,7 +65,7 @@ describe('TaskState interface', () => {
 
   it('should allow complete status', () => {
     const task: TaskState = {
-      id: 'find_source_keys',
+      id: 'find_translation_keys',
       label: 'Test',
       status: 'complete',
     };

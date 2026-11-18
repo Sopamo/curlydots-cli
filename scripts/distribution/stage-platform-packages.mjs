@@ -191,6 +191,7 @@ export function stagePlatformPackages({
 
     const targetStagingDir = path.join(stagingDir, packageDirName(target.packageName));
     const extractDir = path.join(targetStagingDir, '.extract');
+    const npmCacheDir = path.join(targetStagingDir, '.npm-cache');
     const destinationBinaryName = path.basename(target.binarySubpath);
     const destinationBinaryPath = path.join(targetStagingDir, 'bin', destinationBinaryName);
 
@@ -218,15 +219,15 @@ export function stagePlatformPackages({
       createPlatformPackageReadme(target),
       'utf8',
     );
-
-    const packOutput = run('npm', ['pack', '--pack-destination', resolvedOutputDir], {
+    mkdirSync(npmCacheDir, { recursive: true });
+    const packOutput = run('npm', ['pack', '--json', '--pack-destination', resolvedOutputDir], {
       cwd: targetStagingDir,
+      env: {
+        ...process.env,
+        npm_config_cache: npmCacheDir,
+      },
     });
-    const tarballFile = packOutput
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .at(-1);
+    const tarballFile = JSON.parse(packOutput)[0]?.filename;
 
     if (!tarballFile) {
       throw new Error(`npm pack did not emit tarball name for ${target.packageName}`);

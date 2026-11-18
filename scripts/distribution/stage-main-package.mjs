@@ -176,6 +176,7 @@ export function stageMainPackage({
   );
   const rawPlatformMetadata = JSON.parse(readFileSync(resolvedPlatformMetadataPath, 'utf8'));
   const platformPackages = normalizePlatformMetadata(rawPlatformMetadata);
+  const npmCacheDir = path.join(stagingDir, '.npm-cache');
 
   copyFileSync(
     path.join(resolvedPackageRoot, 'scripts', 'distribution', 'install-native-binary.cjs'),
@@ -192,15 +193,15 @@ export function stageMainPackage({
     path.join(stagingDir, 'package.json'),
     `${JSON.stringify(publishManifest, null, 2)}\n`,
   );
-
-  const packOutput = run('npm', ['pack', '--pack-destination', resolvedOutputDir], {
+  mkdirSync(npmCacheDir, { recursive: true });
+  const packOutput = run('npm', ['pack', '--json', '--pack-destination', resolvedOutputDir], {
     cwd: stagingDir,
+    env: {
+      ...process.env,
+      npm_config_cache: npmCacheDir,
+    },
   });
-  const tarballFile = packOutput
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .at(-1);
+  const tarballFile = JSON.parse(packOutput)[0]?.filename;
 
   if (!tarballFile) {
     throw new Error('npm pack did not emit main package tarball name');

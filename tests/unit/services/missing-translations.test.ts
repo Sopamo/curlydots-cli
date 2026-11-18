@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clearParsers, registerParser } from '../../../src/parsers';
 import { nodeModuleParser } from '../../../src/parsers/node-module';
-import { compareTranslationSets, findMissingTranslations } from '../../../src/services/analyzer';
+import {
+  compareTranslationSets,
+  findMissingTranslations,
+} from '../../../src/services/missing-translations';
 import { configStore } from '../../../src/stores';
 import type { MissingTranslation } from '../../../src/types';
 
 const FIXTURES_PATH = join(import.meta.dir, '../../fixtures/sample-repo');
 
-describe('analyzer', () => {
+describe('missing-translations', () => {
   beforeEach(() => {
     clearParsers();
     registerParser(nodeModuleParser);
@@ -66,7 +71,7 @@ describe('analyzer', () => {
     it('should find missing translations between en and de', async () => {
       configStore.getState().setConfig({
         repoPath: FIXTURES_PATH,
-        translationsDir: 'translations',
+        translationsDirs: ['translations'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
         parser: 'node-module',
@@ -86,7 +91,7 @@ describe('analyzer', () => {
     it('should return source and target key counts', async () => {
       configStore.getState().setConfig({
         repoPath: FIXTURES_PATH,
-        translationsDir: 'translations',
+        translationsDirs: ['translations'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
         parser: 'node-module',
@@ -101,7 +106,7 @@ describe('analyzer', () => {
     it('should throw error for unknown parser', async () => {
       configStore.getState().setConfig({
         repoPath: FIXTURES_PATH,
-        translationsDir: 'translations',
+        translationsDirs: ['translations'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
         parser: 'unknown-parser',
@@ -113,7 +118,7 @@ describe('analyzer', () => {
     it('should include source value in missing translations', async () => {
       configStore.getState().setConfig({
         repoPath: FIXTURES_PATH,
-        translationsDir: 'translations',
+        translationsDirs: ['translations'],
         sourceLanguage: 'en',
         targetLanguage: 'de',
         parser: 'node-module',
@@ -123,6 +128,69 @@ describe('analyzer', () => {
 
       const welcomeMissing = result.missing.find((m) => m.key === 'generic.welcome');
       expect(welcomeMissing?.sourceValue).toBe('Welcome');
+    });
+
+    it('should merge source and target translations across multiple directories', async () => {
+      const tempDir = await mkdtemp(join(tmpdir(), 'analyzer-multi-dir-'));
+
+      try {
+        await mkdir(join(tempDir, 'translations-a', 'en'), { recursive: true });
+        await mkdir(join(tempDir, 'translations-a', 'de'), { recursive: true });
+        await mkdir(join(tempDir, 'translations-b', 'en'), { recursive: true });
+        await mkdir(join(tempDir, 'translations-b', 'de'), { recursive: true });
+
+        await writeFile(
+          join(tempDir, 'translations-a', 'en', 'common.js'),
+          'module.exports = { save: "Save", cancel: "Cancel" };\n',
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'translations-a', 'de', 'common.js'),
+          'module.exports = { save: "Speichern" };\n',
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'translations-b', 'en', 'admin.js'),
+          'module.exports = { publish: "Publish" };\n',
+          'utf8',
+        );
+        await writeFile(
+          join(tempDir, 'translations-b', 'de', 'admin.js'),
+          'module.exports = {};\n',
+          'utf8',
+        );
+
+        configStore.getState().setConfig({
+          repoPath: tempDir,
+          translationsDirs: ['translations-a', 'translations-b'],
+          sourceLanguage: 'en',
+          targetLanguage: 'de',
+          parser: 'node-module',
+        });
+
+        const result = await findMissingTranslations();
+        const missingKeys = result.missing.map((m: MissingTranslation) => m.key);
+
+        expect(result.sourceKeyCount).toBe(3);
+        expect(result.targetKeyCount).toBe(1);
+        expect(missingKeys).toEqual(['common.cancel', 'admin.publish']);
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should throw error when no translation directories are configured', async () => {
+      configStore.getState().setConfig({
+        repoPath: FIXTURES_PATH,
+        translationsDirs: [],
+        sourceLanguage: 'en',
+        targetLanguage: 'de',
+        parser: 'node-module',
+      });
+
+      await expect(findMissingTranslations()).rejects.toThrow(
+        'No translation directories configured',
+      );
     });
   });
 });

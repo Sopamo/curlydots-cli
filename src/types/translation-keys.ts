@@ -8,5 +8,7 @@ export interface TranslationKeyPayload {
 }
 
 export interface ExistingKeysResponse {
-  keys: string[];
+  data: {
+    keys: string[];
+  };
 }
