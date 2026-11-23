@@ -95,10 +95,26 @@ export async function runTranslationsSync(args: string[]): Promise<void> {
 
     const languageDir = resolve(resolvedPath, parsedArgs.translationsDir, parsedArgs.source);
     const sourceKeys = await parser.export(languageDir);
-    const entries = Array.from(sourceKeys.entries()).map(([key, sourceValue]) => ({
-      key,
-      sourceValue,
-    }));
+    const entries: Array<{ key: string; sourceValue: string }> = [];
+    const emptyKeys: string[] = [];
+    for (const [key, sourceValue] of sourceKeys) {
+      if (sourceValue.trim() === '') {
+        emptyKeys.push(key);
+      } else {
+        entries.push({ key, sourceValue });
+      }
+    }
+
+    if (emptyKeys.length > 0) {
+      globalLogger.warn(
+        `Skipping keys with an empty "${parsedArgs.source}" value; Curlydots rejects empty source values, so these keys will not appear in the admin: ${emptyKeys.join(', ')}`,
+      );
+    }
+
+    if (entries.length === 0) {
+      globalLogger.warn('No translation keys with a non-empty value to sync.');
+      return;
+    }
 
     const withContext = await findContextForKeys(entries, resolvedPath);
     const payloads = buildTranslationSyncPayloads(withContext, resolvedPath);

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { globalLogger } from '../../src/utils/logger';
 
@@ -169,6 +171,76 @@ describe('integration/sync-translations', () => {
       expect(process.exitCode).toBe(0);
     },
   );
+
+  describe('empty source values', () => {
+    let tempRepo: string;
+
+    async function syncTempRepo(translations: string): Promise<void> {
+      tempRepo = await mkdtemp(join(tmpdir(), 'curlydots-sync-empty-'));
+      await mkdir(join(tempRepo, 'translations/en'), { recursive: true });
+      await writeFile(join(tempRepo, 'translations/en/generic.js'), translations);
+
+      const { runTranslationsSync } = await import('../../src/commands/translations/sync');
+      await runTranslationsSync([
+        '--team',
+        'team-a',
+        '--project',
+        'project-a',
+        '--repo',
+        tempRepo,
+        '--translations-dir',
+        'translations',
+        '--source',
+        'en',
+        '--api-host',
+        'https://curlydots.com/api',
+        '--api-token',
+        'token-abc',
+      ]);
+    }
+
+    afterEach(async () => {
+      await rm(tempRepo, { recursive: true, force: true });
+    });
+
+    it('skips blank values with a warning and syncs the remaining keys', async () => {
+      const warnSpy = spyOn(globalLogger, 'warn').mockImplementation(() => {});
+      spyOn(globalLogger, 'info').mockImplementation(() => {});
+
+      await syncTempRepo(
+        `module.exports = { save: 'Save', empty: '', spaces: '  ', nested: { blank: '', ok: ' Ok ' } };`,
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const body = JSON.parse((fetchCalls[0]?.init?.body as string) ?? '{}') as {
+        keys?: Array<{ key: string; default_value: string }>;
+      };
+      expect(body.keys?.map(({ key, default_value }) => [key, default_value])).toEqual([
+        ['generic.save', 'Save'],
+        ['generic.nested.ok', ' Ok '],
+      ]);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(': generic.empty, generic.spaces, generic.nested.blank'),
+      );
+      expect(process.exitCode).toBe(0);
+    });
+
+    it('does not send a request when every value is blank', async () => {
+      const warnSpy = spyOn(globalLogger, 'warn').mockImplementation(() => {});
+      const infoSpy = spyOn(globalLogger, 'info').mockImplementation(() => {});
+
+      await syncTempRepo(`module.exports = { empty: '', spaces: ' ' };`);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(': generic.empty, generic.spaces'),
+      );
+      expect(warnSpy).toHaveBeenCalledWith('No translation keys with a non-empty value to sync.');
+      expect(infoSpy).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(0);
+    });
+  });
 
   it('uses CURLYDOTS_TOKEN when api token is not passed', async () => {
     process.env.CURLYDOTS_TOKEN = 'env-token-abc';
