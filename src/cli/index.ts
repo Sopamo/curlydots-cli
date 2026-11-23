@@ -8,6 +8,7 @@ import { printProjectsHelp, projectsCommand } from '../commands/projects';
 import { translateCommand } from '../commands/translate';
 import { runTranslationsPush } from '../commands/translations/push';
 import { runTranslationsStatus } from '../commands/translations/status';
+import { runTranslationsSync } from '../commands/translations/sync';
 import { globalLogger } from '../utils/logger';
 
 export type CommandHandler = (args: string[]) => Promise<void>;
@@ -65,6 +66,7 @@ const commandMap: Record<string, CommandHandler> = {
   'auth logout': async (args) => authLogoutCommand(args),
   'auth status': async (args) => authStatusCommand(args),
   'translations push': async (args) => runTranslationsPush(args),
+  'translations sync': async (args) => runTranslationsSync(args),
   'translations status': async (args) => runTranslationsStatus(args),
 };
 
@@ -95,6 +97,7 @@ Commands:
   auth status            Display stored authentication info
   projects               List available projects
   translations push      Push translation payload to backend
+  translations sync      Sync default-language keys with backend
   translations status    Check translation push status
   extract                Find missing translations
   translate              Translate CSV using AI

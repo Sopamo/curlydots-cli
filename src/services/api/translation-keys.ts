@@ -85,7 +85,7 @@ export async function uploadTranslationKeys(
     await client.post(
       `/api/projects/${projectUuid}/translation-keys`,
       { entries: batch, current_batch: currentBatch, total_batch: totalBatch },
-      token,
+      { token },
     );
     uploaded += batch.length;
     batches += 1;
