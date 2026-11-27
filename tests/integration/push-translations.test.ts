@@ -83,7 +83,11 @@ describe('integration/push-translations', () => {
     expect(Array.isArray(first?.codeContext)).toBe(true);
   });
 
-  it('skips keys that already exist on the backend', async () => {
+  it.each([
+    ['falls back to existing keys on older servers', undefined, false, false],
+    ['uploads target-only keys', ['generic.back'], false, true],
+    ['uploads all source values when sourceKeys is empty', [], true, true],
+  ] as const)('%s', async (_description, sourceKeys, uploadBack, uploadSave) => {
     const { runTranslationsPush } = await import('../../src/commands/translations/push');
 
     fetchMock.mockImplementationOnce(async (...args: FetchArgs) => {
@@ -91,10 +95,10 @@ describe('integration/push-translations', () => {
       fetchCalls.push({ input, init });
       const method = init?.method ?? 'GET';
       if (method === 'GET') {
-        return new Response(JSON.stringify({ data: { keys: ['generic.back', 'generic.save'] } }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ data: { keys: ['generic.back', 'generic.save'], sourceKeys } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
       }
       return new Response(JSON.stringify({}), {
         status: 201,
@@ -124,8 +128,8 @@ describe('integration/push-translations', () => {
       entries?: Array<Record<string, unknown>>;
     };
 
-    expect(body.entries?.some((key) => key.translationKey === 'generic.back')).toBe(false);
-    expect(body.entries?.some((key) => key.translationKey === 'generic.save')).toBe(false);
+    expect(body.entries?.some((key) => key.translationKey === 'generic.back')).toBe(uploadBack);
+    expect(body.entries?.some((key) => key.translationKey === 'generic.save')).toBe(uploadSave);
   });
 
   it('merges translation keys across multiple translation directories', async () => {

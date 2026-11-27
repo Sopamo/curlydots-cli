@@ -64,7 +64,10 @@ describe('contract/translation-keys', () => {
 
     expect(response.data.keys).toEqual(['alpha', 'beta']);
     expect(client.getCalls).toEqual([
-      { path: '/api/projects/project-123/translation-keys', token: 'token-abc' },
+      {
+        path: '/api/projects/project-123/translation-keys?includeSourceKeys=1',
+        token: 'token-abc',
+      },
     ]);
   });
 

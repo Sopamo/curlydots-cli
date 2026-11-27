@@ -236,8 +236,8 @@ export async function runTranslationsPush(args: string[]): Promise<void> {
       `Server has ${chalk.bold(existingCount)} existing ${plural(existingCount, 'key')}`,
     );
 
-    // Step 4: Filter out keys that already exist on server
-    const existingSet = new Set(existing.data?.keys ?? []);
+    // Step 4: Filter out keys that already have a source value
+    const existingSet = new Set(existing.data?.sourceKeys ?? existing.data?.keys ?? []);
     const newEntries = entries.filter((e) => !existingSet.has(e.key));
     const skipped = entries.length - newEntries.length;
 

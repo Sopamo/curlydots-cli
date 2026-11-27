@@ -10,5 +10,6 @@ export interface TranslationKeyPayload {
 export interface ExistingKeysResponse {
   data: {
     keys: string[];
+    sourceKeys?: string[];
   };
 }
