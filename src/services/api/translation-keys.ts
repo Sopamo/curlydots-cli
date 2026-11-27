@@ -35,9 +35,10 @@ export async function fetchExistingTranslationKeys(
   projectUuid: string,
   token: string,
 ): Promise<ExistingKeysResponse> {
-  return client.get<ExistingKeysResponse>(`/api/projects/${projectUuid}/translation-keys`, {
-    token,
-  });
+  return client.get<ExistingKeysResponse>(
+    `/api/projects/${projectUuid}/translation-keys?includeSourceKeys=1`,
+    { token },
+  );
 }
 
 export type UploadProgressCallback = (info: {
